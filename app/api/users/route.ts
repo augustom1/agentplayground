@@ -2,6 +2,7 @@
  * /api/users — admin-only user management
  * Middleware already enforces admin role before requests reach here.
  */
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";

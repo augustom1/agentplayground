@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { CHAT_TOOLS, executeTool } from "@/lib/chat-tools";

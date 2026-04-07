@@ -3,6 +3,7 @@
  * Only works when 0 users exist in the database.
  * Disabled automatically once any user is created.
  */
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";

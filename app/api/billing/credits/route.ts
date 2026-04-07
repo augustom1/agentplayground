@@ -2,7 +2,7 @@
  * POST /api/billing/credits — Add credits to a user's wallet (admin only).
  * Will be replaced by Stripe webhook in production.
  */
-
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { apiError } from "@/lib/api-error";

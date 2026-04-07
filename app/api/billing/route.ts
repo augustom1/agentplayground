@@ -1,6 +1,7 @@
 /**
  * GET /api/billing — Current user's usage summary and credit balance.
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";

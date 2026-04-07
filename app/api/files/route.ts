@@ -3,7 +3,7 @@
  * POST /api/files              — create directory  { path: string }
  * DELETE /api/files?path=      — delete file or directory
  */
-
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { apiError } from "@/lib/api-error";

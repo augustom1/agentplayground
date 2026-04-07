@@ -10,7 +10,7 @@
  *   - target:  team name to route to (optional context)
  *   - prompt:  override prompt (required if no taskId)
  */
-
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";

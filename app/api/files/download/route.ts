@@ -1,7 +1,7 @@
 /**
  * GET /api/files/download?path= — stream file download
  */
-
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import fs from "fs";

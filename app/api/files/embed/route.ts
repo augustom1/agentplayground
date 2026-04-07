@@ -9,7 +9,7 @@
  * Splits files into 512-token chunks (~2000 chars) for better recall.
  * Existing embeddings for the same file are replaced.
  */
-
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
