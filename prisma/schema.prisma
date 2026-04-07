@@ -373,6 +373,137 @@ model Embedding {
   @@map("embeddings")
 }
 
+// ─── Projects (Vision Phase 1) ───────────────────────────
+
+model Project {
+  id              String   @id @default(cuid())
+  tenantId        String   @default("default")
+  name            String
+  description     String?
+  status          String   @default("active")    // active | paused | completed | archived
+  type            String   @default("one-time")   // one-time | recurring | permanent
+  schedule        Json?                            // { cron, lastRun, nextRun }
+  deliveryChannel String?                          // chat | telegram | email
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("projects")
+}
+
+model ProjectTeam {
+  id        String   @id @default(cuid())
+  projectId String
+  teamId    String
+  role      String?
+  joinedAt  DateTime @default(now())
+
+  @@unique([projectId, teamId])
+  @@index([projectId])
+  @@map("project_teams")
+}
+
+model ProjectOutput {
+  id        String   @id @default(cuid())
+  projectId String
+  type      String                               // report | content | data | file
+  title     String?
+  content   Json?
+  filePath  String?
+  agentId   String
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+  @@map("project_outputs")
+}
+
+// ─── Channels & Routing (Vision Phase 2) ─────────────────
+
+model Channel {
+  id        String   @id @default(cuid())
+  tenantId  String   @default("default")
+  type      String                               // telegram | discord | email | webhook
+  name      String
+  config    Json                                 // encrypted credentials
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@map("channels")
+}
+
+model ChannelMessage {
+  id             String   @id @default(cuid())
+  tenantId       String   @default("default")
+  channelId      String
+  direction      String                          // inbound | outbound
+  externalUserId String?
+  content        String   @db.Text
+  metadata       Json?
+  agentId        String?
+  projectId      String?
+  createdAt      DateTime @default(now())
+
+  @@index([channelId])
+  @@index([createdAt])
+  @@map("channel_messages")
+}
+
+model RoutingRule {
+  id              String  @id @default(cuid())
+  tenantId        String  @default("default")
+  channelId       String?
+  pattern         String?
+  intentClass     String?
+  targetAgentId   String?
+  targetProjectId String?
+  priority        Int     @default(0)
+  active          Boolean @default(true)
+
+  @@index([tenantId, active])
+  @@map("routing_rules")
+}
+
+// ─── Agent Memory (Vision Phase 4) ───────────────────────
+// NOTE: pgvector embedding column is added manually in VPS mode via raw SQL:
+//   ALTER TABLE "agent_memories" ADD COLUMN embedding vector(1536);
+// Do NOT put Unsupported("vector") here — breaks SQLite laptop mode.
+
+model AgentMemory {
+  id         String    @id @default(cuid())
+  tenantId   String    @default("default")
+  ownerType  String                              // agent | team | project | system
+  ownerId    String
+  content    String    @db.Text
+  memoryType String                              // fact | preference | decision | output
+  importance Float     @default(0.5)
+  createdAt  DateTime  @default(now())
+  accessedAt DateTime  @default(now())
+  expiresAt  DateTime?
+
+  @@index([ownerId])
+  @@index([tenantId, ownerType])
+  @@map("agent_memories")
+}
+
+// ─── Integrations (Vision Phase 2) ───────────────────────
+
+model Integration {
+  id              String    @id @default(cuid())
+  tenantId        String    @default("default")
+  type            String                          // telegram | discord | email | webhook
+  name            String
+  config          Json
+  status          String    @default("active")    // active | inactive | error
+  lastHealthCheck DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([tenantId])
+  @@map("integrations")
+}
+
 // ─── Billing Foundation ───────────────────────────────
 // STATUS: SCHEMA ONLY — not enforced yet.
 // To activate: wire trackUsage() into API routes, enforce PLAN_LIMITS in middleware,
