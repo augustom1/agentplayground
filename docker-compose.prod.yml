@@ -35,9 +35,11 @@ services:
 
   # ── Traefik (reverse proxy + automatic HTTPS) ─────────────────
   traefik:
-    image: traefik:v3.0
+    image: traefik:v3.3
     container_name: vps-traefik
     restart: unless-stopped
+    environment:
+      - DOCKER_API_VERSION=1.45
     ports:
       - "80:80"
       - "443:443"

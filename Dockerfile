@@ -47,11 +47,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy Prisma schema + generated client + CLI (needed for db push at startup)
-COPY --from=builder /app/node_modules/.prisma  ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma  ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma   ./node_modules/prisma
-COPY --from=builder /app/prisma                ./prisma
+# Copy full node_modules — prisma CLI needs all its transitive deps (valibot etc.)
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma       ./prisma
 
 # Copy entrypoint and make it executable (must happen before USER switch)
 COPY --chown=nextjs:nodejs entrypoint.sh ./entrypoint.sh
