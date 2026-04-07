@@ -364,7 +364,7 @@ export default function ChatPage() {
   // Config
   const [provider, setProvider] = useState<Provider>("anthropic");
   const [model, setModel] = useState<string>("claude-sonnet-4-6");
-  const [teamId, setTeamId] = useState<string>("all");
+  const [teamId, setTeamId] = useState<string>("coordinator");
 
   // Teams
   const [teams, setTeams] = useState<Team[]>([]);

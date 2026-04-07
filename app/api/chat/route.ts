@@ -43,43 +43,75 @@ When a user describes what they need, proactively:
 
 Be concise and direct. Use ✓ for successes. Format responses cleanly with markdown.`;
 
-const COORDINATOR_INTRO = `You are the **Coordinator Agent** — the intelligent orchestration layer for all agent teams.
+const COORDINATOR_INTRO = `You are the **Playground Keeper** — the central intelligence of this Agent Playground. You are the ONLY agent the user needs to talk to. Everything flows through you.
 
-Your role:
-1. Understand the user's request and determine which team(s) can handle it best
-2. Delegate tasks to the appropriate teams using the delegate_to_team tool
-3. Coordinate multi-team workflows when needed
-4. Report status and results back to the user
-5. Use web_search and web_browse to gather information when needed
+## Your responsibilities
+1. **Understand intent** — What does the user really need? Is this a one-time task, a recurring operation, or a permanent project?
+2. **Create projects** — When the user describes a goal with multiple steps or lasting work, create a project using create_project to organize it.
+3. **Delegate work** — Route tasks to the right team using delegate_to_team. Explain which team and why.
+4. **Manage the system** — Create teams, agents, and skills when needed. Retire idle teams when asked.
+5. **Log outputs** — Use log_project_output to record what was produced for each project.
+6. **Research** — Use web_search and web_browse proactively when the user needs current information.
+7. **Suggest next steps** — After completing any task, suggest the logical next action in the workflow.
 
-When routing, clearly explain your decision: which team, why, and what they'll do.`;
+## Decision framework
+- Single task → delegate_to_team directly
+- Multi-step goal → create_project first, then delegate tasks within that project
+- Repeating workflow → create a recurring project + schedule recurring tasks
+- System setup → create teams and agents as needed
+
+## Proactive behavior
+- If the user mentions something they do repeatedly, suggest automating it
+- If a project has been idle, mention it and suggest action
+- Always confirm what was done and what's next
+
+Keep responses concise. Use ✓ for completed actions. Start with action, not explanation.`;
 
 // ─── Context builders ──────────────────────────────────────────────────────────
 
 async function buildCoordinatorContext(): Promise<string> {
-  const teams = await prisma.agentTeam.findMany({
-    where: { isSystemTeam: false },
-    include: {
-      agents: { select: { id: true, name: true, model: true, capabilities: true, description: true } },
-      skills: { select: { name: true, category: true, description: true } },
-      _count: { select: { tasks: true } },
-    },
-    take: 20,
-  });
+  const [teams, projects] = await Promise.all([
+    prisma.agentTeam.findMany({
+      where: { isSystemTeam: false },
+      include: {
+        agents: { select: { id: true, name: true, model: true, capabilities: true, description: true } },
+        skills: { select: { name: true, category: true, description: true } },
+        _count: { select: { tasks: true } },
+      },
+      take: 20,
+    }),
+    prisma.project.findMany({
+      where: { status: { not: "archived" } },
+      orderBy: { updatedAt: "desc" },
+      take: 10,
+    }),
+  ]);
 
-  if (teams.length === 0) {
-    return `${COORDINATOR_INTRO}\n\nNo agent teams exist yet. Help the user create their first team.`;
+  const sections: string[] = [COORDINATOR_INTRO];
+
+  if (projects.length > 0) {
+    const projectList = projects
+      .map((p) => `- **${p.name}** [${p.status}] (${p.type}) — ID: ${p.id}${p.description ? `\n  ${p.description}` : ""}`)
+      .join("\n");
+    sections.push(`## Active Projects\n${projectList}`);
+  } else {
+    sections.push("## Active Projects\nNo projects yet. Create one with create_project when the user describes a goal.");
   }
 
-  const teamList = teams
-    .map((t) => {
-      const agentNames = t.agents.map((a) => `${a.name} (${a.model})`).join(", ") || "no agents";
-      const skillNames = t.skills.map((s) => s.name).join(", ") || "no skills";
-      return `### ${t.name} [ID: ${t.id}]\n- Status: ${t.status} · ${t.agents.length} agents · ${t._count.tasks} tasks\n- Agents: ${agentNames}\n- Skills: ${skillNames}`;
-    })
-    .join("\n\n");
+  if (teams.length === 0) {
+    sections.push("## Agent Teams\nNo teams yet. Create teams to handle specific types of work.");
+  } else {
+    const teamList = teams
+      .map((t) => {
+        const agentNames = t.agents.map((a) => `${a.name} (${a.model})`).join(", ") || "no agents";
+        const skillNames = t.skills.map((s) => s.name).join(", ") || "no skills";
+        return `### ${t.name} [ID: ${t.id}]\n- Status: ${t.status} · ${t.agents.length} agents · ${t._count.tasks} tasks\n- Agents: ${agentNames}\n- Skills: ${skillNames}`;
+      })
+      .join("\n\n");
+    sections.push(`## Agent Teams\n${teamList}`);
+  }
 
-  return `${COORDINATOR_INTRO}\n\n## Teams Under Your Coordination\n\n${teamList}`;
+  return sections.join("\n\n");
 }
 
 async function buildTeamContext(teamId: string): Promise<string> {
@@ -137,15 +169,7 @@ async function streamAnthropic(
   systemPrompt: string,
   controller: ReadableStreamDefaultController,
   encoder: TextEncoder
-) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    controller.enqueue(
-      encoder.encode("ANTHROPIC_API_KEY is not set. Add it to .env.local.")
-    );
-    return;
-  }
-
+): Promise<{ inputTokens: number; outputTokens: number; webSearchCalls: number; webBrowseCalls: number }> {
   const client = new Anthropic({ apiKey });
   const tools = CHAT_TOOLS.map((t) => ({
     name: t.name,
@@ -159,6 +183,14 @@ async function streamAnthropic(
   const MAX_TOOL_ITERATIONS = 10;
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
+  let totalWebSearchCalls = 0;
+  let totalWebBrowseCalls = 0;
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    controller.enqueue(encoder.encode("ANTHROPIC_API_KEY is not set. Add it to .env.local."));
+    return { inputTokens: 0, outputTokens: 0, webSearchCalls: 0, webBrowseCalls: 0 };
+  }
 
   try {
     while (continueLoop && iterations < MAX_TOOL_ITERATIONS) {
@@ -179,6 +211,8 @@ async function streamAnthropic(
         if (block.type === "text") {
           controller.enqueue(encoder.encode(block.text));
         } else if (block.type === "tool_use") {
+          if (block.name === "web_search") totalWebSearchCalls++;
+          else if (block.name === "web_browse") totalWebBrowseCalls++;
           const result = await executeTool(block.name, block.input as Record<string, unknown>);
           controller.enqueue(encoder.encode(`\n\n⚡ *Used tool: ${block.name}*\n\n`));
 
@@ -214,6 +248,8 @@ async function streamAnthropic(
       controller.enqueue(encoder.encode(`❌ ${msg}`));
     }
   }
+
+  return { inputTokens: totalInputTokens, outputTokens: totalOutputTokens, webSearchCalls: totalWebSearchCalls, webBrowseCalls: totalWebBrowseCalls };
 }
 
 async function streamOpenAI(
@@ -453,13 +489,22 @@ export async function POST(req: Request) {
         } else if (provider === "ollama") {
           await streamOllama(messages, resolvedModel, systemPrompt, controller, encoder);
         } else {
-          await streamAnthropic(messages, resolvedModel, systemPrompt, controller, encoder);
-          // Track usage after Anthropic call (fire-and-forget)
+          const usage = await streamAnthropic(messages, resolvedModel, systemPrompt, controller, encoder);
+          // Track real token usage (fire-and-forget, non-fatal)
           trackUsage({
             userId,
             service: "claude",
             endpoint: resolvedModel,
+            inputUnits: usage.inputTokens,
+            outputUnits: usage.outputTokens,
+            unitType: "tokens",
           }).catch(() => {});
+          if (usage.webSearchCalls > 0) {
+            trackUsage({ userId, service: "web_search", units: usage.webSearchCalls, unitType: "calls" }).catch(() => {});
+          }
+          if (usage.webBrowseCalls > 0) {
+            trackUsage({ userId, service: "web_browse", units: usage.webBrowseCalls, unitType: "calls" }).catch(() => {});
+          }
         }
       } catch (err) {
         controller.enqueue(encoder.encode(`\n\n❌ Error: ${String(err)}`));

@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Docs — AgentPlayground</title>
+  <meta name="description" content="Full documentation for AgentPlayground: architecture, pages, API reference, database schema, chat tools, permissions, and deployment guide." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo" style="text-decoration:none;">
+      <div class="nav-logo-icon">⬡</div>
+      AgentPlayground
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html#features">Features</a></li>
+      <li><a href="index.html#screenshots">Screenshots</a></li>
+      <li><a href="index.html#install">Quick Start</a></li>
+      <li><a href="docs.html" class="active">Docs</a></li>
+      <li><a href="index.html#contact">Contact</a></li>
+    </ul>
+    <div class="nav-cta">
+      <a href="https://github.com/agentplayground/agent-dashboard-ui-app" class="btn btn-ghost" target="_blank" rel="noopener">GitHub</a>
+      <a href="index.html#install" class="btn btn-primary">Get Started</a>
+    </div>
+  </div>
+</nav>
+
+<!-- DOCS LAYOUT -->
+<div class="docs-layout">
+
+  <!-- Sidebar -->
+  <aside class="docs-sidebar">
+    <nav>
+      <div class="docs-nav-group">
+        <div class="docs-nav-group-label">Overview</div>
+        <a href="#intro" class="docs-nav-item active">Introduction</a>
+        <a href="#architecture" class="docs-nav-item">Architecture</a>
+        <a href="#stack" class="docs-nav-item">Tech Stack</a>
+      </div>
+      <div class="docs-nav-group">
+        <div class="docs-nav-group-label">Getting Started</div>
+        <a href="#prerequisites" class="docs-nav-item">Prerequisites</a>
+        <a href="#local-dev" class="docs-nav-item">Local Development</a>
+        <a href="#first-run" class="docs-nav-item">First Run</a>
+        <a href="#seed-teams" class="docs-nav-item">Seed Agent Teams</a>
+        <a href="#deployment" class="docs-nav-item">VPS Deployment</a>
+      </div>
+      <div class="docs-nav-group">
+        <div class="docs-nav-group-label">Pages &amp; Features</div>
+        <a href="#dashboard" class="docs-nav-item">Dashboard</a>
+        <a href="#chat" class="docs-nav-item">Chat</a>
+        <a href="#agent-lab" class="docs-nav-item">Agent Lab</a>
+        <a href="#schedule" class="docs-nav-item">Schedule</a>
+        <a href="#tools-catalog" class="docs-nav-item">Tools Catalog</a>
+        <a href="#users" class="docs-nav-item">Users (Admin)</a>
+        <a href="#settings" class="docs-nav-item">Settings</a>
+      </div>
+      <div class="docs-nav-group">
+        <div class="docs-nav-group-label">Core Systems</div>
+        <a href="#auth" class="docs-nav-item">Auth &amp; Roles</a>
+        <a href="#permissions" class="docs-nav-item">Agent Permissions</a>
+        <a href="#chat-tools" class="docs-nav-item">Chat Tool Definitions</a>
+        <a href="#cron" class="docs-nav-item">Cron Jobs</a>
+        <a href="#local-llm" class="docs-nav-item">Local LLM (Ollama)</a>
+      </div>
+      <div class="docs-nav-group">
+        <div class="docs-nav-group-label">Reference</div>
+        <a href="#schema" class="docs-nav-item">Database Schema</a>
+        <a href="#api" class="docs-nav-item">API Endpoints</a>
+        <a href="#env-vars" class="docs-nav-item">Environment Variables</a>
+        <a href="#commands" class="docs-nav-item">Commands</a>
+        <a href="#production-stack" class="docs-nav-item">Production Stack</a>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- Content -->
+  <main class="docs-content">
+
+    <!-- ─── INTRO ─── -->
+    <h1 id="intro">AgentPlayground Documentation</h1>
+    <p>
+      AgentPlayground is a self-hosted, multi-tenant AI agent management platform.
+      Users create and manage <strong>Agent Teams</strong> — named groups of Claude-powered agents —
+      assign tasks, schedule recurring jobs, chat with Claude through a tool-use interface
+      that reads and writes the database, and build a growing catalog of reusable skills.
+    </p>
+    <div class="callout">
+      <strong>For agents reading this:</strong> This documentation is structured for both human readers and
+      automated agents searching for how to interact with the platform. Every endpoint, permission scope,
+      chat tool name, and data model is listed below.
+    </div>
+
+    <!-- ─── ARCHITECTURE ─── -->
+    <h2 id="architecture">Architecture</h2>
+    <p>The system follows a Next.js App Router structure with three main layers:</p>
+    <ul>
+      <li><strong>UI Layer</strong> — React 19 pages inside <code>app/(app)/</code>, protected by NextAuth middleware.</li>
+      <li><strong>API Layer</strong> — REST API routes under <code>app/api/</code>. All routes validate the JWT session, check the user's role, then query Prisma.</li>
+      <li><strong>Data Layer</strong> — Prisma 7 ORM over PostgreSQL with pgvector. A singleton client in <code>lib/prisma.ts</code>.</li>
+    </ul>
+    <p>
+      The chat endpoint streams Claude responses. Claude uses tool definitions from <code>lib/chat-tools.ts</code>,
+      which call permission-gated functions in <code>lib/db-agent.ts</code>. This is the primary
+      intelligence interface — Claude can read/write any model it has permission for.
+    </p>
+
+    <h3 id="stack">Tech Stack</h3>
+    <table>
+      <thead><tr><th>Layer</th><th>Technology</th></tr></thead>
+      <tbody>
+        <tr><td>Framework</td><td>Next.js 16 (App Router), React 19</td></tr>
+        <tr><td>Language</td><td>TypeScript</td></tr>
+        <tr><td>Database</td><td>PostgreSQL 15 + pgvector extension</td></tr>
+        <tr><td>ORM</td><td>Prisma 7</td></tr>
+        <tr><td>Auth</td><td>NextAuth v5 (JWT, Credentials provider, bcrypt)</td></tr>
+        <tr><td>Styling</td><td>Tailwind CSS v4</td></tr>
+        <tr><td>AI SDK</td><td>Anthropic SDK (<code>@anthropic-ai/sdk</code>)</td></tr>
+        <tr><td>Local LLM</td><td>Ollama (qwen2.5:3b, qwen2.5:7b)</td></tr>
+        <tr><td>Cache</td><td>Redis</td></tr>
+        <tr><td>Automation</td><td>n8n</td></tr>
+        <tr><td>Testing</td><td>Vitest + jsdom</td></tr>
+        <tr><td>Containers</td><td>Docker, Docker Compose</td></tr>
+        <tr><td>Reverse proxy</td><td>Nginx</td></tr>
+      </tbody>
+    </table>
+
+    <!-- ─── PREREQUISITES ─── -->
+    <h2 id="prerequisites">Prerequisites</h2>
+    <ul>
+      <li>Node.js 20 or later</li>
+      <li>Docker and Docker Compose</li>
+      <li>An <a href="https://console.anthropic.com/" target="_blank" rel="noopener">Anthropic API key</a></li>
+      <li>Git</li>
+    </ul>
+
+    <!-- ─── LOCAL DEV ─── -->
+    <h2 id="local-dev">Local Development</h2>
+
+    <h3>1. Clone the repo</h3>
+    <pre><code>git clone https://github.com/agentplayground/agent-dashboard-ui-app.git
+cd agent-dashboard-ui-app</code></pre>
+
+    <h3>2. Create <code>.env</code></h3>
+    <pre><code>DATABASE_URL="postgresql://postgres:postgres@localhost:5432/agentdb"
+AUTH_SECRET="replace-with-32-char-random-string"
+ANTHROPIC_API_KEY="sk-ant-api03-..."
+NEXTAUTH_URL="http://localhost:3000"
+CRON_SECRET="replace-with-random-secret"</code></pre>
+
+    <h3>3. Start Postgres and Redis</h3>
+    <pre><code>docker compose up -d</code></pre>
+
+    <h3>4. Install and migrate</h3>
+    <pre><code>npm install
+npx prisma migrate dev</code></pre>
+
+    <h3>5. Run the dev server</h3>
+    <pre><code>npm run dev
+# App runs at http://localhost:3000</code></pre>
+
+    <!-- ─── FIRST RUN ─── -->
+    <h2 id="first-run">First Run — Create Admin Account</h2>
+    <p>
+      On first startup, navigate to <code>/setup</code>. This page is only accessible when no users
+      exist in the database. It calls <code>POST /api/auth/setup</code> to create the first admin user
+      and runs <code>lib/seed-defaults.ts</code> to seed default skills and widget configuration.
+    </p>
+    <p>After setup, you are redirected to <code>/login</code>. Log in with the credentials you just created.</p>
+    <div class="callout">
+      The <code>/setup</code> route is automatically blocked by middleware once the first user exists.
+    </div>
+
+    <!-- ─── SEED TEAMS ─── -->
+    <h2 id="seed-teams">Seed Agent Teams</h2>
+    <p>Run this command to populate the database with five pre-built agent teams:</p>
+    <pre><code>npm run seed:teams</code></pre>
+    <p>The seeded teams are:</p>
+    <table>
+      <thead><tr><th>Team</th><th>Agents</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td>Dev Core</td><td>Alex, Sofia, Marcus, Elena</td><td>Software development, code review, architecture</td></tr>
+        <tr><td>DevOps &amp; Infrastructure</td><td>Viktor, Natasha, Chen</td><td>Docker, CI/CD, servers, monitoring</td></tr>
+        <tr><td>Product &amp; Design</td><td>Aria, James, Zoe</td><td>UX, feature planning, copy, research</td></tr>
+        <tr><td>Business &amp; Growth</td><td>Diana, Carlos, Max</td><td>Strategy, outreach, content, analytics</td></tr>
+        <tr><td>Command Center</td><td>Nexus, Iris, Oracle</td><td>Coordinator — admin permissions, routes to all teams</td></tr>
+      </tbody>
+    </table>
+
+    <!-- ─── DEPLOYMENT ─── -->
+    <h2 id="deployment">VPS Deployment</h2>
+    <p>For a full production deployment on a Linux VPS (Ubuntu 22+):</p>
+
+    <h3>DNS setup</h3>
+    <p>
+      Add two A records pointing to your VPS IP:
+      <code>@</code> → VPS IP and <code>*</code> → VPS IP.
+      This covers the root domain and all subdomains.
+    </p>
+
+    <h3>Configure <code>.env.local</code></h3>
+    <pre><code>DOMAIN=yourdomain.com
+ANTHROPIC_API_KEY=sk-ant-...
+AUTH_SECRET=your-32-char-secret
+POSTGRES_USER=dbuser
+POSTGRES_PASSWORD=strongpassword
+POSTGRES_DB=agentdb
+REDIS_PASSWORD=redispass
+CRON_SECRET=cron-secret
+NEXTAUTH_URL=https://app.yourdomain.com</code></pre>
+
+    <h3>Run setup script</h3>
+    <pre><code>bash setup.sh</code></pre>
+    <p>
+      The script installs Docker, starts all services with <code>docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build</code>,
+      waits for the health check at <code>/api/health</code>, and pulls Ollama models.
+    </p>
+
+    <h3>Services after deployment</h3>
+    <table>
+      <thead><tr><th>URL</th><th>Service</th></tr></thead>
+      <tbody>
+        <tr><td><code>https://app.yourdomain.com</code></td><td>Agent Dashboard (this app)</td></tr>
+        <tr><td><code>https://n8n.yourdomain.com</code></td><td>n8n automation</td></tr>
+        <tr><td><code>https://ai.yourdomain.com</code></td><td>Open WebUI (Ollama frontend)</td></tr>
+        <tr><td><code>https://files.yourdomain.com</code></td><td>FileBrowser</td></tr>
+        <tr><td><code>https://manage.yourdomain.com</code></td><td>Portainer (Docker management)</td></tr>
+        <tr><td><code>https://yourdomain.com</code></td><td>Static Nginx landing page</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Add a custom subdomain</h3>
+    <pre><code>bash add-site.sh myapp.yourdomain.com</code></pre>
+
+    <h3>Database backup</h3>
+    <pre><code>bash backup-db.sh</code></pre>
+
+    <!-- ─── DASHBOARD ─── -->
+    <h2 id="dashboard">Dashboard</h2>
+    <p>
+      Route: <code>/dashboard</code>. The main landing page after login.
+      Fetches data from <code>GET /api/metrics</code> and <code>GET /api/widgets</code>.
+    </p>
+    <p>Displays configurable widgets:</p>
+    <ul>
+      <li><strong>Stat widgets</strong> — total teams, agents, tasks, users.</li>
+      <li><strong>Feed widget</strong> — recent activity log (latest 10 entries across all teams).</li>
+      <li><strong>Calendar widget</strong> — upcoming scheduled jobs for the next 7 days.</li>
+      <li><strong>Custom/Optimization widget</strong> — skill count, CLI function count, and improvement log stats.</li>
+      <li><strong>Team widget cards</strong> (<code>components/TeamWidget.tsx</code>) — per-team status badge, agent count, recent task activity.</li>
+    </ul>
+    <p>The metrics API aggregates counts across all DB models. The dashboard auto-refreshes via <code>components/RefreshButton.tsx</code>.</p>
+
+    <!-- ─── CHAT ─── -->
+    <h2 id="chat">Chat</h2>
+    <p>
+      Route: <code>/chat</code>. Streams Claude responses via <code>POST /api/chat</code>.
+      Uses the Anthropic SDK's streaming API (<code>stream</code> method).
+    </p>
+    <p>
+      Conversations are persisted. Each conversation has a title and a list of messages with <code>role: user | assistant</code>.
+      Managed via <code>/api/conversations</code>.
+    </p>
+    <p>
+      Claude operates with a base system prompt that describes the AgentPlayground mission and available tools.
+      It is instructed to prefer automation over manual steps, log improvements, and generate tools when it detects patterns.
+    </p>
+    <p>See <a href="#chat-tools">Chat Tool Definitions</a> for the full list of tools Claude can call.</p>
+
+    <!-- ─── AGENT LAB ─── -->
+    <h2 id="agent-lab">Agent Lab</h2>
+    <p>
+      Route: <code>/agent-lab</code>. A sandboxed playground for testing prompts against any agent team.
+    </p>
+    <ul>
+      <li>Select a target team from the dropdown.</li>
+      <li>Enter a prompt and run it.</li>
+      <li>Results are displayed in the run output panel.</li>
+      <li>Run history is stored in <code>PlaygroundRun</code> records (<code>/api/playground-runs</code>).</li>
+    </ul>
+
+    <!-- ─── SCHEDULE ─── -->
+    <h2 id="schedule">Schedule</h2>
+    <p>
+      Route: <code>/schedule</code>. Calendar view of all upcoming and past jobs.
+    </p>
+    <p>Two types of scheduled work:</p>
+    <ul>
+      <li><strong>Scheduled Jobs</strong> (<code>ScheduledJob</code> model) — one-off or recurring events (daily/weekly/monthly). Created via <code>POST /api/schedule</code>.</li>
+      <li><strong>Recurring Tasks</strong> (<code>RecurringTask</code> model) — cron-expression-based tasks with timezone support. Created via <code>POST /api/recurring-tasks</code>. Executed by <code>POST /api/cron</code>.</li>
+    </ul>
+
+    <!-- ─── TOOLS CATALOG ─── -->
+    <h2 id="tools-catalog">Tools Catalog</h2>
+    <p>
+      Route: <code>/tools</code>. Aggregates the platform's internal tool library per team.
+    </p>
+    <p>Three categories:</p>
+    <ul>
+      <li><strong>Skills</strong> — Named, categorized instruction sets Claude uses when performing tasks for a team.</li>
+      <li><strong>CLI Functions</strong> — Registered shell commands or scripts. Flagged as <code>dangerous</code> if they have destructive side effects.</li>
+      <li><strong>Improvements</strong> — Logged optimizations detected by Claude. Each has a category, an impact level, and an <code>applied</code> flag.</li>
+    </ul>
+    <p>
+      The aggregation endpoint is <code>GET /api/tools</code>, which returns all three categories
+      merged with team metadata and counts.
+    </p>
+    <p>
+      Claude can add to this catalog via the <code>log_improvement</code> and <code>generate_tool</code>
+      chat tools (see <a href="#chat-tools">Chat Tool Definitions</a>).
+    </p>
+
+    <!-- ─── USERS ─── -->
+    <h2 id="users">Users (Admin Only)</h2>
+    <p>
+      Route: <code>/users</code>. Only accessible to users with <code>role: admin</code>.
+      The middleware blocks all non-admin access and returns a 403.
+    </p>
+    <p>Admin can view, create, update roles, and deactivate user accounts via <code>/api/users</code>.</p>
+
+    <!-- ─── SETTINGS ─── -->
+    <h2 id="settings">Settings</h2>
+    <p>
+      Route: <code>/settings</code>. User-level settings including display preferences
+      and account management. Writes to the <code>User</code> model.
+    </p>
+
+    <!-- ─── AUTH ─── -->
+    <h2 id="auth">Auth &amp; Roles</h2>
+    <p>
+      Authentication is handled by <strong>NextAuth v5</strong> using the <strong>JWT strategy</strong>
+      — no database hit per request. Passwords are hashed with bcrypt.
+    </p>
+    <p>The JWT session payload includes:</p>
+    <pre><code>{
+  id: string,
+  email: string,
+  role: "admin" | "user" | "viewer",
+  plan: "free" | "pro" | "enterprise"
+}</code></pre>
+    <p>
+      Middleware in <code>middleware.ts</code> protects all routes.
+      Public routes: <code>/login</code>, <code>/setup</code>, <code>/api/auth/*</code>.
+    </p>
+    <p>The <code>/users</code> and <code>/api/users</code> routes are additionally gated to <code>admin</code> role only.</p>
+
+    <!-- ─── PERMISSIONS ─── -->
+    <h2 id="permissions">Agent Permission Presets</h2>
+    <p>
+      Defined in <code>lib/agent-permissions.ts</code>. Each team is assigned a permission preset
+      which determines what the db-agent layer allows Claude to do on behalf of that team.
+    </p>
+    <table>
+      <thead><tr><th>Preset</th><th>Capabilities</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>admin</code></td>
+          <td>Full read + write across all models, CLI execution, team management, user reads</td>
+        </tr>
+        <tr>
+          <td><code>builder</code></td>
+          <td>Read all, write own team's data, file read/write, CLI access, create teams</td>
+        </tr>
+        <tr>
+          <td><code>standard</code></td>
+          <td>Read + write own team's tasks and agents, file read only</td>
+        </tr>
+        <tr>
+          <td><code>readonly</code></td>
+          <td>Read own team data only — no writes</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ─── CHAT TOOLS ─── -->
+    <h2 id="chat-tools">Chat Tool Definitions</h2>
+    <p>
+      All tools available to Claude during chat sessions are defined in <code>lib/chat-tools.ts</code>
+      and call <code>lib/db-agent.ts</code> with permission gating.
+    </p>
+    <table>
+      <thead><tr><th>Tool name</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>get_teams</code></td><td>List all agent teams with status, agent count, and recent activity</td></tr>
+        <tr><td><code>get_team_details</code></td><td>Full details for a specific team including all agents</td></tr>
+        <tr><td><code>get_tasks</code></td><td>Fetch tasks optionally filtered by teamId and status</td></tr>
+        <tr><td><code>create_task</code></td><td>Create a new task assigned to a team</td></tr>
+        <tr><td><code>update_task_status</code></td><td>Update a task's status (pending → running → completed | failed)</td></tr>
+        <tr><td><code>get_metrics</code></td><td>Retrieve dashboard metrics: agent counts, task stats, optimization data</td></tr>
+        <tr><td><code>get_skills</code></td><td>List skills for a team or globally</td></tr>
+        <tr><td><code>create_skill</code></td><td>Create a new skill for a team</td></tr>
+        <tr><td><code>get_improvements</code></td><td>List logged improvements, filterable by applied/unapplied</td></tr>
+        <tr><td><code>log_improvement</code></td><td>Log a detected optimization pattern with category, description, and impact</td></tr>
+        <tr><td><code>generate_tool</code></td><td>Convert a repeated workflow into a permanent skill or CLI function</td></tr>
+        <tr><td><code>get_schedule</code></td><td>List scheduled jobs and recurring tasks</td></tr>
+        <tr><td><code>create_schedule_event</code></td><td>Create a new scheduled job</td></tr>
+        <tr><td><code>get_conversations</code></td><td>List chat conversations</td></tr>
+        <tr><td><code>get_activity_log</code></td><td>Fetch recent activity log entries</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      The <strong>self-improvement flywheel</strong>: Claude detects repeated patterns via <code>log_improvement</code>,
+      then uses <code>generate_tool</code> to convert them into reusable skills stored in the catalog.
+      Future tasks route to the tool instead of calling the LLM.
+    </div>
+
+    <!-- ─── CRON ─── -->
+    <h2 id="cron">Cron Jobs</h2>
+    <p>
+      Recurring tasks are executed by calling <code>POST /api/cron</code> from an external scheduler
+      (n8n, crontab, or any HTTP client).
+    </p>
+    <pre><code>curl -X POST https://app.yourdomain.com/api/cron \
+  -H "Authorization: Bearer $CRON_SECRET"</code></pre>
+    <p>
+      The endpoint picks up all <code>RecurringTask</code> records where <code>enabled = true</code>
+      and <code>nextRunAt &lt;= now()</code>, executes them, and updates <code>lastRunAt</code> and <code>nextRunAt</code>.
+    </p>
+    <p>Health check endpoint (used by Docker and <code>setup.sh</code>):</p>
+    <pre><code>GET /api/health  →  { status: "ok", db: "connected" }</code></pre>
+
+    <!-- ─── LOCAL LLM ─── -->
+    <h2 id="local-llm">Local LLM (Ollama)</h2>
+    <p>
+      The stack includes a custom Ollama Docker image (<code>Dockerfile.ollama</code>) that
+      auto-pulls models on first start via <code>ollama-entrypoint.sh</code>.
+    </p>
+    <p>Default models pulled:</p>
+    <pre><code>OLLAMA_AUTO_PULL="qwen2.5:3b qwen2.5:7b"</code></pre>
+    <p>
+      Override <code>OLLAMA_AUTO_PULL</code> in your environment to pull different models.
+      Models are stored in a named Docker volume so they survive container restarts.
+    </p>
+    <p>
+      Open WebUI is available at <code>https://ai.yourdomain.com</code> and connects to Ollama internally.
+      Model routing (local vs Claude) is manual — use team system prompts to instruct agents on which tasks to handle locally.
+    </p>
+
+    <!-- ─── SCHEMA ─── -->
+    <h2 id="schema">Database Schema</h2>
+    <p>Defined in <code>prisma/schema.prisma</code>. 15 models:</p>
+    <table>
+      <thead><tr><th>Model</th><th>Table</th><th>Key fields</th></tr></thead>
+      <tbody>
+        <tr><td><code>User</code></td><td>users</td><td>id, email, passwordHash, role (admin|user|viewer), plan (free|pro|enterprise), active</td></tr>
+        <tr><td><code>AgentTeam</code></td><td>agent_teams</td><td>id, name, port, status (healthy|idle|error|deploying), permissions[], isSystemTeam</td></tr>
+        <tr><td><code>Agent</code></td><td>agents</td><td>id, teamId, name, model, systemPrompt, temperature, maxTokens</td></tr>
+        <tr><td><code>Task</code></td><td>tasks</td><td>id, teamId, title, status (pending|running|completed|failed), priority</td></tr>
+        <tr><td><code>RecurringTask</code></td><td>recurring_tasks</td><td>id, teamId, cron, timezone, enabled, lastRunAt, nextRunAt</td></tr>
+        <tr><td><code>ScheduledJob</code></td><td>scheduled_jobs</td><td>id, teamId, title, scheduledFor, recurring (none|daily|weekly|monthly)</td></tr>
+        <tr><td><code>Skill</code></td><td>skills</td><td>id, teamId, name, category, instructions</td></tr>
+        <tr><td><code>CliFunction</code></td><td>cli_functions</td><td>id, teamId, name, command, description, dangerous</td></tr>
+        <tr><td><code>Improvement</code></td><td>improvements</td><td>id, category, description, impact, applied, appliedAt</td></tr>
+        <tr><td><code>Widget</code></td><td>widgets</td><td>id, teamId, type (stat|feed|calendar|custom), position, config</td></tr>
+        <tr><td><code>ActivityLog</code></td><td>activity_logs</td><td>id, teamId, action, type (task|deploy|error|chat|import|export)</td></tr>
+        <tr><td><code>ChatConversation</code></td><td>chat_conversations</td><td>id, title, createdAt, updatedAt</td></tr>
+        <tr><td><code>ChatMessage</code></td><td>chat_messages</td><td>id, conversationId, role (user|assistant), content</td></tr>
+        <tr><td><code>PlaygroundRun</code></td><td>playground_runs</td><td>id, target, prompt, result, createdAt</td></tr>
+        <tr><td><code>AgentTeamConfig</code></td><td>agent_team_configs</td><td>id, teamId, configJson (used for import/export)</td></tr>
+        <tr><td><code>Embedding</code></td><td>embeddings</td><td>id, vector(1536), sourceType, sourceId (pgvector — ready, not yet wired)</td></tr>
+      </tbody>
+    </table>
+
+    <!-- ─── API ENDPOINTS ─── -->
+    <h2 id="api">API Endpoints</h2>
+    <p>All endpoints require a valid session cookie (JWT). Responses are JSON. Errors use <code>lib/api-error.ts</code> shape: <code>{ error: string, status: number }</code>.</p>
+
+    <h3>Auth</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag tag-post">POST</span></td><td><code>/api/auth/setup</code></td><td>Create first admin user (blocked once any user exists)</td></tr>
+        <tr><td><span class="tag tag-get">GET</span></td><td><code>/api/health</code></td><td>Health check — returns <code>{status, db}</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>Teams &amp; Agents</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag tag-get">GET</span></td><td><code>/api/teams</code></td><td>List all agent teams</td></tr>
+        <tr><td><span class="tag tag-post">POST</span></td><td><code>/api/teams</code></td><td>Create a team</td></tr>
+        <tr><td><span class="tag tag-get">GET</span></td><td><code>/api/teams/[id]</code></td><td>Get team by ID</td></tr>
+        <tr><td><span class="tag tag-put">PUT</span></td><td><code>/api/teams/[id]</code></td><td>Update team</td></tr>
+        <tr><td><span class="tag tag-delete">DELETE</span></td><td><code>/api/teams/[id]</code></td><td>Delete team</td></tr>
+        <tr><td><span class="tag tag-get">GET</span></td><td><code>/api/agents</code></td><td>List agents (optional <code>?teamId=</code>)</td></tr>
+        <tr><td><span class="tag tag-post">POST</span></td><td><code>/api/agents</code></td><td>Create agent</td></tr>
+        <tr><td><span class="tag tag-put">PUT</span></td><td><code>/api/agents/[id]</code></td><td>Update agent</td></tr>
+        <tr><td><span class="tag tag-delete">DELETE</span></td><td><code>/api/agents/[id]</code></td><td>Delete agent</td></tr>
+        <tr><td><span class="tag tag-get">GET</span></td><td><code>/api/export-team/[id]</code></td><td>Export team config as JSON</td></tr>
+        <tr><td><span class="tag tag-post">POST</span></td><td><code>/api/import-team</code></td><td>Import team config from JSON</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Tasks</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag tag-get">GET</span></td><td><code>/api/tasks</code></td><td>List tasks (<code>?teamId=</code>, <code>?status=</code>)</td></tr>
+        <tr><td><span class="tag tag-post">POST</span></td><td><code>/api/tasks</code></td><td>Create task</td></tr>
+        <tr><td><span class="tag tag-put">PUT</span></td><td><code>/api/tasks/[id]</code></td><td>Update task</td></tr>
+        <tr><td><span class="tag tag-delete">DELETE</span></td><td><code>/api/tasks/[id]</code></td><td>Delete task</td></tr>
+        <tr><td><span class="tag tag-get">GET</span></td><td><code>/api/recurring-tasks</code></td><td>List recurring tasks</td></tr>
+        <tr><td><span class="tag tag-post">POST</span></td><td><code>/api/recurring-tasks</code></td><td>Create recurring task (cron expression)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Schedule</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag tag-get">GET</span></td><td><code>/api/schedule</code></td><td>List scheduled jobs</td></tr>
+        <tr><td><span class="tag tag-post">POST</span></td><td><code>/api/schedule</code></td><td>Create scheduled job</td></tr>
+        <tr><td><span class="tag tag-put">PUT</span></td><td><code>/api/schedule/[id]</code></td><td>Update job</td></tr>
+        <tr><td><span class="tag tag-delete">DELETE</span></td><td><code>/api/schedule/[id]</code></td><td>Delete job</td></tr>
+        <tr><td><span class="tag tag-post">POST</span></td><td><code>/api/cron</code></td><td>Trigger recurring task runner (Bearer token required)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Chat</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag tag-post">POST</span></td><td><code>/api/chat</code></td><td>Stream a Claude response. Body: <code>{messages, conversationId?}</code></td></tr>
+        <tr><td><span class="tag tag-get">GET</span></td><td><code>/api/conversations</code></td><td>List conversations</td></tr>
+        <tr><td><span class="tag tag-post">POST</span></td><td><code>/api/conversations</code></td><td>Create conversation</td></tr>
+        <tr><td><span class="tag tag-get">GET</span></td><td><code>/api/conversations/[id]</code></td><td>Get conversation with messages</td></tr>
+        <tr><td><span class="tag tag-delete">DELETE</span></td><td><code>/api/conversations/[id]</code></td><td>Delete conversation</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Tools &amp; Catalog</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag tag-get">GET</span></td><td><code>/api/tools</code></td><td>Aggregate: skills + CLI functions + improvements</td></tr>
+        <tr><td><span class="tag tag-get">GET</span></td><td><code>/api/skills</code></td><td>List skills (<code>?teamId=</code>)</td></tr>
+        <tr><td><span class="tag tag-post">POST</span></td><td><code>/api/skills</code></td><td>Create skill</td></tr>
+        <tr><td><span class="tag tag-get">GET</span></td><td><code>/api/cli-functions</code></td><td>List CLI functions</td></tr>
+        <tr><td><span class="tag tag-post">POST</span></td><td><code>/api/cli-functions</code></td><td>Create CLI function</td></tr>
+        <tr><td><span class="tag tag-get">GET</span></td><td><code>/api/improvements</code></td><td>List improvements</td></tr>
+        <tr><td><span class="tag tag-post">POST</span></td><td><code>/api/improvements</code></td><td>Log an improvement</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Dashboard &amp; Misc</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag tag-get">GET</span></td><td><code>/api/metrics</code></td><td>Dashboard metrics (team count, task stats, optimization counts)</td></tr>
+        <tr><td><span class="tag tag-get">GET</span></td><td><code>/api/widgets</code></td><td>List widget configs for current user</td></tr>
+        <tr><td><span class="tag tag-post">POST</span></td><td><code>/api/widgets</code></td><td>Create/update widget</td></tr>
+        <tr><td><span class="tag tag-get">GET</span></td><td><code>/api/playground-runs</code></td><td>List agent lab run history</td></tr>
+        <tr><td><span class="tag tag-post">POST</span></td><td><code>/api/playground-runs</code></td><td>Save a run result</td></tr>
+        <tr><td><span class="tag tag-get">GET</span></td><td><code>/api/users</code></td><td>List users (admin only)</td></tr>
+        <tr><td><span class="tag tag-post">POST</span></td><td><code>/api/users</code></td><td>Create user (admin only)</td></tr>
+        <tr><td><span class="tag tag-put">PUT</span></td><td><code>/api/users/[id]</code></td><td>Update user role/active (admin only)</td></tr>
+      </tbody>
+    </table>
+
+    <!-- ─── ENV VARS ─── -->
+    <h2 id="env-vars">Environment Variables</h2>
+    <table>
+      <thead><tr><th>Variable</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>DATABASE_URL</code></td><td>Yes</td><td>PostgreSQL connection string</td></tr>
+        <tr><td><code>AUTH_SECRET</code></td><td>Yes</td><td>NextAuth JWT signing secret (32+ chars)</td></tr>
+        <tr><td><code>ANTHROPIC_API_KEY</code></td><td>Yes</td><td>Anthropic API key for Claude</td></tr>
+        <tr><td><code>NEXTAUTH_URL</code></td><td>Yes</td><td>Full URL of the app (e.g. <code>https://app.example.com</code>)</td></tr>
+        <tr><td><code>CRON_SECRET</code></td><td>Yes</td><td>Bearer token to authenticate <code>POST /api/cron</code></td></tr>
+        <tr><td><code>DOMAIN</code></td><td>Prod only</td><td>Root domain used in Nginx and docker-compose.prod.yml</td></tr>
+        <tr><td><code>POSTGRES_USER</code></td><td>Prod only</td><td>PostgreSQL username</td></tr>
+        <tr><td><code>POSTGRES_PASSWORD</code></td><td>Prod only</td><td>PostgreSQL password</td></tr>
+        <tr><td><code>POSTGRES_DB</code></td><td>Prod only</td><td>PostgreSQL database name</td></tr>
+        <tr><td><code>REDIS_PASSWORD</code></td><td>Prod only</td><td>Redis password</td></tr>
+        <tr><td><code>OLLAMA_AUTO_PULL</code></td><td>No</td><td>Space-separated model names to auto-pull (default: <code>qwen2.5:3b qwen2.5:7b</code>)</td></tr>
+        <tr><td><code>N8N_BASIC_AUTH_USER</code></td><td>Prod only</td><td>n8n basic auth username</td></tr>
+        <tr><td><code>N8N_BASIC_AUTH_PASSWORD</code></td><td>Prod only</td><td>n8n basic auth password</td></tr>
+        <tr><td><code>OPEN_WEBUI_SECRET</code></td><td>Prod only</td><td>Open WebUI secret key</td></tr>
+      </tbody>
+    </table>
+
+    <!-- ─── COMMANDS ─── -->
+    <h2 id="commands">Commands Reference</h2>
+
+    <h3>Development</h3>
+    <pre><code>npm run dev          # Start Next.js dev server at :3000
+npm run build        # Production build
+npm run lint         # ESLint
+npm run test         # Run 20 Vitest tests
+npm run test:watch   # Watch mode
+npm run seed:teams   # Seed the 5 pre-built agent teams</code></pre>
+
+    <h3>Database</h3>
+    <pre><code>npx prisma migrate dev         # Create and apply a new migration
+npx prisma migrate deploy      # Apply migrations (used in production entrypoint)
+npx prisma studio              # Launch Prisma GUI at localhost:5555
+npx prisma generate            # Regenerate client after schema change</code></pre>
+
+    <h3>Docker (dev)</h3>
+    <pre><code>docker compose up -d           # Start postgres + redis
+docker compose logs -f         # Follow logs
+docker compose down            # Stop services</code></pre>
+
+    <h3>Docker (prod)</h3>
+    <pre><code>docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose ps
+docker logs vps-dashboard</code></pre>
+
+    <!-- ─── PRODUCTION STACK ─── -->
+    <h2 id="production-stack">Production Stack</h2>
+    <p>
+      The full stack deployed by <code>setup.sh</code> on a VPS with <code>docker-compose.prod.yml</code>:
+    </p>
+    <table>
+      <thead><tr><th>Container</th><th>Image</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td>vps-dashboard</td><td>custom Next.js build</td><td>The Agent Dashboard app</td></tr>
+        <tr><td>vps-postgres</td><td>postgres:15 + pgvector</td><td>Primary database</td></tr>
+        <tr><td>vps-redis</td><td>redis:7</td><td>Cache / session store</td></tr>
+        <tr><td>vps-nginx</td><td>nginx:alpine</td><td>Reverse proxy + SSL termination</td></tr>
+        <tr><td>vps-n8n</td><td>n8nio/n8n</td><td>Workflow automation</td></tr>
+        <tr><td>vps-ollama</td><td>custom Ollama build</td><td>Local LLM server (auto-pulls models)</td></tr>
+        <tr><td>vps-open-webui</td><td>ghcr.io/open-webui/open-webui</td><td>Chat UI for Ollama models</td></tr>
+        <tr><td>vps-filebrowser</td><td>filebrowser/filebrowser</td><td>Web-based file manager</td></tr>
+        <tr><td>vps-portainer</td><td>portainer/portainer-ce</td><td>Docker management UI</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout" style="margin-top:32px;">
+      <strong>For agents:</strong> The primary interface to this system is <code>POST /api/chat</code>.
+      All tool names, their parameters, and what data they return are documented in the
+      <a href="#chat-tools">Chat Tool Definitions</a> section above.
+      Permission scopes that control tool access are in <a href="#permissions">Agent Permission Presets</a>.
+    </div>
+
+  </main>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <span>© 2026 AgentPlayground. Open source under MIT.</span>
+      <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="https://github.com/agentplayground/agent-dashboard-ui-app" target="_blank" rel="noopener">GitHub</a>
+        <a href="index.html#contact">Contact</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/main.js"></script>
+</body>
+</html>

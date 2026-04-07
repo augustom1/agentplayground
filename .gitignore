@@ -48,3 +48,6 @@ webroot/*/
 
 # VPS stack — generated files (created by setup.sh)
 .env.local
+.claude/worktrees/
+server_plans.png
+test_api_key.png

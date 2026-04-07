@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Loader2,
   RefreshCw,
+  CheckCircle,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { CREDIT_PACKAGES, PLANS, creditsToUsd } from "@/lib/pricing";
@@ -110,6 +111,8 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const plan = (session?.user as { plan?: string })?.plan ?? "free";
   const planConfig = PLANS[plan as keyof typeof PLANS] ?? PLANS.free;
@@ -132,6 +135,34 @@ export default function BillingPage() {
   }
 
   useEffect(() => { fetchBilling(); }, []);
+
+  // Show success banner after Stripe redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("success") === "1") {
+      setSuccessMsg("Payment successful! Credits will appear in your balance shortly.");
+      window.history.replaceState({}, "", "/billing");
+      fetchBilling();
+    }
+  }, []);
+
+  async function handleStripeCheckout(packageId: string) {
+    setCheckoutLoading(packageId);
+    try {
+      const res = await fetch("/api/billing/stripe/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packageId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Checkout failed");
+      if (json.url) window.location.href = json.url;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Checkout failed");
+    } finally {
+      setCheckoutLoading(null);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-4xl animate-fade-in">
@@ -194,6 +225,17 @@ export default function BillingPage() {
           {planConfig.name}
         </span>
       </div>
+
+      {/* Success banner */}
+      {successMsg && (
+        <div
+          className="flex items-center gap-2 px-4 py-3 rounded-xl"
+          style={{ background: "var(--color-green-dim)", border: "1px solid rgba(74,222,128,0.2)" }}
+        >
+          <CheckCircle size={14} style={{ color: "var(--color-green)" }} />
+          <p className="text-sm" style={{ color: "var(--color-green)" }}>{successMsg}</p>
+        </div>
+      )}
 
       {/* Error state */}
       {error && (
@@ -380,17 +422,22 @@ export default function BillingPage() {
                       </p>
                     </div>
                     <button
-                      disabled
-                      className="w-full text-xs font-medium py-2 rounded-lg mt-auto"
+                      onClick={() => handleStripeCheckout(pkg.id)}
+                      disabled={checkoutLoading === pkg.id}
+                      className="w-full text-xs font-medium py-2 rounded-lg mt-auto flex items-center justify-center gap-1.5 transition-opacity"
                       style={{
-                        background: "var(--color-surface-3)",
-                        color: "var(--color-muted)",
-                        border: "1px solid var(--color-border)",
-                        cursor: "not-allowed",
-                        opacity: 0.7,
+                        background: isPopular ? "var(--color-green)" : "var(--color-surface-3)",
+                        color: isPopular ? "#000" : "var(--color-text)",
+                        border: isPopular ? "none" : "1px solid var(--color-border)",
+                        cursor: checkoutLoading === pkg.id ? "default" : "pointer",
+                        opacity: checkoutLoading === pkg.id ? 0.6 : 1,
                       }}
                     >
-                      Top Up (Coming Soon)
+                      {checkoutLoading === pkg.id ? (
+                        <><Loader2 size={11} className="animate-spin" /> Processing…</>
+                      ) : (
+                        <><CreditCard size={11} /> Pay ${pkg.usd}</>
+                      )}
                     </button>
                   </div>
                 );
@@ -398,7 +445,8 @@ export default function BillingPage() {
             </div>
 
             <p className="text-[11px] mt-4" style={{ color: "var(--color-muted)", opacity: 0.6 }}>
-              Stripe integration coming soon. Credits never expire and roll over month to month.
+              Payments via Stripe. Credits never expire and roll over month to month.
+              {" "}Requires <code>STRIPE_SECRET_KEY</code> in your environment.
             </p>
           </div>
         </>

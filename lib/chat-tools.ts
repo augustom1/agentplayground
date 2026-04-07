@@ -137,7 +137,7 @@ export const CHAT_TOOLS: ToolDefinition[] = [
       properties: {
         table: {
           type: "string",
-          enum: ["agent_teams", "agents", "tasks", "skills", "scheduled_jobs", "activity_logs", "improvements"],
+          enum: ["agent_teams", "agents", "tasks", "skills", "scheduled_jobs", "activity_logs", "improvements", "projects"],
           description: "Which table to query",
         },
         filters: {
@@ -404,6 +404,80 @@ export const CHAT_TOOLS: ToolDefinition[] = [
       required: ["query"],
     },
   },
+  // ─── Project Tools ────────────────────────────────────────────────────────────
+  {
+    name: "create_project",
+    description:
+      "Create a new project to organize agent work around a goal. Projects group teams, tasks, and outputs. Use this whenever the user describes a goal that will involve multiple steps, agents, or recurring work.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Project name" },
+        description: { type: "string", description: "What this project accomplishes" },
+        type: {
+          type: "string",
+          enum: ["one-time", "recurring", "permanent"],
+          description: "one-time = finite goal, recurring = repeating schedule, permanent = ongoing operation",
+        },
+        deliveryChannel: {
+          type: "string",
+          description: "Where to deliver outputs: 'chat', 'telegram', 'email' (optional)",
+        },
+      },
+      required: ["name", "description"],
+    },
+  },
+  {
+    name: "list_projects",
+    description: "List all projects with their status, type, and team assignments. Use when the user asks about ongoing work, active projects, or wants a status report.",
+    input_schema: {
+      type: "object",
+      properties: {
+        status: {
+          type: "string",
+          enum: ["active", "paused", "completed", "archived"],
+          description: "Filter by status (omit to list all active projects)",
+        },
+      },
+    },
+  },
+  {
+    name: "update_project",
+    description: "Update a project's status, description, or type. Use to mark projects complete, pause them, or archive them.",
+    input_schema: {
+      type: "object",
+      properties: {
+        projectId: { type: "string", description: "Project ID" },
+        status: {
+          type: "string",
+          enum: ["active", "paused", "completed", "archived"],
+          description: "New status",
+        },
+        description: { type: "string", description: "Updated description (optional)" },
+        deliveryChannel: { type: "string", description: "Updated delivery channel (optional)" },
+      },
+      required: ["projectId"],
+    },
+  },
+  {
+    name: "log_project_output",
+    description: "Record an output produced by agents for a project — a report, decision, piece of content, or file. This builds the project's output history.",
+    input_schema: {
+      type: "object",
+      properties: {
+        projectId: { type: "string", description: "Project ID" },
+        agentId: { type: "string", description: "Agent ID that produced the output (use 'keeper' if unknown)" },
+        type: {
+          type: "string",
+          enum: ["report", "content", "data", "file", "decision"],
+          description: "Output type",
+        },
+        title: { type: "string", description: "Output title" },
+        content: { type: "object", description: "Output content (any JSON)" },
+      },
+      required: ["projectId", "agentId", "type", "title"],
+    },
+  },
 ];
 
 /**
@@ -458,6 +532,14 @@ export async function executeTool(
         return await toolDeleteFile(input);
       case "search_files":
         return await toolSearchFiles(input);
+      case "create_project":
+        return await toolCreateProject(input);
+      case "list_projects":
+        return await toolListProjects(input);
+      case "update_project":
+        return await toolUpdateProject(input);
+      case "log_project_output":
+        return await toolLogProjectOutput(input);
       default:
         return JSON.stringify({ error: `Unknown tool: ${toolName}` });
     }
@@ -600,6 +682,9 @@ async function toolQueryData(input: Record<string, unknown>): Promise<string> {
       break;
     case "improvements":
       data = await prisma.improvement.findMany({ where: filters as never, take: 20, orderBy: { createdAt: "desc" } });
+      break;
+    case "projects":
+      data = await prisma.project.findMany({ where: { ...(filters as never), status: (filters as Record<string,string>).status ?? { not: "archived" } }, take: 20, orderBy: { createdAt: "desc" } });
       break;
     default:
       return JSON.stringify({ error: `Unknown table: ${table}` });
@@ -1045,4 +1130,86 @@ async function toolSearchFiles(input: Record<string, unknown>): Promise<string> 
   } catch (err) {
     return JSON.stringify({ error: `File search failed: ${String(err)}` });
   }
+}
+
+// ─── Project Tool Handlers ────────────────────────────────────────────────────
+
+async function toolCreateProject(input: Record<string, unknown>): Promise<string> {
+  const project = await prisma.project.create({
+    data: {
+      name: input.name as string,
+      description: (input.description as string) || null,
+      type: (input.type as string) || "one-time",
+      deliveryChannel: (input.deliveryChannel as string) || null,
+      status: "active",
+    },
+  });
+
+  return JSON.stringify({
+    success: true,
+    project: { id: project.id, name: project.name, type: project.type, status: project.status },
+    message: `Project "${project.name}" created. ID: ${project.id}. Use this ID to assign teams and log outputs.`,
+  });
+}
+
+async function toolListProjects(input: Record<string, unknown>): Promise<string> {
+  const statusFilter = (input.status as string) || undefined;
+  const projects = await prisma.project.findMany({
+    where: { status: statusFilter ?? { not: "archived" } },
+    orderBy: { createdAt: "desc" },
+    take: 30,
+  });
+
+  if (projects.length === 0) {
+    return JSON.stringify({ success: true, projects: [], message: "No active projects. Create one with create_project." });
+  }
+
+  return JSON.stringify({
+    success: true,
+    projects: projects.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      status: p.status,
+      type: p.type,
+      deliveryChannel: p.deliveryChannel,
+      createdAt: p.createdAt,
+    })),
+    count: projects.length,
+  });
+}
+
+async function toolUpdateProject(input: Record<string, unknown>): Promise<string> {
+  const project = await prisma.project.update({
+    where: { id: input.projectId as string },
+    data: {
+      ...(input.status && { status: input.status as string }),
+      ...(input.description !== undefined && { description: input.description as string }),
+      ...(input.deliveryChannel !== undefined && { deliveryChannel: input.deliveryChannel as string }),
+    },
+  });
+
+  return JSON.stringify({
+    success: true,
+    project: { id: project.id, name: project.name, status: project.status },
+    message: `Project "${project.name}" updated to status: ${project.status}.`,
+  });
+}
+
+async function toolLogProjectOutput(input: Record<string, unknown>): Promise<string> {
+  const output = await prisma.projectOutput.create({
+    data: {
+      projectId: input.projectId as string,
+      agentId: input.agentId as string,
+      type: input.type as string,
+      title: input.title as string,
+      content: (input.content as Record<string, unknown>) ?? null,
+    },
+  });
+
+  return JSON.stringify({
+    success: true,
+    output: { id: output.id, type: output.type, title: output.title },
+    message: `Output "${output.title}" logged for project.`,
+  });
 }

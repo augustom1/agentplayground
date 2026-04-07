@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgentPlayground — AI Agent Management Platform</title>
+  <meta name="description" content="AgentPlayground is an open-source, self-hosted platform for managing Claude-powered agent teams, scheduling tasks, chatting with tool-use AI, and building self-improving automation systems." />
+  <meta name="keywords" content="AI agents, Claude, Anthropic, agent platform, automation, self-hosted, open source, AgentPlayground" />
+  <meta property="og:title" content="AgentPlayground — AI Agent Management Platform" />
+  <meta property="og:description" content="Self-hosted platform to manage Claude-powered agent teams, schedule tasks, and build autonomous systems." />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     NAV
+════════════════════════════════════════ -->
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo" style="text-decoration:none;">
+      <div class="nav-logo-icon">⬡</div>
+      AgentPlayground
+    </a>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#screenshots">Screenshots</a></li>
+      <li><a href="#install">Quick Start</a></li>
+      <li><a href="docs.html">Docs</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+    <div class="nav-cta">
+      <a href="https://github.com/agentplayground/agent-dashboard-ui-app" class="btn btn-ghost" target="_blank" rel="noopener">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+        GitHub
+      </a>
+      <a href="#install" class="btn btn-primary">Get Started</a>
+    </div>
+    <div class="hamburger" id="hamburger" role="button" aria-label="Open menu">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile Menu -->
+<div class="mobile-menu" id="mobile-menu">
+  <a href="#features">Features</a>
+  <a href="#screenshots">Screenshots</a>
+  <a href="#install">Quick Start</a>
+  <a href="docs.html">Docs</a>
+  <a href="#contact">Contact</a>
+</div>
+
+<!-- ═══════════════════════════════════════
+     HERO
+════════════════════════════════════════ -->
+<section class="hero" id="hero">
+  <div class="container">
+    <div class="hero-badge">
+      <span class="badge-dot"></span>
+      Open Source · Self-Hosted · Claude-Powered
+    </div>
+    <h1>
+      Manage AI Agent Teams<br />
+      <span class="gradient-text">on Your Own Infrastructure</span>
+    </h1>
+    <p>
+      AgentPlayground is a self-hosted platform for creating Claude-powered agent teams,
+      assigning tasks, scheduling automation, and building systems that learn and improve over time.
+    </p>
+    <div class="hero-actions">
+      <a href="#install" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Clone &amp; Run
+      </a>
+      <a href="docs.html" class="btn btn-ghost">Read the Docs →</a>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ═══════════════════════════════════════
+     FEATURES
+════════════════════════════════════════ -->
+<section class="section" id="features">
+  <div class="container">
+    <div class="section-label">Features</div>
+    <h2 style="font-size:1.75rem; max-width:500px;">Everything you need to run autonomous agents</h2>
+
+    <div class="features-grid">
+
+      <div class="feature-card">
+        <div class="feature-icon">🤖</div>
+        <h3>Agent Teams</h3>
+        <p>Organize Claude-powered agents into named teams with individual system prompts, models, temperature, and permission scopes. Seed pre-built teams like Dev Core, DevOps, and Command Center.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">💬</div>
+        <h3>Tool-Use Chat</h3>
+        <p>Chat with Claude through a streaming interface that has direct access to your database. Claude can create tasks, query teams, log improvements, and generate new tools mid-conversation.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🗓️</div>
+        <h3>Task Scheduling</h3>
+        <p>Create one-off tasks or recurring cron jobs per team. View everything in a calendar UI. Cron jobs run via a secure external trigger endpoint protected by <code>CRON_SECRET</code>.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🧪</div>
+        <h3>Agent Lab</h3>
+        <p>A live playground for testing agent prompts against any team. Run history is persisted so you can compare results, tweak system prompts, and iterate quickly.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🔧</div>
+        <h3>Tools Catalog</h3>
+        <p>Every team has a library of Skills, CLI Functions, and logged Improvements. Claude can detect repeated patterns and generate new tools that get stored in the catalog automatically.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3>Dashboard Widgets</h3>
+        <p>Configurable stat, feed, calendar, and optimization widgets give you a live overview of team health, recent activity, tasks counts, and tool catalog growth.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🔐</div>
+        <h3>Auth &amp; Roles</h3>
+        <p>NextAuth v5 with JWT strategy. Four role tiers: <code>admin</code>, <code>builder</code>, <code>standard</code>, <code>readonly</code>. Each maps to a distinct permission preset controlling what agents can read and write.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🐳</div>
+        <h3>Docker Deployment</h3>
+        <p>Single <code>bash setup.sh</code> on any VPS spins up the full stack: dashboard, PostgreSQL, Redis, Nginx, n8n, Ollama with auto-pulled local models, FileBrowser, and Portainer.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🧠</div>
+        <h3>Local LLM Support</h3>
+        <p>Ships with a custom Ollama image that auto-pulls <code>qwen2.5:3b</code> and <code>qwen2.5:7b</code> on first start. Route lightweight tasks to local models, fall back to Claude for complex ones.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ═══════════════════════════════════════
+     SCREENSHOTS
+════════════════════════════════════════ -->
+<section class="section" id="screenshots">
+  <div class="container">
+    <div class="section-label">Preview</div>
+    <h2 style="font-size:1.75rem;">See it in action</h2>
+    <p style="color:var(--text-muted); margin-top:8px; max-width:520px;">
+      A tour of the main views — replace the mockups below with actual screenshots from your running instance.
+    </p>
+
+    <div class="screenshots-grid">
+
+      <!-- Dashboard -->
+      <div class="screenshot-frame">
+        <div class="screenshot-bar">
+          <span class="dot dot-red"></span>
+          <span class="dot dot-yellow"></span>
+          <span class="dot dot-green"></span>
+          <span class="screenshot-url">app.agentplayground.net/dashboard</span>
+        </div>
+        <div class="screenshot-placeholder">
+          <div class="mock-ui">
+            <div class="mock-sidebar">
+              <div class="mock-sidebar-items">
+                <div class="mock-sidebar-item active"></div>
+                <div class="mock-sidebar-item"></div>
+                <div class="mock-sidebar-item"></div>
+                <div class="mock-sidebar-item"></div>
+                <div class="mock-sidebar-item"></div>
+              </div>
+            </div>
+            <div class="mock-content">
+              <div class="mock-header"></div>
+              <div class="mock-cards">
+                <div class="mock-card"></div>
+                <div class="mock-card"></div>
+                <div class="mock-card"></div>
+              </div>
+              <div class="mock-rows">
+                <div class="mock-row"></div>
+                <div class="mock-row"></div>
+                <div class="mock-row"></div>
+                <div class="mock-row"></div>
+              </div>
+            </div>
+          </div>
+          <div class="screenshot-label"><span>Dashboard — widgets &amp; team overview</span></div>
+        </div>
+      </div>
+
+      <!-- Chat -->
+      <div class="screenshot-frame">
+        <div class="screenshot-bar">
+          <span class="dot dot-red"></span>
+          <span class="dot dot-yellow"></span>
+          <span class="dot dot-green"></span>
+          <span class="screenshot-url">app.agentplayground.net/chat</span>
+        </div>
+        <div class="screenshot-placeholder">
+          <div class="mock-ui">
+            <div class="mock-sidebar">
+              <div class="mock-sidebar-items">
+                <div class="mock-sidebar-item"></div>
+                <div class="mock-sidebar-item active"></div>
+                <div class="mock-sidebar-item"></div>
+                <div class="mock-sidebar-item"></div>
+              </div>
+            </div>
+            <div class="mock-content">
+              <div class="mock-chat">
+                <div class="mock-msg user"></div>
+                <div class="mock-msg agent wide"></div>
+                <div class="mock-msg agent"></div>
+                <div class="mock-msg user"></div>
+                <div class="mock-msg agent wide"></div>
+              </div>
+            </div>
+          </div>
+          <div class="screenshot-label"><span>Chat — streaming tool-use with Claude</span></div>
+        </div>
+      </div>
+
+      <!-- Agent Lab -->
+      <div class="screenshot-frame">
+        <div class="screenshot-bar">
+          <span class="dot dot-red"></span>
+          <span class="dot dot-yellow"></span>
+          <span class="dot dot-green"></span>
+          <span class="screenshot-url">app.agentplayground.net/agent-lab</span>
+        </div>
+        <div class="screenshot-placeholder">
+          <div class="mock-ui">
+            <div class="mock-sidebar">
+              <div class="mock-sidebar-items">
+                <div class="mock-sidebar-item"></div>
+                <div class="mock-sidebar-item"></div>
+                <div class="mock-sidebar-item active"></div>
+                <div class="mock-sidebar-item"></div>
+              </div>
+            </div>
+            <div class="mock-content">
+              <div class="mock-header"></div>
+              <div class="mock-cards" style="grid-template-columns:1fr 1fr">
+                <div class="mock-card" style="height:40px"></div>
+                <div class="mock-card" style="height:40px"></div>
+              </div>
+              <div class="mock-rows">
+                <div class="mock-row" style="height:30px; background:rgba(124,58,237,0.1);"></div>
+              </div>
+            </div>
+          </div>
+          <div class="screenshot-label"><span>Agent Lab — test prompts &amp; compare runs</span></div>
+        </div>
+      </div>
+
+      <!-- Schedule -->
+      <div class="screenshot-frame">
+        <div class="screenshot-bar">
+          <span class="dot dot-red"></span>
+          <span class="dot dot-yellow"></span>
+          <span class="dot dot-green"></span>
+          <span class="screenshot-url">app.agentplayground.net/schedule</span>
+        </div>
+        <div class="screenshot-placeholder">
+          <div class="mock-ui">
+            <div class="mock-sidebar">
+              <div class="mock-sidebar-items">
+                <div class="mock-sidebar-item"></div>
+                <div class="mock-sidebar-item"></div>
+                <div class="mock-sidebar-item"></div>
+                <div class="mock-sidebar-item active"></div>
+              </div>
+            </div>
+            <div class="mock-content">
+              <div class="mock-header"></div>
+              <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:6px">
+                <div class="mock-card" style="height:12px;border-radius:2px"></div>
+                <div class="mock-card" style="height:12px;border-radius:2px"></div>
+                <div class="mock-card" style="height:12px;border-radius:2px"></div>
+                <div class="mock-card" style="height:12px;border-radius:2px"></div>
+                <div class="mock-card" style="height:12px;border-radius:2px"></div>
+                <div class="mock-card" style="height:12px;border-radius:2px;background:rgba(124,58,237,0.3)"></div>
+                <div class="mock-card" style="height:12px;border-radius:2px"></div>
+                <div class="mock-card" style="height:12px;border-radius:2px"></div>
+                <div class="mock-card" style="height:12px;border-radius:2px;background:rgba(34,197,94,0.2)"></div>
+                <div class="mock-card" style="height:12px;border-radius:2px"></div>
+                <div class="mock-card" style="height:12px;border-radius:2px"></div>
+                <div class="mock-card" style="height:12px;border-radius:2px"></div>
+                <div class="mock-card" style="height:12px;border-radius:2px;background:rgba(124,58,237,0.2)"></div>
+                <div class="mock-card" style="height:12px;border-radius:2px"></div>
+              </div>
+            </div>
+          </div>
+          <div class="screenshot-label"><span>Schedule — calendar view of jobs &amp; cron tasks</span></div>
+        </div>
+      </div>
+
+    </div>
+
+    <p style="color:var(--text-faint); font-size:0.8125rem; margin-top:20px; text-align:center;">
+      Add your own screenshots to <code>assets/screenshots/</code> and replace the mockups above.
+    </p>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ═══════════════════════════════════════
+     STACK
+════════════════════════════════════════ -->
+<section class="section" id="stack">
+  <div class="container">
+    <div class="section-label">Tech Stack</div>
+    <h2 style="font-size:1.75rem;">Built on solid foundations</h2>
+
+    <div class="stack-row">
+      <div class="stack-pill"><span class="dot-icon">▲</span> Next.js 16</div>
+      <div class="stack-pill"><span class="dot-icon">⚛</span> React 19</div>
+      <div class="stack-pill"><span class="dot-icon">🔷</span> TypeScript</div>
+      <div class="stack-pill"><span class="dot-icon">🗄️</span> PostgreSQL + pgvector</div>
+      <div class="stack-pill"><span class="dot-icon">🔺</span> Prisma 7</div>
+      <div class="stack-pill"><span class="dot-icon">🔐</span> NextAuth v5</div>
+      <div class="stack-pill"><span class="dot-icon">🎨</span> Tailwind v4</div>
+      <div class="stack-pill"><span class="dot-icon">🐳</span> Docker</div>
+      <div class="stack-pill"><span class="dot-icon">🤖</span> Anthropic SDK</div>
+      <div class="stack-pill"><span class="dot-icon">🧠</span> Ollama</div>
+      <div class="stack-pill"><span class="dot-icon">⚡</span> Redis</div>
+      <div class="stack-pill"><span class="dot-icon">🔗</span> n8n</div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ═══════════════════════════════════════
+     QUICK START / INSTALL
+════════════════════════════════════════ -->
+<section class="section" id="install">
+  <div class="container">
+    <div class="section-label">Quick Start</div>
+    <h2 style="font-size:1.75rem;">Clone and run in minutes</h2>
+    <p style="color:var(--text-muted); margin-top:8px; max-width:540px;">
+      You need Node.js 20+, Docker, and an Anthropic API key. Choose local dev or full VPS deployment.
+    </p>
+
+    <div class="install-steps">
+
+      <!-- Step 1 -->
+      <div class="install-step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Clone the repository</h4>
+          <pre><code>git clone https://github.com/agentplayground/agent-dashboard-ui-app.git
+cd agent-dashboard-ui-app</code></pre>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="install-step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Create your environment file</h4>
+          <p>Copy the example and fill in the required secrets.</p>
+          <pre><code>cp .env.example .env</code></pre>
+          <p style="margin-top:12px;">Minimum required variables:</p>
+          <pre><code>DATABASE_URL="postgresql://user:pass@localhost:5432/agentdb"
+AUTH_SECRET="your-random-secret-32-chars"
+ANTHROPIC_API_KEY="sk-ant-..."
+NEXTAUTH_URL="http://localhost:3000"</code></pre>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="install-step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Start the database (Docker)</h4>
+          <pre><code>docker compose up -d</code></pre>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="install-step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Install dependencies and run migrations</h4>
+          <pre><code>npm install
+npx prisma migrate dev</code></pre>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="install-step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h4>Start the dev server</h4>
+          <pre><code>npm run dev</code></pre>
+          <p>Open <a href="http://localhost:3000/setup" target="_blank">http://localhost:3000/setup</a> to create your admin account. The app redirects there automatically on first run.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="margin-top:40px; padding: 24px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius);">
+      <h3 style="font-size:1rem; margin-bottom:8px;">🚀 Full VPS deployment</h3>
+      <p style="color:var(--text-muted); font-size:0.875rem; margin-bottom:14px;">
+        For production on a Linux VPS (Ubuntu 22+), a single bootstrap script handles everything —
+        Docker install, Nginx, SSL, Ollama with local models, n8n, FileBrowser, and Portainer.
+      </p>
+      <pre><code># On your VPS — edit .env.local first, then:
+bash setup.sh</code></pre>
+      <p style="color:var(--text-muted); font-size:0.8125rem; margin-top:12px;">
+        DNS: point <code>@</code> and <code>*</code> A-records to your VPS IP before running.
+        See <a href="docs.html#deployment">full deployment guide →</a>
+      </p>
+    </div>
+
+    <div style="margin-top:20px;">
+      <h3 style="font-size:1rem; margin-bottom:12px;">Seed pre-built agent teams</h3>
+      <pre><code>npm run seed:teams</code></pre>
+      <p style="color:var(--text-muted); font-size:0.875rem; margin-top:8px;">
+        Seeds five ready-to-use teams: <strong>Dev Core</strong>, <strong>DevOps &amp; Infrastructure</strong>,
+        <strong>Product &amp; Design</strong>, <strong>Business &amp; Growth</strong>, and
+        <strong>Command Center</strong> (coordinator that routes to all others).
+      </p>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ═══════════════════════════════════════
+     DOCS CTA
+════════════════════════════════════════ -->
+<section class="section" id="docs-cta">
+  <div class="container">
+    <div class="docs-cta">
+      <div>
+        <h2>Full documentation</h2>
+        <p>
+          Detailed guides on every page, the complete API reference, database schema,
+          agent permission presets, chat tool definitions, and architecture overview —
+          structured so both humans and agents can search and navigate it.
+        </p>
+      </div>
+      <a href="docs.html" class="btn btn-primary" style="white-space:nowrap;">
+        Read the Docs →
+      </a>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ═══════════════════════════════════════
+     CONTACT
+════════════════════════════════════════ -->
+<section class="section" id="contact">
+  <div class="container">
+    <div class="section-label">Contact</div>
+    <h2 style="font-size:1.75rem;">Get in touch</h2>
+
+    <div class="contact-wrap">
+      <div class="contact-info">
+        <p>
+          Have a question about the platform, need help with deployment, or want to
+          report an issue? Send a message and I'll get back to you.
+        </p>
+        <div class="contact-links">
+          <a href="mailto:contact@agentplayground.net" class="contact-link">
+            <span class="contact-link-icon">✉️</span>
+            contact@agentplayground.net
+          </a>
+          <a href="https://github.com/agentplayground/agent-dashboard-ui-app/issues" class="contact-link" target="_blank" rel="noopener">
+            <span class="contact-link-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+            </span>
+            Open a GitHub Issue
+          </a>
+        </div>
+      </div>
+
+      <div class="contact-form">
+        <form id="contact-form" novalidate>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+            <div class="form-group" style="margin-bottom:0">
+              <label for="name">Name</label>
+              <input type="text" id="name" name="name" placeholder="Your name" required />
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label for="email">Email</label>
+              <input type="email" id="email" name="email" placeholder="you@example.com" required />
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:14px;">
+            <label for="subject">Subject</label>
+            <input type="text" id="subject" name="subject" placeholder="Question, bug report, or just saying hi" />
+          </div>
+          <div class="form-group">
+            <label for="message">Message</label>
+            <textarea id="message" name="message" placeholder="Tell me what's on your mind…" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary form-submit">Send Message</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════
+     FOOTER
+════════════════════════════════════════ -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <span>© 2026 AgentPlayground. Open source under MIT.</span>
+      <div class="footer-links">
+        <a href="docs.html">Docs</a>
+        <a href="https://github.com/agentplayground/agent-dashboard-ui-app" target="_blank" rel="noopener">GitHub</a>
+        <a href="#contact">Contact</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/main.js"></script>
+</body>
+</html>
