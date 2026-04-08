@@ -16,6 +16,7 @@ import {
   Users,
   Wrench,
   CreditCard,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
@@ -25,6 +26,7 @@ const navItems = [
   { href: "/dashboard",  label: "Dashboard", icon: LayoutDashboard },
   { href: "/agent-lab",  label: "Agent Lab",  icon: FlaskConical    },
   { href: "/chat",       label: "Chat",       icon: MessageSquare   },
+  { href: "/projects",   label: "Projects",   icon: Layers          },
   { href: "/tools",      label: "Tools",      icon: Wrench          },
   { href: "/schedule",   label: "Schedule",   icon: Calendar        },
   { href: "/files",      label: "Files",      icon: FolderOpen      },

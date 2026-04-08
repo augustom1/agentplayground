@@ -404,6 +404,39 @@ export const CHAT_TOOLS: ToolDefinition[] = [
       required: ["query"],
     },
   },
+  // ─── Memory Tools ─────────────────────────────────────────────────────────────
+  {
+    name: "save_memory",
+    description:
+      "Save an important fact, preference, or decision to long-term memory. Use this whenever the user tells you something they want you to remember, or when you make a significant routing decision. Memory persists across conversations.",
+    input_schema: {
+      type: "object",
+      properties: {
+        content: { type: "string", description: "The fact, preference, or decision to remember" },
+        memoryType: {
+          type: "string",
+          enum: ["fact", "preference", "decision", "output"],
+          description: "Type of memory (default: fact)",
+        },
+        importance: {
+          type: "number",
+          description: "Importance score 0.0–1.0 (default: 0.7). Higher = recalled first.",
+        },
+      },
+      required: ["content"],
+    },
+  },
+  {
+    name: "recall_memories",
+    description:
+      "Recall stored memories from past conversations. Use this when the user references something from a previous session or you need context about their preferences.",
+    input_schema: {
+      type: "object",
+      properties: {
+        limit: { type: "number", description: "Number of memories to recall (default: 15)" },
+      },
+    },
+  },
   // ─── Project Tools ────────────────────────────────────────────────────────────
   {
     name: "create_project",
@@ -532,6 +565,10 @@ export async function executeTool(
         return await toolDeleteFile(input);
       case "search_files":
         return await toolSearchFiles(input);
+      case "save_memory":
+        return await toolSaveMemory(input);
+      case "recall_memories":
+        return await toolRecallMemories(input);
       case "create_project":
         return await toolCreateProject(input);
       case "list_projects":
@@ -1212,4 +1249,24 @@ async function toolLogProjectOutput(input: Record<string, unknown>): Promise<str
     output: { id: output.id, type: output.type, title: output.title },
     message: `Output "${output.title}" logged for project.`,
   });
+}
+
+// ─── Memory Tool Handlers ─────────────────────────────────────────────────────
+
+async function toolSaveMemory(input: Record<string, unknown>): Promise<string> {
+  const { storeMemory } = await import("@/lib/memory/store");
+  await storeMemory({
+    ownerType: "system",
+    ownerId: "keeper",
+    content: input.content as string,
+    memoryType: (input.memoryType as "fact" | "preference" | "decision" | "output") || "fact",
+    importance: (input.importance as number) || 0.7,
+  });
+  return JSON.stringify({ success: true, message: "Memory saved. I will remember this in future conversations." });
+}
+
+async function toolRecallMemories(input: Record<string, unknown>): Promise<string> {
+  const { retrieveMemories } = await import("@/lib/memory/retrieve");
+  const memories = await retrieveMemories("keeper", "system", (input.limit as number) || 15);
+  return JSON.stringify({ success: true, memories: memories || "No memories stored yet." });
 }

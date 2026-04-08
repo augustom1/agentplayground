@@ -113,6 +113,7 @@ export default function BillingPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"stripe" | "bitpay">("stripe");
 
   const plan = (session?.user as { plan?: string })?.plan ?? "free";
   const planConfig = PLANS[plan as keyof typeof PLANS] ?? PLANS.free;
@@ -145,6 +146,24 @@ export default function BillingPage() {
       fetchBilling();
     }
   }, []);
+
+  async function handleBitPayCheckout(packageId: string) {
+    setCheckoutLoading(packageId);
+    try {
+      const res = await fetch("/api/billing/bitpay/create-invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packageId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "BitPay checkout failed");
+      if (json.url) window.location.href = json.url;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "BitPay checkout failed");
+    } finally {
+      setCheckoutLoading(null);
+    }
+  }
 
   async function handleStripeCheckout(packageId: string) {
     setCheckoutLoading(packageId);
@@ -382,6 +401,25 @@ export default function BillingPage() {
               </div>
             </div>
 
+            {/* Payment method selector */}
+            <div className="flex gap-2 mb-4">
+              {(["stripe", "bitpay"] as const).map((method) => (
+                <button
+                  key={method}
+                  onClick={() => setPaymentMethod(method)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all"
+                  style={{
+                    background: paymentMethod === method ? "var(--color-surface-3)" : "transparent",
+                    border: `1px solid ${paymentMethod === method ? "var(--color-border)" : "transparent"}`,
+                    color: "var(--color-text)",
+                    cursor: "pointer",
+                  }}
+                >
+                  {method === "stripe" ? "💳 Card" : "🪙 Crypto (+10% bonus)"}
+                </button>
+              ))}
+            </div>
+
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {CREDIT_PACKAGES.map((pkg) => {
                 const isPopular = pkg.id === "standard";
@@ -422,7 +460,10 @@ export default function BillingPage() {
                       </p>
                     </div>
                     <button
-                      onClick={() => handleStripeCheckout(pkg.id)}
+                      onClick={() => paymentMethod === "stripe"
+                        ? handleStripeCheckout(pkg.id)
+                        : handleBitPayCheckout(pkg.id)
+                      }
                       disabled={checkoutLoading === pkg.id}
                       className="w-full text-xs font-medium py-2 rounded-lg mt-auto flex items-center justify-center gap-1.5 transition-opacity"
                       style={{
@@ -435,6 +476,8 @@ export default function BillingPage() {
                     >
                       {checkoutLoading === pkg.id ? (
                         <><Loader2 size={11} className="animate-spin" /> Processing…</>
+                      ) : paymentMethod === "bitpay" ? (
+                        <>🪙 Pay ${pkg.usd} <span style={{ opacity: 0.7 }}>(+10%)</span></>
                       ) : (
                         <><CreditCard size={11} /> Pay ${pkg.usd}</>
                       )}

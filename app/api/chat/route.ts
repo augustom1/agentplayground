@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { rateLimit, LIMITS } from "@/lib/rate-limit";
 import { trackUsage } from "@/lib/usage-tracker";
+import { retrieveMemories } from "@/lib/memory/retrieve";
 
 // ─── System Prompts ────────────────────────────────────────────────────────────
 
@@ -70,7 +71,7 @@ Keep responses concise. Use ✓ for completed actions. Start with action, not ex
 // ─── Context builders ──────────────────────────────────────────────────────────
 
 async function buildCoordinatorContext(): Promise<string> {
-  const [teams, projects] = await Promise.all([
+  const [teams, projects, memoryContext] = await Promise.all([
     prisma.agentTeam.findMany({
       where: { isSystemTeam: false },
       include: {
@@ -85,9 +86,14 @@ async function buildCoordinatorContext(): Promise<string> {
       orderBy: { updatedAt: "desc" },
       take: 10,
     }),
+    retrieveMemories("keeper", "system", 10),
   ]);
 
   const sections: string[] = [COORDINATOR_INTRO];
+
+  if (memoryContext) {
+    sections.push(memoryContext);
+  }
 
   if (projects.length > 0) {
     const projectList = projects

@@ -2,6 +2,8 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
+import { addCredits } from "@/lib/usage-tracker";
+import { PLANS } from "@/lib/pricing";
 
 // GET /api/cron — execute due recurring tasks
 // Protected by Authorization: Bearer <CRON_SECRET>
@@ -73,9 +75,35 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Monthly credit reset — runs once on 1st of month at midnight UTC
+    const isFirstOfMonth = now.getUTCDate() === 1 && now.getUTCHours() === 0;
+    if (isFirstOfMonth) {
+      await grantMonthlyFreeCredits();
+    }
+
     return NextResponse.json({ dispatched: dispatched.length, tasks: dispatched });
   } catch (err) {
     return apiError(err);
+  }
+}
+
+async function grantMonthlyFreeCredits(): Promise<void> {
+  try {
+    const users = await prisma.user.findMany({
+      where: { active: true },
+      select: { id: true, plan: true },
+    });
+
+    for (const user of users) {
+      const planConfig = PLANS[user.plan as keyof typeof PLANS] ?? PLANS.free;
+      if (planConfig.monthlyFreeCredits > 0) {
+        await addCredits(user.id, planConfig.monthlyFreeCredits, "monthly_reset");
+      }
+    }
+
+    console.log(`[cron] Monthly credits granted to ${users.length} users`);
+  } catch (err) {
+    console.error("[cron] Monthly credit reset failed:", err);
   }
 }
 
