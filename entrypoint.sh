@@ -16,7 +16,10 @@ fi
 
 # ── Database ─────────────────────────────────────────────────────────────────
 echo "▶ Applying database schema..."
-node node_modules/prisma/build/index.js db push --skip-generate
+node node_modules/prisma/build/index.js db push --accept-data-loss || {
+  echo "ERROR: prisma db push failed. Check your DATABASE_URL and Postgres connection."
+  exit 1
+}
 
 echo "▶ Starting application..."
 exec node server.js

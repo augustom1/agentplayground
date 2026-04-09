@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
 import { addCredits } from "@/lib/usage-tracker";
+import { runWeeklyOptimizationScan } from "@/lib/optimizer/scanner";
 import { PLANS } from "@/lib/pricing";
 
 // GET /api/cron — execute due recurring tasks
@@ -79,6 +80,15 @@ export async function GET(req: NextRequest) {
     const isFirstOfMonth = now.getUTCDate() === 1 && now.getUTCHours() === 0;
     if (isFirstOfMonth) {
       await grantMonthlyFreeCredits();
+    }
+
+    // Weekly optimization scan — runs every Sunday at midnight UTC (once per hour window)
+    const isSunday = now.getUTCDay() === 0;
+    const isMidnightWindow = now.getUTCHours() === 0 && now.getUTCMinutes() < 2;
+    if (isSunday && isMidnightWindow) {
+      runWeeklyOptimizationScan().catch((err) =>
+        console.error("[cron] Weekly optimization scan failed:", err)
+      );
     }
 
     return NextResponse.json({ dispatched: dispatched.length, tasks: dispatched });

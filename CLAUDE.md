@@ -28,9 +28,13 @@
 | Dashboard widgets | ✅ | ✅ | ✅ | ✅ |
 | File management + embeddings | ✅ | ✅ | ✅ | ✅ |
 | Schedule / recurring tasks | ✅ | ✅ | ✅ | ✅ |
-| Billing / credits schema | ✅ | ✅ GET | ✅ UI | ❌ no payment |
-| Stripe + BitPay checkout | ❌ | ❌ | ❌ | ❌ |
-| Projects (Keeper organizes work) | ✅ | ❌ | ❌ | ❌ |
+| Billing / credits schema | ✅ | ✅ | ✅ | ✅ tracking |
+| Stripe checkout + webhook | ✅ | ✅ written | ✅ written | ❌ needs keys |
+| BitPay checkout + webhook | ✅ | ✅ written | ✅ written | ❌ needs key |
+| Plan enforcement (credit gate) | — | ❌ | — | ❌ no gate |
+| Admin monitoring panel | — | ❌ | ❌ | ❌ |
+| Self-registration | — | ❌ | ❌ | ❌ |
+| Projects (Keeper organizes work) | ✅ | ✅ basic | ✅ basic | ✅ partial |
 | Multi-channel routing (Telegram etc) | ✅ | ❌ | ❌ | ❌ |
 | Agent Memory | ✅ | ❌ | ❌ | ❌ |
 | Playground Keeper (full vision) | — | ❌ | ❌ | ❌ |
@@ -358,12 +362,60 @@ DNS: Two A records — `@` and `*` → VPS IP.
 **Infrastructure:**
 - Created `lib/config/mode.ts` — PLAYGROUND_MODE detection + feature flags
 
-**What's still needed (priority order):**
-1. Wire billing (credit deduction in chat route, Stripe checkout, BitPay invoice)
-2. Projects CRUD endpoints + UI (Keeper needs project awareness)
-3. Upgrade Coordinator to full Keeper (auto-create projects, manage lifecycle)
-4. Agent memory write/read (populate AgentMemory from chat)
-5. Telegram bridge (first external channel)
+**What was built in this session:**
+- Stripe checkout API (`app/api/billing/stripe/create-checkout/route.ts`) — fully implemented
+- Stripe webhook (`app/api/webhooks/stripe/route.ts`) — validates + credits user on payment
+- BitPay invoice + webhook — same pattern
+- Billing UI (`app/(app)/billing/page.tsx`) — complete with usage history, credit packages, Stripe + BitPay toggle
+- Projects UI (`app/(app)/projects/page.tsx`) — list + create projects
+- Projects API (`app/api/projects/route.ts`, `app/api/projects/[id]/route.ts`)
+- Telegram webhook stub (`app/api/telegram/webhook/route.ts`)
+- Agent memory helpers (`lib/memory/store.ts`, `lib/memory/retrieve.ts`)
+- `trackUsage()` called in chat route (deducts credits, logs API usage)
+
+**What's still needed (priority order — see ROADMAP.md):**
+1. Plan enforcement gate in chat route (free users currently unlimited)
+2. Stripe keys in `.env.local` + webhook registered in Stripe dashboard
+3. Admin monitoring panel (`/admin`)
+4. Self-registration page (`/register`)
+5. Real API integrations wired into agent teams
+
+---
+
+### Session 2026-04-09 — Self-Optimization System
+
+**Feature:** Platform now learns to route tasks to free local LLMs instead of paid Claude API.
+
+**Architecture (3-layer flywheel):**
+
+1. **Post-task evaluator** (`lib/optimizer/protocol-writer.ts`) — fires after every Claude API call (non-blocking). Uses local `qwen2.5:7b` (zero cost) to evaluate if the task pattern could be done by a mini model. If confidence ≥ 70%, writes a `TaskProtocol` to DB + `data/protocols/{id}.md`.
+
+2. **Rules-based classifier** (`lib/optimizer/classifier.ts`) — zero-cost signal scoring. Checks existing protocols (regex match), then applies heuristics: web tools = API required; classification/extraction/formatting = local capable. Returns model recommendation (`qwen2.5:0.5b/1.5b/7b` or `claude-sonnet-4-6`).
+
+3. **Weekly scanner** (`lib/optimizer/scanner.ts`) — runs every Sunday at midnight UTC via cron. Aggregates 7 days of `ApiUsage`, completed tasks, and protocol performance. Uses Claude Haiku (cheapest model) for intelligent analysis + recommendations. Falls back to a static markdown report if no API key.
+
+**New DB models:** `TaskProtocol` (learned protocols), `OptimizationScan` (weekly scan results)
+
+**New files:**
+- `lib/optimizer/classifier.ts` — fast, zero-cost task classifier
+- `lib/optimizer/protocol-writer.ts` — Ollama-powered post-task evaluator
+- `lib/optimizer/scanner.ts` — weekly usage scanner
+- `app/api/optimize/scan/route.ts` — POST (admin or cron) to trigger scan
+- `app/api/optimize/evaluate/route.ts` — POST to evaluate a single task
+- `app/api/optimize/protocols/route.ts` — GET/PATCH/DELETE protocols
+- `app/(app)/optimize/page.tsx` — Optimization dashboard UI
+
+**Modified:**
+- `app/api/chat/route.ts` — accumulates response text + tool list, fires evaluator after each Anthropic call
+- `app/api/cron/route.ts` — triggers weekly scan every Sunday midnight UTC
+- `components/Sidebar.tsx` — added "Optimize" nav item (Sparkles icon)
+- `prisma/schema.prisma` — added `TaskProtocol` + `OptimizationScan` models
+
+**How protocols work:**
+- Stored as DB records + markdown files at `data/protocols/{id}.md`
+- Registered in `file_records` so Files UI shows them
+- Classifier checks protocol patterns (regex) first before heuristics
+- Protocols have `active` toggle, `successCount`, `failureCount`, `confidence`, `estimatedSaving`
 
 ---
 

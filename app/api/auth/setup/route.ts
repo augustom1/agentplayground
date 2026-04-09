@@ -48,6 +48,16 @@ export async function POST(req: NextRequest) {
       select: { id: true, email: true, name: true, role: true, plan: true },
     });
 
+    // Seed initial pro plan credits (5,000) so billing page isn't empty
+    await prisma.userCredits.create({
+      data: {
+        userId: user.id,
+        balance: 5000,
+        lifetimePurchased: 0,
+        lifetimeUsed: 0,
+      },
+    });
+
     return NextResponse.json({ success: true, user }, { status: 201 });
   } catch (err) {
     return apiError(err);

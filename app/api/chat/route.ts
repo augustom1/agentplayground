@@ -7,6 +7,7 @@ import { auth } from "@/auth";
 import { rateLimit, LIMITS } from "@/lib/rate-limit";
 import { trackUsage } from "@/lib/usage-tracker";
 import { retrieveMemories } from "@/lib/memory/retrieve";
+import { evaluateAndWriteProtocol } from "@/lib/optimizer/protocol-writer";
 
 // ─── System Prompts ────────────────────────────────────────────────────────────
 
@@ -175,7 +176,13 @@ async function streamAnthropic(
   systemPrompt: string,
   controller: ReadableStreamDefaultController,
   encoder: TextEncoder
-): Promise<{ inputTokens: number; outputTokens: number; webSearchCalls: number; webBrowseCalls: number }> {
+): Promise<{ inputTokens: number; outputTokens: number; webSearchCalls: number; webBrowseCalls: number; responseText: string; toolsUsed: string[] }> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    controller.enqueue(encoder.encode("ANTHROPIC_API_KEY is not set. Add it to .env.local."));
+    return { inputTokens: 0, outputTokens: 0, webSearchCalls: 0, webBrowseCalls: 0, responseText: "", toolsUsed: [] };
+  }
+
   const client = new Anthropic({ apiKey });
   const tools = CHAT_TOOLS.map((t) => ({
     name: t.name,
@@ -191,12 +198,8 @@ async function streamAnthropic(
   let totalOutputTokens = 0;
   let totalWebSearchCalls = 0;
   let totalWebBrowseCalls = 0;
-
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    controller.enqueue(encoder.encode("ANTHROPIC_API_KEY is not set. Add it to .env.local."));
-    return { inputTokens: 0, outputTokens: 0, webSearchCalls: 0, webBrowseCalls: 0 };
-  }
+  let accumulatedText = "";
+  const usedTools: string[] = [];
 
   try {
     while (continueLoop && iterations < MAX_TOOL_ITERATIONS) {
@@ -216,9 +219,11 @@ async function streamAnthropic(
       for (const block of response.content) {
         if (block.type === "text") {
           controller.enqueue(encoder.encode(block.text));
+          accumulatedText += block.text;
         } else if (block.type === "tool_use") {
           if (block.name === "web_search") totalWebSearchCalls++;
           else if (block.name === "web_browse") totalWebBrowseCalls++;
+          if (!usedTools.includes(block.name)) usedTools.push(block.name);
           const result = await executeTool(block.name, block.input as Record<string, unknown>);
           controller.enqueue(encoder.encode(`\n\n⚡ *Used tool: ${block.name}*\n\n`));
 
@@ -255,7 +260,7 @@ async function streamAnthropic(
     }
   }
 
-  return { inputTokens: totalInputTokens, outputTokens: totalOutputTokens, webSearchCalls: totalWebSearchCalls, webBrowseCalls: totalWebBrowseCalls };
+  return { inputTokens: totalInputTokens, outputTokens: totalOutputTokens, webSearchCalls: totalWebSearchCalls, webBrowseCalls: totalWebBrowseCalls, responseText: accumulatedText, toolsUsed: usedTools };
 }
 
 async function streamOpenAI(
@@ -510,6 +515,20 @@ export async function POST(req: Request) {
           }
           if (usage.webBrowseCalls > 0) {
             trackUsage({ userId, service: "web_browse", units: usage.webBrowseCalls, unitType: "calls" }).catch(() => {});
+          }
+          // Fire-and-forget: evaluate if this task could be done by a local LLM
+          if (usage.inputTokens > 0 && usage.responseText && messages.length > 0) {
+            const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+            if (lastUserMsg) {
+              evaluateAndWriteProtocol({
+                userId,
+                userPrompt: lastUserMsg.content,
+                assistantResponse: usage.responseText,
+                toolsUsed: usage.toolsUsed,
+                inputTokens: usage.inputTokens,
+                outputTokens: usage.outputTokens,
+              }).catch(() => {}); // intentionally non-blocking
+            }
           }
         }
       } catch (err) {

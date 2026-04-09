@@ -1,79 +1,92 @@
-# Agent Dashboard
+# AgentPlayground
 
-> AI-native operations platform — build, manage, and deploy agent teams through conversation.
+> Self-hosted AI operations platform. Build and manage agent teams through conversation.
+> Deploy on your own VPS in one command.
 
-## Quick Start
+---
+
+## What it is
+
+AgentPlayground is a Next.js app that runs on your VPS and lets you:
+- Chat with Claude (or local Ollama models) as an AI coordinator
+- Create and manage teams of AI agents
+- Schedule and automate tasks
+- Manage files with vector search
+- Monitor usage and billing
+
+The core idea: **Problem → Agent System → Reusable Tool → Local Optimization**. Every repeated workflow becomes a permanent skill.
+
+---
+
+## Quick Deploy (VPS)
 
 ```bash
-# 1. Clone and configure
-cp .env.local.example .env.local
-# Edit .env.local with your API keys
+# 1. Clone the repo
+git clone https://github.com/augustom1/agentplayground-vpsinstall /opt/vps
+cd /opt/vps
 
-# 2. Install dependencies
-npm install
+# 2. Create your env file
+cp .env.example .env.local
+nano .env.local   # fill in passwords, API keys
 
-# 3. Start development
-npm run dev
+# 3. Generate required secrets
+openssl rand -hex 32   # use for AUTH_SECRET, CRON_SECRET, N8N_ENCRYPTION_KEY
+
+# 4. Deploy
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
-## Production Deployment
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for the full guide including domain setup and SSL.
 
-```bash
-# Start full stack (Next.js + PostgreSQL + FileBrowser)
-docker compose up -d --build
-
-# Run database migrations
-docker compose exec dashboard npx prisma db push
-```
-
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for the full VPS + domain + SSL guide.
+---
 
 ## Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Next.js 16 (App Router) |
-| Runtime | React 19 / Node 20+ |
-| Database | PostgreSQL + pgvector |
+| Framework | Next.js 15 (App Router) |
+| Database | PostgreSQL 16 + pgvector |
 | ORM | Prisma 7 |
-| AI | Anthropic Claude |
+| AI | Anthropic Claude + Ollama (local) |
+| Auth | NextAuth v5 |
 | Styling | Tailwind CSS v4 |
-| Files | FileBrowser (container) |
-| Deployment | Docker Compose |
+| Deployment | Docker Compose + Traefik |
 
-## Architecture
+---
 
+## Services (after deploy)
+
+| URL | Service |
+|-----|---------|
+| `https://app.DOMAIN` | Agent Dashboard (this app) |
+| `https://n8n.DOMAIN` | n8n workflow automation |
+| `https://files.DOMAIN` | FileBrowser |
+| `https://manage.DOMAIN` | Portainer |
+| `https://DOMAIN` | Static website (Nginx) |
+
+---
+
+## Key docs
+
+| File | Purpose |
+|------|---------|
+| [CLAUDE.md](./CLAUDE.md) | Full project context for AI sessions |
+| [ROADMAP.md](./ROADMAP.md) | What to build next — phased plan |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | VPS deploy guide |
+| [CLOUDFLARE_SETUP.md](./CLOUDFLARE_SETUP.md) | DNS and SSL setup |
+| [VPS_SERVER.md](./VPS_SERVER.md) | Server specs and access |
+| [BUSINESS-ROADMAP.md](./BUSINESS-ROADMAP.md) | Go-to-market strategy |
+| [VISION.md](./VISION.md) | Product vision and Claude Code rules |
+
+---
+
+## Development
+
+```bash
+npm install
+npm run dev        # dev server at localhost:3000
+npm run test       # Vitest (20 tests)
+npx prisma studio  # DB browser at localhost:5555
 ```
-Chat Interface (primary)
-  ├── Claude + Tools → create teams, agents, skills
-  ├── DB Agent → manages all database access
-  └── File Agent → manages files via FileBrowser
 
-Dashboard (customizable)
-  ├── Widget-based, empty by default
-  ├── Agent Lab (teams + playground)
-  ├── Schedule (monthly calendar)
-  └── Files (FileBrowser)
-```
-
-## Project Structure
-
-```
-app/
-  api/          ← REST API routes
-  agent-lab/    ← merged playground + teams
-  chat/         ← AI chat (primary interface)
-  dashboard/    ← customizable widget dashboard
-  schedule/     ← monthly calendar
-  settings/     ← configuration
-lib/
-  modules/      ← extractable modules for reuse
-  prisma.ts     ← database client
-  chat-tools.ts ← Claude tool definitions
-  db-agent.ts   ← database access layer
-prisma/
-  schema.prisma ← database schema (15 tables)
-docs/
-  architecture.md
-  client-version.md
-```
+Requires a running PostgreSQL instance. Use `docker compose -f docker-compose.dev.yml up -d` for a local DB only.

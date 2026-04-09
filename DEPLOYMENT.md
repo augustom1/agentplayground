@@ -11,7 +11,6 @@ agents, automation, AI, website hosting, and database — all containerized, all
 |-----|---------|---------|
 | `https://app.DOMAIN` | Agent Dashboard | Your main product |
 | `https://n8n.DOMAIN` | n8n | Visual workflow automation |
-| `https://ai.DOMAIN` | Open WebUI | Chat interface for local LLMs (Ollama) |
 | `https://files.DOMAIN` | FileBrowser | File management UI |
 | `https://manage.DOMAIN` | Portainer | Docker management UI |
 | `https://DOMAIN` | Nginx | Your company website + client sites |
@@ -72,7 +71,7 @@ At your domain registrar, create two A records:
 | A | `@` | `YOUR_VPS_IP` |
 | A | `*` | `YOUR_VPS_IP` |
 
-The wildcard `*` record covers all subdomains automatically (`app.`, `n8n.`, `ai.`, etc.)
+The wildcard `*` record covers all subdomains automatically (`app.`, `n8n.`, `files.`, etc.)
 SSL certificates are issued automatically by Traefik via Let's Encrypt.
 
 ---
@@ -252,7 +251,6 @@ docker compose up -d --build
 # Access:
 # Dashboard:  http://localhost:3000
 # n8n:        http://localhost:5678
-# Open WebUI: http://localhost:8081
 # FileBrowser:http://localhost:8083
 # Portainer:  http://localhost:9000
 ```
@@ -267,7 +265,6 @@ Internet
   ↓ :443  → Traefik (TLS termination, Let's Encrypt certs)
               ├── app.DOMAIN    → Dashboard  :3000
               ├── n8n.DOMAIN    → n8n        :5678
-              ├── ai.DOMAIN     → Open WebUI :8080
               ├── files.DOMAIN  → FileBrowser:80
               ├── manage.DOMAIN → Portainer  :9000
               └── DOMAIN / www  → Nginx      :80
@@ -277,7 +274,7 @@ Internet
 Internal network (not exposed to internet):
   PostgreSQL :5432  ← Dashboard, n8n, any new service
   Redis      :6379  ← available for queues/cache
-  Ollama     :11434 ← Open WebUI, Dashboard (via API)
+  Ollama     :11434 ← Dashboard (chat + embeddings)
 ```
 
 ---

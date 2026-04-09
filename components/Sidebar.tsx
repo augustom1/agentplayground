@@ -17,6 +17,7 @@ import {
   Wrench,
   CreditCard,
   Layers,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
@@ -31,6 +32,7 @@ const navItems = [
   { href: "/schedule",   label: "Schedule",   icon: Calendar        },
   { href: "/files",      label: "Files",      icon: FolderOpen      },
   { href: "/billing",   label: "Billing",    icon: CreditCard      },
+  { href: "/optimize",  label: "Optimize",   icon: Sparkles        },
 ];
 
 export function Sidebar() {
