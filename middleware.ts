@@ -11,6 +11,9 @@ export default auth((req) => {
   // Always allow: auth callbacks, setup, static assets
   const isPublic =
     pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/health") ||
+    pathname.startsWith("/api/cron") ||
+    pathname.startsWith("/api/mercadopago") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/setup") ||
     pathname.startsWith("/_next") ||

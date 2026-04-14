@@ -35,7 +35,7 @@ services:
 
   # ── Traefik (reverse proxy + automatic HTTPS) ─────────────────
   traefik:
-    image: traefik:v3.3
+    image: traefik:v2.11
     container_name: vps-traefik
     restart: unless-stopped
     environment:
@@ -57,7 +57,7 @@ services:
       # Docker provider
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
-      - --providers.docker.network=proxy
+      - --providers.docker.network=traefik-proxy
       # Let's Encrypt (TLS challenge)
       - --certificatesresolvers.le.acme.tlschallenge=true
       - --certificatesresolvers.le.acme.email=${ACME_EMAIL}
@@ -74,7 +74,7 @@ services:
       - NEXTAUTH_URL=https://app.${DOMAIN}
     labels:
       - traefik.enable=true
-      - traefik.docker.network=proxy
+      - traefik.docker.network=traefik-proxy
       - traefik.http.routers.dashboard.rule=Host(`app.${DOMAIN}`)
       - traefik.http.routers.dashboard.entrypoints=websecure
       - traefik.http.routers.dashboard.tls=true
@@ -96,7 +96,7 @@ services:
       - WEBHOOK_URL=https://n8n.${DOMAIN}
     labels:
       - traefik.enable=true
-      - traefik.docker.network=proxy
+      - traefik.docker.network=traefik-proxy
       - traefik.http.routers.n8n.rule=Host(`n8n.${DOMAIN}`)
       - traefik.http.routers.n8n.entrypoints=websecure
       - traefik.http.routers.n8n.tls=true
@@ -106,18 +106,25 @@ services:
       - default
       - proxy
 
-  # ── Nginx → https://DOMAIN + https://www.DOMAIN ──────────────
+  # ── Nginx → https://DOMAIN + https://www.DOMAIN + https://ar.DOMAIN ─────────
   # Also hosts client sites via virtual hosts (add to sites/*.conf)
   nginx:
     ports: !reset []
     labels:
       - traefik.enable=true
-      - traefik.docker.network=proxy
+      - traefik.docker.network=traefik-proxy
+      # Main + www router
       - traefik.http.routers.nginx.rule=Host(`${DOMAIN}`) || Host(`www.${DOMAIN}`)
       - traefik.http.routers.nginx.entrypoints=websecure
       - traefik.http.routers.nginx.tls=true
       - traefik.http.routers.nginx.tls.certresolver=le
       - traefik.http.services.nginx.loadbalancer.server.port=80
+      # ar.DOMAIN router (same nginx container, separate virtual host in sites/ar.conf)
+      - traefik.http.routers.ar.rule=Host(`ar.${DOMAIN}`)
+      - traefik.http.routers.ar.entrypoints=websecure
+      - traefik.http.routers.ar.tls=true
+      - traefik.http.routers.ar.tls.certresolver=le
+      - traefik.http.routers.ar.service=nginx
     networks:
       - default
       - proxy
@@ -127,7 +134,7 @@ services:
     ports: !reset []
     labels:
       - traefik.enable=true
-      - traefik.docker.network=proxy
+      - traefik.docker.network=traefik-proxy
       - traefik.http.routers.filebrowser.rule=Host(`files.${DOMAIN}`)
       - traefik.http.routers.filebrowser.entrypoints=websecure
       - traefik.http.routers.filebrowser.tls=true
@@ -142,7 +149,7 @@ services:
     ports: !reset []
     labels:
       - traefik.enable=true
-      - traefik.docker.network=proxy
+      - traefik.docker.network=traefik-proxy
       - traefik.http.routers.portainer.rule=Host(`manage.${DOMAIN}`)
       - traefik.http.routers.portainer.entrypoints=websecure
       - traefik.http.routers.portainer.tls=true

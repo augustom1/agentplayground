@@ -285,6 +285,7 @@ Plans: Free (500 credits/mo, Ollama only), Pro (1K credits/mo, Claude enabled), 
 | `STRIPE_SECRET_KEY` | ❌ future | Stripe payment processor |
 | `STRIPE_WEBHOOK_SECRET` | ❌ future | Stripe webhook validation |
 | `BITPAY_API_KEY` | ❌ future | BitPay crypto payments |
+| `MERCADOPAGO_ACCESS_TOKEN` | ⚠️ ar site | MercadoPago Checkout Pro (ar.agentplayground.net sales) |
 
 ---
 
@@ -345,6 +346,41 @@ DNS: Two A records — `@` and `*` → VPS IP.
 ---
 
 ## Recent Work
+
+### Session 2026-04-14 — ar.agentplayground.net + private network + landing page
+
+**Landing page (agentplayground.net) — open source framing:**
+- Removed all self-signup CTAs ("Start Free", "Launch the Platform", "Get Started" → /setup)
+- Footer now has: GitHub, Issues, MIT License, Servicio AR, Contacto
+- Nav CTA changed from "Open App" to "Fork →" (GitHub)
+- Pricing CTAs now point to GitHub (self-host) and ar.agentplayground.net (managed service)
+
+**New subdomain: ar.agentplayground.net**
+- `webroot/ar/index.html` — full Spanish sales page, dark theme, MercadoPago branding
+- Sells 3 service tiers: Básico ($49), Stack Completo ($149), Premium + Soporte ($299)
+- Payment flow: button → POST /api/mercadopago/preference → redirect to MP Checkout Pro
+- Post-payment status banner on redirect back (aprobado/rechazado/pendiente)
+- `sites/ar.conf` — nginx virtual host for ar subdomain
+- `docker-compose.prod.yml` — added `ar.DOMAIN` Traefik router pointing to same nginx container
+
+**MercadoPago integration:**
+- `app/api/mercadopago/preference/route.ts` — creates Checkout Pro preference, returns init_point
+- `app/api/mercadopago/webhook/route.ts` — IPN handler, logs payments to activity_logs
+- CORS handled: ar.agentplayground.net + OPTIONS preflight
+- Both routes public in `middleware.ts` via `/api/mercadopago` prefix
+- Env var: `MERCADOPAGO_ACCESS_TOKEN` (get from mercadopago.com.ar/developers)
+
+**Private network — already enforced:**
+- Login page shows "Access is by invitation only."
+- /setup auto-redirects to /login once admin exists (no second account creation via UI)
+- New users only created by admin from /users panel
+- No register/signup page exists
+
+**To activate MercadoPago:**
+1. Get your `MERCADOPAGO_ACCESS_TOKEN` from mercadopago.com.ar/developers → Credenciales
+2. Add to `.env.local`: `MERCADOPAGO_ACCESS_TOKEN=APP_USR-...`
+3. Register webhook URL in MP dashboard: `https://app.agentplayground.net/api/mercadopago/webhook`
+4. Deploy: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`
 
 ### Session 2026-04-07 — Vision alignment + deployment fixes
 
