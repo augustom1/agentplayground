@@ -376,11 +376,28 @@ DNS: Two A records — `@` and `*` → VPS IP.
 - New users only created by admin from /users panel
 - No register/signup page exists
 
+**Language toggle on agentplayground.net:**
+- `🇪🇸 ES / 🇬🇧 EN` button in nav — pure JS, no extra files, saves to localStorage
+- ~50 strings translated via `data-i18n` attributes + a `T = { en: {...}, es: {...} }` object at bottom of `webroot/main/index.html`
+
+**business/ folder created** (open in separate Claude session from `/business`):
+- `business/CLAUDE.md` — full business context: products, pricing rationale, target customers, sales flow, pre-launch checklist
+- `business/delivery/checklist.md` — per-client delivery checklist with exact commands for all 3 plans
+- `business/marketing/email-templates.md` — 6 ready Spanish email templates
+- `business/marketing/strategy.md` — LinkedIn-first channel strategy, content calendar, pricing psychology
+
+**Server deployment (VPS: 95.217.163.247):**
+- Repo lives at `/root/opt/vps/` (GitHub: augustom1/agentplayground-vpsinstall)
+- `git pull` doesn't work on server (needs creds) — use `scp` for code changes then rebuild
+- `webroot/` and `sites/*.conf` are gitignored — always deploy via `scp` directly
+- Deployed this session: all files above + rebuilt dashboard container + reloaded nginx
+- All 3 sites live: agentplayground.net ✅  ar.agentplayground.net ✅  app.agentplayground.net ✅
+
 **To activate MercadoPago:**
-1. Get your `MERCADOPAGO_ACCESS_TOKEN` from mercadopago.com.ar/developers → Credenciales
-2. Add to `.env.local`: `MERCADOPAGO_ACCESS_TOKEN=APP_USR-...`
-3. Register webhook URL in MP dashboard: `https://app.agentplayground.net/api/mercadopago/webhook`
-4. Deploy: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`
+1. Get `MERCADOPAGO_ACCESS_TOKEN` from mercadopago.com.ar/developers → Credenciales
+2. Add to `/root/opt/vps/.env.local`: `MERCADOPAGO_ACCESS_TOKEN=APP_USR-...`
+3. Register webhook in MP dashboard: `https://app.agentplayground.net/api/mercadopago/webhook`
+4. `cd /root/opt/vps && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build dashboard`
 
 ### Session 2026-04-07 — Vision alignment + deployment fixes
 
