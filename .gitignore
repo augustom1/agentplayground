@@ -43,11 +43,17 @@ next-env.d.ts
 /lib/generated/prisma
 
 # VPS stack — user-generated site content (tracked via .gitkeep)
+# Exception: default.conf is committed so nginx has at least a base config
 sites/*.conf
+!sites/default.conf
 webroot/*/
 
 # VPS stack — generated files (created by setup.sh)
 .env.local
-.claude/worktrees/
+.claude/
+KEYS.md
+SOCIAL_MEDIA_SETUP.md
 server_plans.png
 test_api_key.png
+"test app.agentplayground.net.png"
+"app screenshots/"
