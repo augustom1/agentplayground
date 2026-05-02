@@ -14,15 +14,38 @@ import {
   Search,
   Eye,
   Users,
+  Paperclip,
+  Mic,
+  FileText,
+  X,
 } from "lucide-react";
 import { useToast } from "@/components/ToastProvider";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type MessageUsage = { input: number; output: number; model: string };
+
+type PendingAttachment = {
+  id: string;
+  filename: string;
+  type: "image" | "audio" | "text" | "other";
+  base64?: string;
+  mimeType?: string;
+  transcript?: string;
+  content?: string;
+  previewUrl?: string;
+  status: "processing" | "ready" | "error";
+};
+
+type AttachmentPayload =
+  | { type: "image"; base64: string; mimeType: string; filename?: string }
+  | { type: "text"; content: string; filename: string };
+
 type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  usage?: MessageUsage;
 };
 
 type Team = {
@@ -75,6 +98,19 @@ const PROVIDERS: Record<Provider, ProviderConfig> = {
 };
 
 const SESSION_KEY = "chat_conversation_id";
+
+// ─── Token cost helper ────────────────────────────────────────────────────────
+
+function calcCost(input: number, output: number, model: string): string {
+  const rates: Record<string, { in: number; out: number }> = {
+    "claude-sonnet-4-6":        { in: 0.003,   out: 0.015   },
+    "claude-opus-4-6":          { in: 0.015,   out: 0.075   },
+    "claude-haiku-4-5-20251001":{ in: 0.00025, out: 0.00125 },
+  };
+  const rate = rates[model] ?? rates["claude-sonnet-4-6"];
+  const cost = (input / 1000) * rate.in + (output / 1000) * rate.out;
+  return cost < 0.001 ? "<$0.001" : `$${cost.toFixed(3)}`;
+}
 
 // ─── Greeting & suggestions by mode ──────────────────────────────────────────
 
@@ -306,7 +342,7 @@ function MessageBubble({ msg }: { msg: Message }) {
   }
 
   return (
-    <div className="animate-fade-in" style={{ padding: "12px 0" }}>
+    <div className="animate-fade-in group" style={{ padding: "12px 0", position: "relative" }}>
       <div
         style={{
           maxWidth: "720px",
@@ -333,15 +369,36 @@ function MessageBubble({ msg }: { msg: Message }) {
         >
           <Bot size={14} style={{ color: "var(--color-text-secondary)" }} />
         </div>
-        <div
-          style={{
-            color: "var(--color-text)",
-            fontSize: "15px",
-            lineHeight: "1.75",
-            paddingTop: "3px",
-          }}
-        >
-          {renderContent(msg.content)}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              color: "var(--color-text)",
+              fontSize: "15px",
+              lineHeight: "1.75",
+              paddingTop: "3px",
+            }}
+          >
+            {renderContent(msg.content)}
+          </div>
+          {msg.usage && (
+            <div
+              className="opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{
+                fontSize: "10px",
+                color: "var(--color-muted)",
+                marginTop: "4px",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <span>↑ {msg.usage.input.toLocaleString()}</span>
+              <span style={{ opacity: 0.4 }}>·</span>
+              <span>↓ {msg.usage.output.toLocaleString()} tokens</span>
+              <span style={{ opacity: 0.4 }}>·</span>
+              <span>{calcCost(msg.usage.input, msg.usage.output, msg.usage.model)}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -370,11 +427,19 @@ export default function ChatPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(true);
 
+  // Token usage tracking
+  const [sessionUsage, setSessionUsage] = useState({ input: 0, output: 0 });
+  const [lastUsageModel, setLastUsageModel] = useState<string>("claude-sonnet-4-6");
+
+  // Attachments
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
+
   // Dynamic Ollama models
   const [ollamaModels, setOllamaModels] = useState(PROVIDERS.ollama.models);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Scroll to bottom
   useEffect(() => {
@@ -488,6 +553,8 @@ export default function ChatPage() {
         const team = teams.find((t) => t.id === teamId);
         setMessages([getGreeting(teamId, team?.name)]);
         setStreamingContent("");
+        setSessionUsage({ input: 0, output: 0 });
+        setPendingAttachments([]);
         addToast("New conversation started", "info");
       }
     } catch {
@@ -495,22 +562,129 @@ export default function ChatPage() {
     }
   }
 
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+
+    for (const file of files) {
+      if (file.size > 10 * 1024 * 1024) {
+        addToast(`${file.name} is too large (max 10MB)`, "error");
+        continue;
+      }
+
+      const id = `${Date.now()}-${Math.random()}`;
+      const isImage = file.type.startsWith("image/");
+      const isAudio = file.type.startsWith("audio/") || /\.(ogg|m4a|webm|wav|mp3)$/i.test(file.name);
+      const attType: PendingAttachment["type"] = isImage ? "image" : isAudio ? "audio" : "text";
+
+      setPendingAttachments((prev) => [
+        ...prev,
+        { id, filename: file.name, type: attType, status: "processing" },
+      ]);
+
+      if (isImage) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const dataUrl = ev.target?.result as string;
+          const base64 = dataUrl.split(",")[1];
+          setPendingAttachments((prev) =>
+            prev.map((a) =>
+              a.id === id
+                ? { ...a, base64, mimeType: file.type, previewUrl: dataUrl, status: "ready" }
+                : a
+            )
+          );
+        };
+        reader.readAsDataURL(file);
+      } else if (isAudio) {
+        const formData = new FormData();
+        formData.append("file", file);
+        try {
+          const res = await fetch("/api/transcribe", { method: "POST", body: formData });
+          const data = (await res.json()) as { transcript?: string; error?: string };
+          if (data.transcript) {
+            setPendingAttachments((prev) =>
+              prev.map((a) => (a.id === id ? { ...a, transcript: data.transcript, status: "ready" } : a))
+            );
+          } else {
+            addToast(data.error ?? "Transcription failed", "error");
+            setPendingAttachments((prev) =>
+              prev.map((a) => (a.id === id ? { ...a, status: "error" } : a))
+            );
+          }
+        } catch {
+          setPendingAttachments((prev) =>
+            prev.map((a) => (a.id === id ? { ...a, status: "error" } : a))
+          );
+        }
+      } else {
+        const formData = new FormData();
+        formData.append("file", file);
+        try {
+          const res = await fetch("/api/files/extract", { method: "POST", body: formData });
+          const data = (await res.json()) as { text?: string; error?: string };
+          if (data.text) {
+            setPendingAttachments((prev) =>
+              prev.map((a) => (a.id === id ? { ...a, content: data.text, status: "ready" } : a))
+            );
+          } else {
+            addToast(data.error ?? "Could not extract text from file", "error");
+            setPendingAttachments((prev) =>
+              prev.map((a) => (a.id === id ? { ...a, status: "error" } : a))
+            );
+          }
+        } catch {
+          setPendingAttachments((prev) =>
+            prev.map((a) => (a.id === id ? { ...a, status: "error" } : a))
+          );
+        }
+      }
+    }
+
+    e.target.value = "";
+  }
+
   async function send(text?: string) {
     const content = (text ?? input).trim();
     if (!content || streaming) return;
+
+    // Wait for any in-flight attachment processing
+    const hasProcessing = pendingAttachments.some((a) => a.status === "processing");
+    if (hasProcessing) {
+      addToast("Attachments are still processing, please wait", "info");
+      return;
+    }
+
     setInput("");
 
-    const userMsg: Message = { id: Date.now().toString(), role: "user", content };
+    // Build display content for the user message bubble
+    const readyAttachments = pendingAttachments.filter((a) => a.status === "ready");
+    const audioLines = readyAttachments
+      .filter((a) => a.type === "audio" && a.transcript)
+      .map((a) => `🎤 *Voice: "${a.transcript}"*`);
+    const displayContent = audioLines.length > 0 ? `${audioLines.join("\n")}\n\n${content}` : content;
+
+    const userMsg: Message = { id: Date.now().toString(), role: "user", content: displayContent };
     const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
     setStreaming(true);
     setStreamingContent("");
+    setPendingAttachments([]);
 
-    if (conversationId) saveMessage(conversationId, "user", content);
+    if (conversationId) saveMessage(conversationId, "user", displayContent);
 
     const history = nextMessages
       .filter((m) => m.id !== "0")
       .map((m) => ({ role: m.role, content: m.content }));
+
+    // Build attachments payload for API (Anthropic vision format)
+    const attachmentsPayload: AttachmentPayload[] = readyAttachments.map((a) => {
+      if (a.type === "image") {
+        return { type: "image", base64: a.base64!, mimeType: a.mimeType!, filename: a.filename };
+      }
+      const textContent =
+        a.type === "audio" ? a.transcript ?? "" : a.content ?? "";
+      return { type: "text", content: textContent, filename: a.filename };
+    });
 
     abortRef.current = new AbortController();
 
@@ -523,6 +697,7 @@ export default function ChatPage() {
           provider,
           model,
           teamId: teamId !== "all" ? teamId : undefined,
+          attachments: attachmentsPayload.length > 0 ? attachmentsPayload : undefined,
         }),
         signal: abortRef.current.signal,
       });
@@ -543,14 +718,33 @@ export default function ChatPage() {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        accumulated += decoder.decode(value, { stream: true });
-        setStreamingContent(accumulated);
+        const chunk = decoder.decode(value, { stream: true });
+        accumulated += chunk;
+        // Stream display: strip sentinel if already in buffer
+        const displayText = accumulated.replace(/\n?\[USAGE:\{[^}]*\}\]/, "");
+        setStreamingContent(displayText);
+      }
+
+      // Parse and strip usage sentinel
+      let usageData: MessageUsage | undefined;
+      const usageMatch = accumulated.match(/\[USAGE:(\{[^}]*\})\]/);
+      if (usageMatch) {
+        try {
+          usageData = JSON.parse(usageMatch[1]) as MessageUsage;
+          setLastUsageModel(usageData.model);
+          setSessionUsage(prev => ({
+            input: prev.input + usageData!.input,
+            output: prev.output + usageData!.output,
+          }));
+          accumulated = accumulated.replace(/\n?\[USAGE:\{[^}]*\}\]/, "");
+        } catch {}
       }
 
       const assistantMsg: Message = {
         id: Date.now().toString(),
         role: "assistant",
         content: accumulated,
+        usage: usageData,
       };
       setMessages((prev) => [...prev, assistantMsg]);
       if (conversationId) saveMessage(conversationId, "assistant", accumulated);
@@ -848,6 +1042,28 @@ export default function ChatPage() {
         <div ref={bottomRef} />
       </div>
 
+      {/* Session token bar */}
+      {sessionUsage.input > 0 && (
+        <div
+          className="shrink-0 flex items-center gap-3 px-6"
+          style={{
+            borderTop: "1px solid var(--color-border)",
+            padding: "6px 24px",
+            fontSize: "11px",
+            color: "var(--color-muted)",
+          }}
+        >
+          <span>↑ {sessionUsage.input.toLocaleString()} in</span>
+          <span style={{ opacity: 0.4 }}>·</span>
+          <span>↓ {sessionUsage.output.toLocaleString()} out</span>
+          <span style={{ opacity: 0.4 }}>·</span>
+          <span style={{ color: "var(--color-text-secondary)" }}>
+            {calcCost(sessionUsage.input, sessionUsage.output, lastUsageModel)}
+          </span>
+          <span style={{ marginLeft: "auto", opacity: 0.5 }}>{lastUsageModel}</span>
+        </div>
+      )}
+
       {/* Suggestions */}
       {showSuggestions && (
         <div
@@ -892,7 +1108,86 @@ export default function ChatPage() {
       {/* Input */}
       <div className="py-4 shrink-0" style={{ background: "var(--color-background)" }}>
         <div style={{ maxWidth: "720px", margin: "0 auto", padding: "0 24px" }}>
-          <div className="glass-input flex items-end gap-3 px-4 py-3">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            accept="image/*,audio/*,.pdf,.txt,.md,.csv,.json,.py,.ts,.tsx,.js,.jsx,.sh,.yaml,.yml"
+            onChange={handleFileSelect}
+          />
+
+          {/* Attachment chips */}
+          {pendingAttachments.length > 0 && (
+            <div
+              className="flex flex-wrap gap-2 mb-2"
+            >
+              {pendingAttachments.map((att) => (
+                <div
+                  key={att.id}
+                  className="flex items-center gap-1.5 rounded-lg"
+                  style={{
+                    background: "var(--color-surface-3)",
+                    border: `1px solid ${att.status === "error" ? "rgba(239,68,68,0.4)" : "var(--color-border)"}`,
+                    padding: "4px 10px",
+                    fontSize: "12px",
+                    color: "var(--color-text-secondary)",
+                  }}
+                >
+                  {att.status === "processing" && (
+                    <Loader2 size={11} className="animate-spin" style={{ color: "var(--color-muted)" }} />
+                  )}
+                  {att.status === "ready" && att.type === "image" && att.previewUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={att.previewUrl} alt="" style={{ width: 20, height: 20, borderRadius: 4, objectFit: "cover" }} />
+                  ) : att.type === "audio" ? (
+                    <Mic size={11} />
+                  ) : (
+                    <FileText size={11} />
+                  )}
+                  <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {att.filename}
+                  </span>
+                  {att.status === "ready" && att.type === "audio" && (
+                    <span style={{ fontSize: "10px", color: "var(--color-text-secondary)", opacity: 0.7 }}>✓</span>
+                  )}
+                  {att.status === "error" && (
+                    <span style={{ fontSize: "10px", color: "rgb(239,68,68)" }}>error</span>
+                  )}
+                  <button
+                    onClick={() => setPendingAttachments((prev) => prev.filter((a) => a.id !== att.id))}
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center" }}
+                  >
+                    <X size={11} style={{ color: "var(--color-muted)" }} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="glass-input flex items-end gap-2 px-4 py-3">
+            {/* Attach button */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={streaming}
+              className="shrink-0 transition-colors"
+              style={{
+                background: "none",
+                border: "none",
+                cursor: streaming ? "not-allowed" : "pointer",
+                padding: "6px",
+                display: "flex",
+                alignItems: "center",
+                color: "var(--color-muted)",
+                borderRadius: "6px",
+              }}
+              title="Attach file (image, audio, PDF, text)"
+            >
+              <Paperclip size={16} />
+            </button>
+
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -924,16 +1219,16 @@ export default function ChatPage() {
             />
             <button
               onClick={() => send()}
-              disabled={!input.trim() || streaming}
+              disabled={(!input.trim() && pendingAttachments.length === 0) || streaming}
               className="transition-all shrink-0"
               style={{
                 background:
-                  input.trim() && !streaming
+                  (input.trim() || pendingAttachments.length > 0) && !streaming
                     ? "var(--color-accent)"
                     : "var(--color-surface-3)",
                 borderRadius: "8px",
                 border: "none",
-                cursor: input.trim() && !streaming ? "pointer" : "not-allowed",
+                cursor: (input.trim() || pendingAttachments.length > 0) && !streaming ? "pointer" : "not-allowed",
                 padding: "8px",
                 display: "flex",
                 alignItems: "center",
@@ -944,14 +1239,21 @@ export default function ChatPage() {
                 size={14}
                 style={{
                   color:
-                    input.trim() && !streaming ? "#0d0d0d" : "var(--color-muted)",
+                    (input.trim() || pendingAttachments.length > 0) && !streaming ? "#0d0d0d" : "var(--color-muted)",
                 }}
               />
             </button>
           </div>
-          <p className="text-[11px] mt-2 text-center" style={{ color: "var(--color-muted)" }}>
-            Enter to send · Shift+Enter for new line
-          </p>
+          <div className="flex items-center justify-between mt-2 px-1">
+            <p className="text-[11px]" style={{ color: "var(--color-muted)" }}>
+              Enter to send · Shift+Enter for new line
+            </p>
+            {input.length > 0 && (
+              <p className="text-[11px]" style={{ color: "var(--color-muted)", opacity: 0.7 }}>
+                ~{Math.ceil(input.length / 4).toLocaleString()} tokens
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -511,6 +511,36 @@ export const CHAT_TOOLS: ToolDefinition[] = [
       required: ["projectId", "agentId", "type", "title"],
     },
   },
+  {
+    name: "search_tools",
+    description:
+      "Search for safe npm packages, Python packages, or MCP servers to install on the VPS. Returns packages with safety scores, download counts, and license info before installing anything.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "What you need (e.g., 'web scraping', 'image processing', 'database client')" },
+        type: { type: "string", enum: ["npm", "pip", "mcp", "any"], description: "Package ecosystem to search (default: npm)" },
+        packageName: { type: "string", description: "Specific package name to look up safety info for (optional)" },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "install_tool",
+    description:
+      "Install a verified safe npm, pip, or MCP package on the VPS and register it as a CLI function for an agent team. Runs a safety check first — will not install dangerous or low-quality packages.",
+    input_schema: {
+      type: "object",
+      properties: {
+        package: { type: "string", description: "Package name (e.g., 'puppeteer', 'requests', '@modelcontextprotocol/server-github')" },
+        type: { type: "string", enum: ["npm", "pip", "mcp"], description: "Package ecosystem" },
+        teamId: { type: "string", description: "Team ID to register the installed tool with" },
+        purpose: { type: "string", description: "What this tool will be used for" },
+        version: { type: "string", description: "Specific version to install (optional, defaults to latest)" },
+      },
+      required: ["package", "type", "teamId", "purpose"],
+    },
+  },
 ];
 
 /**
@@ -577,6 +607,10 @@ export async function executeTool(
         return await toolUpdateProject(input);
       case "log_project_output":
         return await toolLogProjectOutput(input);
+      case "search_tools":
+        return await toolSearchTools(input);
+      case "install_tool":
+        return await toolInstallTool(input);
       default:
         return JSON.stringify({ error: `Unknown tool: ${toolName}` });
     }
@@ -1269,4 +1303,175 @@ async function toolRecallMemories(input: Record<string, unknown>): Promise<strin
   const { retrieveMemories } = await import("@/lib/memory/retrieve");
   const memories = await retrieveMemories("keeper", "system", (input.limit as number) || 15);
   return JSON.stringify({ success: true, memories: memories || "No memories stored yet." });
+}
+
+// ─── Tool Installer Handlers ───────────────────────────────────────────────────
+
+async function toolSearchTools(input: Record<string, unknown>): Promise<string> {
+  const { checkSafety } = await import("@/lib/tool-installer/safety-checker");
+  const query = (input.query as string) ?? "";
+  const type = (input.type as "npm" | "pip" | "mcp") ?? "npm";
+  const specificPackage = input.packageName as string | undefined;
+
+  // If a specific package name is given, just check that one
+  if (specificPackage) {
+    const safety = await checkSafety(specificPackage, type === "any" ? "npm" : type);
+    return JSON.stringify({
+      success: true,
+      query,
+      results: [{ package: specificPackage, type, ...safety }],
+      note: safety.approved
+        ? `"${specificPackage}" passed the safety check (score ${safety.score}/10). Call install_tool to install it.`
+        : `"${specificPackage}" did not pass the safety check: ${safety.reason}`,
+    });
+  }
+
+  // Without a specific package, return guidance based on query keywords
+  const suggestions = getPackageSuggestions(query, type);
+  return JSON.stringify({
+    success: true,
+    query,
+    suggestions,
+    note: "These are suggested packages for your use case. Call search_tools with a specific packageName to get the safety score, then install_tool to install.",
+  });
+}
+
+function getPackageSuggestions(query: string, type: string): Array<{ package: string; type: string; description: string }> {
+  const q = query.toLowerCase();
+  const npm: Array<{ package: string; type: string; description: string }> = [];
+  const pip: Array<{ package: string; type: string; description: string }> = [];
+
+  if (q.includes("scrape") || q.includes("puppeteer") || q.includes("browser")) {
+    npm.push({ package: "puppeteer", type: "npm", description: "Headless Chrome for web scraping" });
+    npm.push({ package: "playwright", type: "npm", description: "Cross-browser automation" });
+    pip.push({ package: "playwright", type: "pip", description: "Python browser automation" });
+  }
+  if (q.includes("pdf") || q.includes("document")) {
+    npm.push({ package: "pdf-parse", type: "npm", description: "Parse PDF text content" });
+    pip.push({ package: "pypdf2", type: "pip", description: "Python PDF manipulation" });
+  }
+  if (q.includes("image") || q.includes("vision") || q.includes("sharp")) {
+    npm.push({ package: "sharp", type: "npm", description: "High-performance image processing" });
+    pip.push({ package: "pillow", type: "pip", description: "Python image processing" });
+  }
+  if (q.includes("database") || q.includes("sql") || q.includes("postgres") || q.includes("mysql")) {
+    npm.push({ package: "pg", type: "npm", description: "PostgreSQL client for Node.js" });
+    pip.push({ package: "psycopg2-binary", type: "pip", description: "Python PostgreSQL driver" });
+  }
+  if (q.includes("email") || q.includes("mail")) {
+    npm.push({ package: "nodemailer", type: "npm", description: "Send emails from Node.js" });
+    pip.push({ package: "sendgrid", type: "pip", description: "SendGrid email SDK" });
+  }
+  if (q.includes("http") || q.includes("request") || q.includes("api")) {
+    npm.push({ package: "axios", type: "npm", description: "HTTP client for Node.js" });
+    pip.push({ package: "httpx", type: "pip", description: "Modern Python HTTP client" });
+  }
+  if (q.includes("mcp") || q.includes("model context")) {
+    return [
+      { package: "@modelcontextprotocol/server-filesystem", type: "mcp", description: "Official MCP: filesystem access" },
+      { package: "@modelcontextprotocol/server-github", type: "mcp", description: "Official MCP: GitHub integration" },
+      { package: "@modelcontextprotocol/server-postgres", type: "mcp", description: "Official MCP: PostgreSQL queries" },
+      { package: "@modelcontextprotocol/server-brave-search", type: "mcp", description: "Official MCP: Brave search" },
+    ];
+  }
+
+  const all = type === "pip" ? pip : type === "mcp" ? [] : [...npm, ...pip];
+  return all.length > 0 ? all.slice(0, 5) : [
+    { package: "axios", type: "npm", description: "Popular HTTP client" },
+    { package: "lodash", type: "npm", description: "Utility functions" },
+    { package: "dayjs", type: "npm", description: "Date/time manipulation" },
+  ];
+}
+
+async function toolInstallTool(input: Record<string, unknown>): Promise<string> {
+  const packageName = input.package as string;
+  const type = input.type as "npm" | "pip" | "mcp";
+  const teamId = input.teamId as string;
+  const purpose = input.purpose as string;
+  const version = input.version as string | undefined;
+
+  // 1. Safety check
+  const { checkSafety } = await import("@/lib/tool-installer/safety-checker");
+  const safety = await checkSafety(packageName, type);
+
+  if (!safety.approved) {
+    return JSON.stringify({
+      success: false,
+      blocked: true,
+      reason: safety.reason,
+      score: safety.score,
+      message: `❌ Installation blocked: ${safety.reason}`,
+    });
+  }
+
+  if (safety.requiresConfirmation) {
+    return JSON.stringify({
+      success: false,
+      requiresConfirmation: true,
+      safety,
+      message: `⚠️ This package has a low safety score (${safety.score}/10): ${safety.reason}. Confirm by calling install_tool again with confirmed: true if you still want to proceed.`,
+    });
+  }
+
+  // 2. Check SSH configured
+  if (!process.env.VPS_SSH_KEY || !process.env.VPS_SSH_HOST) {
+    return JSON.stringify({
+      success: false,
+      error: "SSH not configured. Set VPS_SSH_HOST, VPS_SSH_USER, and VPS_SSH_KEY in .env.local to enable remote tool installation.",
+      safetyScore: safety.score,
+      safetyReason: safety.reason,
+    });
+  }
+
+  // 3. Install via SSH
+  const { installNpmPackage, installPipPackage, installMCPServer } = await import("@/lib/tool-installer/installer");
+
+  let installResult;
+  if (type === "npm") installResult = await installNpmPackage(packageName, version);
+  else if (type === "pip") installResult = await installPipPackage(packageName);
+  else installResult = await installMCPServer(packageName);
+
+  if (!installResult.success) {
+    return JSON.stringify({
+      success: false,
+      error: `Installation failed: ${installResult.error || "unknown error"}`,
+      output: installResult.output,
+    });
+  }
+
+  // 4. Register as CLI function in DB
+  const shortName = packageName.split("/").pop() ?? packageName;
+  const commandMap: Record<string, string> = {
+    npm: `node /opt/agent-tools/node_modules/.bin/${shortName}`,
+    pip: `python3 -m ${packageName.replace(/-/g, "_")}`,
+    mcp: `npx ${packageName}`,
+  };
+
+  const fn = await prisma.cliFunction.create({
+    data: {
+      name: shortName,
+      command: commandMap[type] ?? packageName,
+      description: `${purpose} — installed ${new Date().toISOString().split("T")[0]}`,
+      dangerous: false,
+      teamId,
+    },
+  });
+
+  // 5. Log to activity
+  await prisma.activityLog.create({
+    data: {
+      action: `Installed tool "${packageName}" (${type}) — safety score ${safety.score}/10`,
+      type: "deploy",
+      teamId,
+    },
+  });
+
+  return JSON.stringify({
+    success: true,
+    package: packageName,
+    version: safety.metadata.version,
+    safetyScore: safety.score,
+    cliFunction: { id: fn.id, name: fn.name, command: fn.command },
+    message: `✅ Installed "${packageName}" (safety score: ${safety.score}/10, ${safety.metadata.weeklyDownloads?.toLocaleString() ?? "?"} weekly downloads). Registered as CLI function "${fn.name}" for this team.`,
+  });
 }

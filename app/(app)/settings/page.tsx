@@ -1,5 +1,6 @@
 import { CheckCircle2, XCircle, ExternalLink, Cpu, Sparkles } from "lucide-react";
 import { OllamaPanel } from "@/components/OllamaPanel";
+import { BillingSection } from "@/components/BillingSection";
 
 function EnvRow({
   name,
@@ -236,6 +237,9 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Billing */}
+      <BillingSection />
+
       {/* Ollama Panel */}
       <OllamaPanel />
 
@@ -318,6 +322,58 @@ export default function SettingsPage() {
           </div>
         );
       })()}
+
+      {/* Channels */}
+      <div className="glass-card p-4">
+        <h2 className="font-semibold text-xs uppercase tracking-wider mb-3" style={{ color: "var(--color-text-secondary)" }}>
+          Messaging Channels
+        </h2>
+        <div className="flex flex-col gap-0">
+          {[
+            {
+              name: "Telegram",
+              configured: !!process.env.TELEGRAM_BOT_TOKEN,
+              webhook: "https://app.agentplayground.net/api/telegram/webhook",
+              note: "Set TELEGRAM_BOT_TOKEN + TELEGRAM_WEBHOOK_SECRET. Register via @BotFather.",
+            },
+            {
+              name: "WhatsApp (Twilio)",
+              configured: !!process.env.TWILIO_ACCOUNT_SID && !!process.env.TWILIO_AUTH_TOKEN,
+              webhook: "https://app.agentplayground.net/api/channels/whatsapp/webhook",
+              note: "Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM.",
+            },
+            {
+              name: "Email (Gmail polling)",
+              configured: !!process.env.GMAIL_USER && !!process.env.GMAIL_APP_PASSWORD,
+              webhook: null,
+              note: "Set GMAIL_USER + GMAIL_APP_PASSWORD (Google App Password). Polled every 2 min via cron.",
+            },
+          ].map((ch) => (
+            <div key={ch.name} className="py-3" style={{ borderBottom: "1px solid var(--color-border)" }}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{ch.name}</span>
+                <div className="flex items-center gap-1.5">
+                  {ch.configured ? (
+                    <>
+                      <CheckCircle2 size={13} style={{ color: "var(--color-green)" }} />
+                      <span className="text-[12px]" style={{ color: "var(--color-green)" }}>Configured</span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle size={13} style={{ color: "var(--color-muted)" }} />
+                      <span className="text-[12px]" style={{ color: "var(--color-muted)" }}>Not configured</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              {ch.webhook && (
+                <p className="text-[11px] font-mono mb-0.5" style={{ color: "var(--color-text-secondary)" }}>{ch.webhook}</p>
+              )}
+              <p className="text-[11px]" style={{ color: "var(--color-muted)" }}>{ch.note}</p>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Quick links */}
       <div className="glass-card p-4">

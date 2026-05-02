@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   Folder, File, Upload, FolderPlus, Trash2, Download,
   RefreshCw, ChevronRight, Home, Brain, Search, X,
   FileText, Image, Code, Database, AlertCircle, Check,
+  MessageSquare, Send, Bot, User2, ChevronLeft,
 } from "lucide-react";
 
 interface FileEntry {
@@ -56,6 +57,82 @@ export default function FilesPage() {
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<Array<{ role: "user" | "assistant"; content: string; id: string }>>([
+    { id: "init", role: "assistant", content: "Hi! I'm the File Keeper. I can help you find, organize, and understand your files. What are you looking for?" },
+  ]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatStreaming, setChatStreaming] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
+
+  async function sendChatMessage() {
+    if (!chatInput.trim() || chatStreaming) return;
+    const text = chatInput.trim();
+    setChatInput("");
+
+    const userMsg = { id: Date.now().toString(), role: "user" as const, content: text };
+    setChatMessages((prev) => [...prev, userMsg]);
+
+    const assistantId = (Date.now() + 1).toString();
+    setChatMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
+    setChatStreaming(true);
+    chatAbortRef.current = new AbortController();
+
+    // Build context from current file listing
+    const fileContext = entries.length > 0
+      ? `\n\nCurrent directory: "${currentPath || "root"}"\nFiles and folders:\n${entries.map((e) => `- ${e.isDirectory ? "[DIR]" : "[FILE]"} ${e.name}${e.size ? ` (${formatSize(e.size)})` : ""}`).join("\n")}`
+      : "\n\nThe current directory is empty or not loaded yet.";
+
+    const systemContext = `You are the File Keeper, a helpful librarian agent managing the user's shared file storage. You help users find files, organize them, create new ones, and understand their contents.${fileContext}\n\nYou can suggest using the UI buttons to upload files, create folders, download, or delete. For complex organization tasks, tell the user what to do step by step.`;
+
+    try {
+      const apiMessages = chatMessages
+        .filter((m) => m.id !== "init")
+        .concat(userMsg)
+        .map((m) => ({ role: m.role, content: m.content }));
+
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: apiMessages,
+          provider: "ollama",
+          model: "qwen2.5:7b",
+          systemContext,
+        }),
+        signal: chatAbortRef.current.signal,
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        accumulated += decoder.decode(value, { stream: true });
+        setChatMessages((prev) =>
+          prev.map((m) => m.id === assistantId ? { ...m, content: accumulated } : m)
+        );
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== "AbortError") {
+        setChatMessages((prev) =>
+          prev.map((m) => m.id === assistantId ? { ...m, content: "Sorry, I couldn't connect. Make sure Ollama is running." } : m)
+        );
+      }
+    } finally {
+      setChatStreaming(false);
+    }
+  }
+
   const loadDir = useCallback(async (p: string) => {
     setLoading(true);
     setError(null);
@@ -74,7 +151,7 @@ export default function FilesPage() {
   }, []);
 
   // Load root on mount
-  useState(() => { loadDir(""); });
+  useEffect(() => { loadDir(""); }, [loadDir]);
 
   const navigate = (p: string) => loadDir(p);
 
@@ -191,11 +268,14 @@ export default function FilesPage() {
 
   return (
     <div
-      className="flex flex-col h-full animate-fade-in"
+      className="flex h-full animate-fade-in"
       onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
       onDragLeave={() => setDragging(false)}
       onDrop={handleDrop}
     >
+      {/* Main file browser column */}
+      <div className="flex flex-col flex-1 min-w-0">
+
       {/* Header */}
       <div className="flex items-center justify-between px-6 pt-6 pb-3">
         <div>
@@ -224,6 +304,15 @@ export default function FilesPage() {
           )}
           <button onClick={() => loadDir(currentPath)} className="btn-ghost flex items-center gap-1.5 px-3 py-2">
             <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={() => setChatOpen((v) => !v)}
+            className="btn-ghost flex items-center gap-1.5 px-3 py-2"
+            title="File Keeper — AI assistant"
+            style={{ color: chatOpen ? "var(--color-text)" : "var(--color-muted)" }}
+          >
+            <MessageSquare size={13} />
+            {!chatOpen && <span className="text-xs">Ask AI</span>}
           </button>
         </div>
       </div>
@@ -441,6 +530,107 @@ export default function FilesPage() {
           <Brain size={11} /> Files with <span className="text-violet-400">Embed</span> button can be searched by AI agents
         </span>
       </div>
+
+      </div>{/* end main column */}
+
+      {/* FileKeeper Chat Panel */}
+      {chatOpen && (
+        <div
+          className="flex flex-col shrink-0 animate-fade-in"
+          style={{
+            width: "340px",
+            borderLeft: "1px solid var(--color-border)",
+            background: "var(--color-surface)",
+          }}
+        >
+          {/* Chat header */}
+          <div
+            className="flex items-center justify-between px-4 py-3 shrink-0"
+            style={{ borderBottom: "1px solid var(--color-border)" }}
+          >
+            <div className="flex items-center gap-2.5">
+              <div
+                className="w-7 h-7 flex items-center justify-center rounded-lg"
+                style={{ background: "rgba(99,102,241,0.18)" }}
+              >
+                <Bot size={13} style={{ color: "rgba(165,180,252,0.9)" }} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: "var(--color-text)" }}>File Keeper</p>
+                <p className="text-[10px]" style={{ color: "var(--color-muted)" }}>Ollama · qwen2.5:7b</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setChatOpen(false)}
+              className="p-1.5 rounded hover:bg-[var(--color-border)] transition-colors"
+              style={{ color: "var(--color-muted)" }}
+            >
+              <ChevronLeft size={14} />
+            </button>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3" style={{ minHeight: 0 }}>
+            {chatMessages.map((msg) => (
+              <div key={msg.id} className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
+                <div
+                  className="w-6 h-6 shrink-0 flex items-center justify-center rounded-md mt-0.5"
+                  style={{
+                    background: msg.role === "user" ? "var(--color-surface-3)" : "rgba(99,102,241,0.18)",
+                  }}
+                >
+                  {msg.role === "user"
+                    ? <User2 size={11} style={{ color: "var(--color-text-secondary)" }} />
+                    : <Bot size={11} style={{ color: "rgba(165,180,252,0.9)" }} />
+                  }
+                </div>
+                <div
+                  style={{
+                    maxWidth: "85%",
+                    padding: "8px 11px",
+                    borderRadius: msg.role === "user" ? "14px 14px 3px 14px" : "14px 14px 14px 3px",
+                    background: msg.role === "user" ? "var(--color-surface-3)" : "var(--color-surface-2)",
+                    color: "var(--color-text)",
+                    fontSize: "12.5px",
+                    lineHeight: 1.6,
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {msg.content === "" && chatStreaming ? <span style={{ opacity: 0.45 }}>▊</span> : msg.content}
+                </div>
+              </div>
+            ))}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Input */}
+          <div className="px-4 py-3 shrink-0" style={{ borderTop: "1px solid var(--color-border)" }}>
+            <div className="flex gap-2 items-end">
+              <textarea
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
+                }}
+                placeholder="Ask about your files..."
+                rows={2}
+                className="glass-input flex-1 px-3 py-2 text-xs resize-none"
+                style={{ fontFamily: "inherit", lineHeight: "1.5" }}
+              />
+              <button
+                onClick={sendChatMessage}
+                disabled={!chatInput.trim() || chatStreaming}
+                className="btn-primary px-3 py-2 flex items-center justify-center shrink-0"
+              >
+                {chatStreaming
+                  ? <RefreshCw size={13} className="animate-spin" />
+                  : <Send size={13} />
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

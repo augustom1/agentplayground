@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+/* ─── Dark theme (default) ────────────────────────────── */
 @theme inline {
   --color-background: #0d0d0d;
   --color-surface: #171717;
@@ -22,7 +23,13 @@
   --color-yellow-dim: rgba(251, 191, 36, 0.12);
   --font-sans: "Inter", var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), "JetBrains Mono", monospace;
+  /* btn-primary text color (dark on white in dark mode) */
+  --color-btn-primary-text: #0d0d0d;
+  /* subtle hover overlay */
+  --color-hover-subtle: rgba(255, 255, 255, 0.04);
+  --color-hover-medium: rgba(255, 255, 255, 0.08);
 }
+
 
 /* ─── Reset ───────────────────────────────────────────── */
 * {
@@ -103,7 +110,7 @@ body {
 /* ─── Buttons ─────────────────────────────────────────── */
 .btn-primary {
   background: var(--color-accent);
-  color: #0d0d0d;
+  color: var(--color-btn-primary-text);
   border: none;
   border-radius: 8px;
   font-weight: 500;
@@ -133,11 +140,11 @@ body {
 .btn-ghost:hover {
   border-color: var(--color-border-light);
   color: var(--color-text);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-hover-subtle);
 }
 
 .btn-accent {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--color-hover-subtle);
   color: var(--color-text-secondary);
   border: 1px solid var(--color-border);
   border-radius: 8px;
@@ -146,7 +153,7 @@ body {
   transition: background 0.2s ease, border-color 0.2s ease;
 }
 .btn-accent:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--color-hover-medium);
   border-color: var(--color-border-light);
 }
 
@@ -169,7 +176,7 @@ body {
 
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; }
 }
 
 @keyframes slide-up {
@@ -216,4 +223,9 @@ body {
 
 .border-glow {
   border-color: var(--color-border-light);
+}
+
+/* ─── Nav hover (theme-aware) ─────────────────────────── */
+.nav-hover:hover {
+  background: var(--color-hover-subtle) !important;
 }

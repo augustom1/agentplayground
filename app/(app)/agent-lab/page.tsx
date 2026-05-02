@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useToast } from "@/components/ToastProvider";
+import { useLanguage } from "@/components/LanguageProvider";
 import {
   Play,
   ChevronDown,
@@ -25,6 +26,7 @@ import {
   User2,
   Sparkles,
   FileJson,
+  Trash2,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -147,6 +149,7 @@ function TeamBuilderModal({
   onRefresh: () => void;
 }) {
   const { addToast } = useToast();
+  const { t } = useLanguage();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -266,6 +269,7 @@ function TeamBuilderModal({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.72)", backdropFilter: "blur(8px)" }}
+      onClick={onClose}
     >
       <div
         className="w-full max-w-5xl animate-fade-in"
@@ -277,10 +281,11 @@ function TeamBuilderModal({
           borderRadius: "20px",
           overflow: "hidden",
         }}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* ── Left: Live Preview ── */}
         <div
-          className="w-64 shrink-0 flex flex-col"
+          className="w-64 shrink-0 flex flex-col min-h-0"
           style={{ borderRight: "1px solid var(--color-border)" }}
         >
           <div
@@ -455,7 +460,7 @@ function TeamBuilderModal({
         </div>
 
         {/* ── Right: Chat ── */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
           {/* Header */}
           <div
             className="px-5 py-3.5 flex items-center justify-between shrink-0"
@@ -470,10 +475,10 @@ function TeamBuilderModal({
               </div>
               <div>
                 <p className="font-semibold text-sm" style={{ color: "var(--color-text)" }}>
-                  {editTeam ? `Editing: ${editTeam.name}` : "Build Agent Team with AI"}
+                  {editTeam ? `Editing: ${editTeam.name}` : t("buildWithAI")}
                 </p>
                 <p className="text-[11px]" style={{ color: "var(--color-muted)" }}>
-                  Chat with Claude · changes happen in real-time
+                  {t("chatChanges")}
                 </p>
               </div>
             </div>
@@ -553,7 +558,7 @@ function TeamBuilderModal({
                     sendMessage();
                   }
                 }}
-                placeholder="Describe what you need..."
+                placeholder={t("describeNeed")}
                 rows={2}
                 className="glass-input flex-1 px-3 py-2.5 text-sm resize-none"
                 style={{ fontFamily: "inherit", lineHeight: "1.55" }}
@@ -727,6 +732,7 @@ function ImportModal({
 
 export default function AgentLabPage() {
   const { addToast } = useToast();
+  const { t } = useLanguage();
 
   // Teams
   const [teams, setTeams] = useState<Team[]>([]);
@@ -748,6 +754,8 @@ export default function AgentLabPage() {
   const [showBuilder, setShowBuilder] = useState(false);
   const [builderEditTeam, setBuilderEditTeam] = useState<Team | undefined>(undefined);
   const [showImport, setShowImport] = useState(false);
+  const [deleteTeam, setDeleteTeam] = useState<Team | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const targets = ["All Teams", ...teams.map((t) => t.name)];
 
@@ -878,16 +886,37 @@ export default function AgentLabPage() {
       : `${d.toLocaleDateString()} ${time}`;
   }
 
+  async function handleDeleteTeam() {
+    if (!deleteTeam) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/teams/${deleteTeam.id}`, { method: "DELETE" });
+      if (res.ok) {
+        addToast(`${deleteTeam.name} deleted`, "success");
+        setDeleteTeam(null);
+        setSelectedTeam(null);
+        fetchTeams();
+      } else {
+        addToast("Failed to delete team", "error");
+      }
+    } catch {
+      addToast("Delete failed", "error");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
-    <div className="flex flex-col gap-5 p-6 max-w-6xl animate-fade-in">
+    <>
+    <div className="flex flex-col gap-5 p-6 max-w-6xl mx-auto w-full animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>
-            Agent Lab
+            {t("agentLab")}
           </h1>
           <p className="text-xs mt-0.5" style={{ color: "var(--color-muted)" }}>
-            Build, manage, and run your agent teams
+            {t("agentLabDesc")}
           </p>
         </div>
         <div className="flex gap-2">
@@ -907,7 +936,7 @@ export default function AgentLabPage() {
             className="btn-primary flex items-center gap-2 px-4 py-2.5"
           >
             <Plus size={15} />
-            New Team
+            {t("newTeam")}
           </button>
         </div>
       </div>
@@ -920,7 +949,7 @@ export default function AgentLabPage() {
               className="font-semibold text-xs uppercase tracking-wider"
               style={{ color: "var(--color-text-secondary)" }}
             >
-              Agent Teams
+              {t("agentTeams")}
             </h2>
             {teamsLoading && (
               <Loader2 size={13} className="animate-spin" style={{ color: "var(--color-muted)" }} />
@@ -1046,7 +1075,7 @@ export default function AgentLabPage() {
                         style={{ fontSize: "12px" }}
                       >
                         <MessageSquare size={11} />
-                        Chat to Edit
+                        {t("chatToEdit")}
                       </button>
                       <button
                         onClick={(e) => {
@@ -1069,6 +1098,17 @@ export default function AgentLabPage() {
                       >
                         <Download size={11} />
                         Export
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTeam(t);
+                        }}
+                        className="btn-ghost px-3 py-1.5 flex items-center gap-1.5"
+                        style={{ fontSize: "12px", color: "var(--color-red)" }}
+                      >
+                        <Trash2 size={11} />
+                        Delete
                       </button>
                     </div>
                   </div>
@@ -1105,7 +1145,7 @@ export default function AgentLabPage() {
               <Sparkles size={15} style={{ color: "var(--color-text-secondary)" }} />
             </div>
             <p className="text-sm" style={{ color: "var(--color-muted)" }}>
-              Build a new team with AI
+              {t("buildNewTeam")}
             </p>
           </button>
         </div>
@@ -1345,7 +1385,9 @@ export default function AgentLabPage() {
         </div>
       </div>
 
-      {/* ── Modals ── */}
+    </div>
+
+      {/* ── Modals — outside animated wrapper so fixed positioning uses viewport ── */}
       {showBuilder && (
         <TeamBuilderModal
           editTeam={builderEditTeam}
@@ -1359,6 +1401,63 @@ export default function AgentLabPage() {
           onImported={fetchTeams}
         />
       )}
-    </div>
+
+      {/* Delete confirmation modal */}
+      {deleteTeam && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.7)" }}
+          onClick={() => !deleting && setDeleteTeam(null)}
+        >
+          <div
+            className="glass-card p-6 flex flex-col gap-4 w-full max-w-sm animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-semibold text-sm" style={{ color: "var(--color-text)" }}>
+                  {t("deleteTeam")}
+                </h3>
+                <p className="text-xs mt-1" style={{ color: "var(--color-muted)" }}>
+                  {t("deleteTeamDesc")} <strong style={{ color: "var(--color-text)" }}>{deleteTeam.name}</strong> {t("deleteTeamDesc2")}
+                </p>
+              </div>
+              <button
+                onClick={() => setDeleteTeam(null)}
+                disabled={deleting}
+                style={{ color: "var(--color-muted)", background: "transparent", border: "none", cursor: "pointer", padding: "2px" }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setDeleteTeam(null)}
+                disabled={deleting}
+                className="btn-ghost px-4 py-2"
+                style={{ fontSize: "13px" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteTeam}
+                disabled={deleting}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors"
+                style={{
+                  fontSize: "13px",
+                  background: "rgba(248,113,113,0.15)",
+                  border: "1px solid rgba(248,113,113,0.3)",
+                  color: "var(--color-red)",
+                  cursor: deleting ? "not-allowed" : "pointer",
+                }}
+              >
+                {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                {deleting ? "Deleting..." : "Delete team"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -75,6 +75,8 @@ services:
         condition: service_healthy
     volumes:
       - filedata:/app/data/files
+      - vaultdata:/var/syncthing/vault
+      - /var/run/docker.sock:/var/run/docker.sock
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
       interval: 30s
@@ -173,6 +175,43 @@ services:
       retries: 3
       start_period: 120s
 
+  # ── Syncthing (vault file sync — Obsidian ↔ server) ──────────
+  syncthing:
+    image: syncthing/syncthing:latest
+    container_name: vps-syncthing
+    restart: unless-stopped
+    ports:
+      - "${SYNCTHING_PORT:-8384}:8384"
+      - "22000:22000/tcp"
+      - "22000:22000/udp"
+    volumes:
+      - vaultdata:/var/syncthing/vault
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8384/rest/noauth/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ── obsidian-mcp (MCP server for external LLMs — Block B) ────
+  # Exposes vault via MCP protocol for ChatGPT / Claude Desktop / Cursor
+  # Requires SYNCTHING_API_KEY after first Syncthing run (fill in .env.local)
+  obsidian-mcp:
+    image: cyanheads/obsidian-mcp-server:latest
+    container_name: vps-obsidian-mcp
+    restart: unless-stopped
+    ports:
+      - "${OBSIDIAN_MCP_PORT:-3001}:3001"
+    volumes:
+      - vaultdata:/vault
+    environment:
+      - VAULT_PATH=/vault
+    depends_on:
+      - syncthing
+
   # ── Nginx (static website hosting for clients) ────────────────
   nginx:
     image: nginx:alpine
@@ -184,7 +223,8 @@ services:
       - ./sites:/etc/nginx/conf.d:ro
       - ./webroot:/var/www:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:80 || exit 1"]
+      # Check nginx process is running, not HTTP 200 (custom sites may 404 on root)
+      test: ["CMD-SHELL", "nginx -t 2>/dev/null && pgrep nginx > /dev/null"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -219,5 +259,6 @@ volumes:
   filedata:
   n8ndata:
   portainerdata:
+  vaultdata:
   # NOTE: Ollama data uses a bind mount (OLLAMA_DATA_PATH), not a named volume.
   # This allows pointing it at a dedicated disk/volume (e.g. Hetzner Block Storage).

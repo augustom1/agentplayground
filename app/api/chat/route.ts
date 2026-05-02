@@ -8,6 +8,7 @@ import { rateLimit, LIMITS } from "@/lib/rate-limit";
 import { trackUsage } from "@/lib/usage-tracker";
 import { retrieveMemories } from "@/lib/memory/retrieve";
 import { evaluateAndWriteProtocol } from "@/lib/optimizer/protocol-writer";
+import { searchVault, getDailyNotes, writeVaultNote } from "@/lib/brain";
 
 // ─── System Prompts ────────────────────────────────────────────────────────────
 
@@ -448,11 +449,16 @@ export async function POST(req: Request) {
     );
   }
 
-  let messages: Array<{ role: "user" | "assistant"; content: string }>;
+  type AttachmentPayload =
+    | { type: "image"; base64: string; mimeType: string; filename?: string }
+    | { type: "text"; content: string; filename: string };
+
+  let messages: Array<{ role: "user" | "assistant"; content: string | unknown[] }>;
   let systemContext: string | undefined;
   let provider: string;
   let model: string | undefined;
   let teamId: string | undefined;
+  let attachments: AttachmentPayload[] | undefined;
 
   try {
     const body = await req.json();
@@ -461,8 +467,34 @@ export async function POST(req: Request) {
     provider = body.provider ?? "anthropic";
     model = body.model;
     teamId = body.teamId;
+    attachments = body.attachments;
   } catch {
     return new Response("Invalid JSON body", { status: 400 });
+  }
+
+  // Inject attachments into the last user message (Anthropic multi-modal format)
+  if (attachments && attachments.length > 0 && messages.length > 0) {
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg.role === "user") {
+      const contentBlocks: Array<Record<string, unknown>> = [];
+
+      for (const att of attachments) {
+        if (att.type === "image") {
+          contentBlocks.push({
+            type: "image",
+            source: { type: "base64", media_type: att.mimeType, data: att.base64 },
+          });
+        } else if (att.type === "text") {
+          contentBlocks.push({
+            type: "text",
+            text: `[Attached file: ${att.filename}]\n\n${att.content}`,
+          });
+        }
+      }
+
+      contentBlocks.push({ type: "text", text: lastMsg.content as string });
+      (messages[messages.length - 1] as { role: string; content: unknown }).content = contentBlocks;
+    }
   }
 
   // Build system prompt
@@ -480,6 +512,33 @@ export async function POST(req: Request) {
 
   if (systemContext) {
     systemPrompt = `${systemPrompt}\n\n## Additional Context\n${systemContext}`;
+  }
+
+  // A5: Vault context injection — only when enabled and for Anthropic provider
+  if (process.env.VAULT_CONTEXT_ENABLED === "true" && provider === "anthropic" && messages.length > 0) {
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+    const query = typeof lastUserMsg?.content === "string" ? lastUserMsg.content : "";
+    if (query) {
+      const [vaultResult, dailyResult] = await Promise.allSettled([
+        searchVault(query, 5),
+        getDailyNotes(3),
+      ]);
+      const vaultNotes = vaultResult.status === "fulfilled" ? vaultResult.value : [];
+      const dailyNotes = dailyResult.status === "fulfilled" ? dailyResult.value : [];
+
+      if (vaultNotes.length > 0) {
+        const noteList = vaultNotes
+          .map((n) => `### ${n.title} (${n.path})\n${n.content}`)
+          .join("\n\n---\n\n");
+        systemPrompt += `\n\n## Relevant Vault Context\n${noteList}`;
+      }
+      if (dailyNotes.length > 0) {
+        const dailyList = dailyNotes
+          .map((n) => `### ${n.title}\n${n.content}`)
+          .join("\n\n---\n\n");
+        systemPrompt += `\n\n## Recent Daily Notes\n${dailyList}`;
+      }
+    }
   }
 
   const encoder = new TextEncoder();
@@ -501,6 +560,11 @@ export async function POST(req: Request) {
           await streamOllama(messages, resolvedModel, systemPrompt, controller, encoder);
         } else {
           const usage = await streamAnthropic(messages, resolvedModel, systemPrompt, controller, encoder);
+          // Append usage sentinel for frontend token counter
+          if (usage.inputTokens > 0 || usage.outputTokens > 0) {
+            const usagePayload = JSON.stringify({ input: usage.inputTokens, output: usage.outputTokens, model: resolvedModel });
+            controller.enqueue(encoder.encode(`\n[USAGE:${usagePayload}]`));
+          }
           // Track real token usage (fire-and-forget, non-fatal)
           trackUsage({
             userId,
@@ -516,6 +580,16 @@ export async function POST(req: Request) {
           if (usage.webBrowseCalls > 0) {
             trackUsage({ userId, service: "web_browse", units: usage.webBrowseCalls, unitType: "calls" }).catch(() => {});
           }
+          // A6: Session write-back to vault daily note (fire-and-forget)
+          if (process.env.VAULT_CONTEXT_ENABLED === "true" && usage.responseText) {
+            const today = new Date().toISOString().split("T")[0];
+            const lastMsg = [...messages].reverse().find((m) => m.role === "user");
+            const userText = typeof lastMsg?.content === "string" ? lastMsg.content.slice(0, 200) : "";
+            const toolNote = usage.toolsUsed.length > 0 ? `\nTools: ${usage.toolsUsed.join(", ")}` : "";
+            const entry = `\n## ${new Date().toISOString()} — Chat\n**User:** ${userText}\n**Assistant:** ${usage.responseText.slice(0, 200)}...${toolNote}\n`;
+            writeVaultNote(`daily/${today}.md`, entry, true).catch(() => {});
+          }
+
           // Fire-and-forget: evaluate if this task could be done by a local LLM
           if (usage.inputTokens > 0 && usage.responseText && messages.length > 0) {
             const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");

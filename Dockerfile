@@ -38,6 +38,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME="0.0.0.0"
 ENV PORT=3000
 
+# su-exec: lets root entrypoint drop to nextjs for the actual process
+# docker-cli: needed by Server Control page (runs docker ps / docker exec via execSync)
+RUN apk add --no-cache su-exec docker-cli
+
 # Create non-root user for security
 RUN addgroup --system --gid 1001 nodejs && \
     adduser  --system --uid 1001 nextjs
@@ -48,15 +52,19 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copy full node_modules — prisma CLI needs all its transitive deps (valibot etc.)
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/prisma       ./prisma
+COPY --from=builder /app/node_modules    ./node_modules
+COPY --from=builder /app/prisma          ./prisma
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 
-# Copy entrypoint and make it executable (must happen before USER switch)
-COPY --chown=nextjs:nodejs entrypoint.sh ./entrypoint.sh
+# Create writable data directories
+RUN mkdir -p /app/data/files /app/data/protocols && \
+    chown -R nextjs:nodejs /app/data
+
+# Copy entrypoint — runs as root so it can fix volume permissions at startup
+COPY entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
-USER nextjs
-
+# Entrypoint runs as root, drops to nextjs via su-exec after fixing permissions
 EXPOSE 3000
 
 ENTRYPOINT ["./entrypoint.sh"]

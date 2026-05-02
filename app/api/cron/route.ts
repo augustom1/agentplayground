@@ -91,6 +91,16 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Email polling — runs every 2 minutes if Gmail credentials are set
+    if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+      const minuteOfDay = now.getUTCHours() * 60 + now.getUTCMinutes();
+      if (minuteOfDay % 2 === 0) {
+        import("@/lib/integrations/email/processor")
+          .then(({ processInboundEmails }) => processInboundEmails())
+          .catch((err) => console.error("[cron] Email polling failed:", err));
+      }
+    }
+
     return NextResponse.json({ dispatched: dispatched.length, tasks: dispatched });
   } catch (err) {
     return apiError(err);

@@ -27,20 +27,15 @@ export async function OPTIONS(req: NextRequest) {
 // Prices are in USD. MercadoPago handles conversion for local markets.
 // ---------------------------------------------------------------------------
 const PRODUCTS: Record<string, { title: string; description: string; unit_price: number }> = {
-  basico: {
-    title: "AgentPlayground — Instalación Básica VPS",
-    description: "Instalación del stack completo en tu VPS: Docker, PostgreSQL, Redis, Nginx + Traefik con HTTPS automático.",
-    unit_price: 49,
-  },
-  completo: {
-    title: "AgentPlayground — Stack Completo",
-    description: "Instalación completa + configuración de AgentPlayground como cerebro de tu plataforma de IA: Ollama, n8n, equipos de agentes y dashboard.",
+  instalacion: {
+    title: "AgentPlayground — Instalación Profesional",
+    description: "Instalación completa del stack en tu VPS: AgentPlayground, Ollama, n8n, PostgreSQL, Redis, Traefik HTTPS. Vos traés el VPS, nosotros instalamos todo.",
     unit_price: 149,
   },
-  premium: {
-    title: "AgentPlayground — Stack Completo + Soporte",
-    description: "Todo lo del plan Completo + 30 días de soporte técnico, actualizaciones y backup configurado.",
-    unit_price: 299,
+  gestionado: {
+    title: "AgentPlayground — Stack Gestionado Completo",
+    description: "Nos encargamos de todo: conseguimos el VPS, instalamos el stack completo, configuramos tu dominio y brindamos 30 días de soporte técnico.",
+    unit_price: 399,
   },
 };
 

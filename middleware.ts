@@ -14,6 +14,9 @@ export default auth((req) => {
     pathname.startsWith("/api/health") ||
     pathname.startsWith("/api/cron") ||
     pathname.startsWith("/api/mercadopago") ||
+    pathname.startsWith("/api/telegram") ||
+    pathname.startsWith("/api/channels") ||
+    pathname.startsWith("/api/brain/index") ||  // n8n indexer — secret-header auth
     pathname.startsWith("/login") ||
     pathname.startsWith("/setup") ||
     pathname.startsWith("/_next") ||

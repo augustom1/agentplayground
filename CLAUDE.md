@@ -2,6 +2,7 @@
 
 > Read this file first. It gives you full project context so you don't need to explore every file.
 > Update the **Recent Work** section after completing each task.
+> Cross-reference `docs/MASTER-TODO.md` for the full task queue — start there before writing any code.
 > Cross-reference VISION.md for product direction and paymentplan.md for billing details.
 
 ---
@@ -10,7 +11,7 @@
 
 **What it is:** A self-hosted AI operations platform ("Agent Playground"). Users talk to the **Playground Keeper** (Claude in coordinator mode) and it manages agent teams, creates projects, schedules work, and routes tasks. The platform becomes whatever the user needs through conversation.
 
-**Current reality:** Chat + agent team management fully works. The Keeper is prototype-level (coordinator mode in chat). Billing is schema-complete but unwired. Projects, multi-channel routing, and agent memory are schema-only.
+**Current reality:** Chat + agent team management fully works. The Keeper is prototype-level (coordinator mode in chat). Billing is schema-complete but unwired. The next major feature is the **2nd Brain** — Obsidian vault as persistent memory for all agents, accessible from any LLM via MCP and from any channel (Telegram, email, WhatsApp). See `docs/MASTER-TODO.md` for the full task queue.
 
 **Domain:** `agentplayground.net`
 **Stack:** Next.js 15 · React 19 · TypeScript · Prisma 7 · PostgreSQL + pgvector · NextAuth v5 · Tailwind v4 · Docker · Anthropic Claude SDK
@@ -38,6 +39,31 @@
 | Multi-channel routing (Telegram etc) | ✅ | ❌ | ❌ | ❌ |
 | Agent Memory | ✅ | ❌ | ❌ | ❌ |
 | Playground Keeper (full vision) | — | ❌ | ❌ | ❌ |
+| **Planned — see docs/features/**  | | | | |
+| Token counter in chat | — | ✅ | ✅ | ✅ |
+| File/image/audio in chat | — | ✅ | ✅ | ✅ needs OPENAI_API_KEY |
+| Telegram voice + media | ✅ | ✅ | — | ✅ needs OPENAI_API_KEY |
+| Auto-install tools (npm/pip/mcp) | — | ✅ | ✅ | ✅ needs VPS_SSH_KEY |
+| Email channel | ✅ | ✅ | ❌ | ❌ needs IMAP creds |
+| WhatsApp channel | ✅ | ✅ | ❌ | ❌ needs Twilio keys |
+| **2nd Brain — see docs/MASTER-TODO.md** | | | | |
+| Vault Docker (Syncthing + obsidian-mcp) | — | ✅ | — | ✅ Block A1 done |
+| VaultNote DB model + pgvector index | ✅ | ✅ | — | ✅ Block A3 done |
+| Brain API routes (/api/brain/*) | — | ✅ | ❌ | ✅ Block A4 done |
+| Keeper vault context injection | — | ✅ | — | ✅ Block A5 done |
+| Session write-back to vault | — | ✅ | — | ✅ Block A6 done |
+| MCP endpoint (/api/mcp) | — | ❌ | ❌ | ❌ Block B1 |
+| API key management | ❌ | ❌ | ❌ | ❌ Block B2 |
+| Telegram → vault pipeline | — | ❌ | — | ❌ Block C1 |
+| Files tab: Brain/Graph/Search tabs | — | — | ❌ | ❌ Block D |
+| D3.js knowledge graph | — | ❌ | ❌ | ❌ Block D3 |
+| vault_search/write tools in chat | — | ❌ | — | ❌ Block E1 |
+| Research team vault-first | — | ❌ | — | ❌ Block E2 |
+| Stripe payments wired | ✅ | ✅ written | ✅ written | ❌ needs keys Block F1 |
+| Credit gate in chat route | — | ❌ | — | ❌ Block F2 |
+| Self-registration | — | ❌ | ❌ | ❌ Block F3 |
+| Landing page: Brain section + pricing | — | — | ❌ | ❌ Block G |
+| Client onboarding script | — | — | ❌ | ❌ Block H1 |
 
 ---
 
@@ -93,8 +119,24 @@
 │       ├── ollama/models/      # GET — list local Ollama models
 │       ├── ollama/pull/        # POST — download Ollama model
 │       ├── users/              # CRUD — user management (admin)
+│       ├── brain/              # 2nd Brain API (BLOCK A — build next)
+│       │   ├── index/          # POST — n8n vault indexer (embed + upsert VaultNote)
+│       │   ├── search/         # GET ?q= — semantic search across vault
+│       │   ├── note/           # GET/POST — read/write single vault note
+│       │   ├── daily/          # GET/POST — daily notes read + session write-back
+│       │   ├── ingest/         # POST — quick capture (any text → vault inbox)
+│       │   └── graph/          # GET — D3.js graph data (nodes + edges)
+│       ├── mcp/                # POST — MCP protocol endpoint for external LLMs (BLOCK B)
+│       ├── settings/
+│       │   └── api-key/        # POST — generate API key for MCP access (BLOCK B2)
+│       ├── auth/
+│       │   └── register/       # POST — self-registration (BLOCK F3)
 │       └── cron/               # POST — trigger recurring jobs (CRON_SECRET)
 │
+├── lib/
+│   ├── brain/
+│   │   └── index.ts            # Vault helpers: searchVault, readVaultNote, writeVaultNote, ingestToVault (BLOCK A2)
+│   ├── credits.ts              # Credit helpers: getUserCredits, deductCredits, resetMonthlyCredits (BLOCK F5)
 ├── lib/
 │   ├── prisma.ts               # Singleton Prisma client (adapter-pg, pool max 5)
 │   ├── chat-tools.ts           # 20 Claude tool definitions (teams, tasks, files, web, etc.)
@@ -179,6 +221,14 @@
 | ApiUsage | api_usage | Schema ✅, written on Claude calls ✅ |
 | Invoice | invoices | Schema ✅, never generated ❌ |
 | InvoiceLineItem | invoice_line_items | Schema ✅, never generated ❌ |
+
+### 2nd Brain Models (to be added — Block A3)
+
+| Model | Table | Key fields |
+|---|---|---|
+| VaultNote | vault_notes | id, path (unique), title, content, tags[], frontmatter Json?, embedding vector(768)?, updatedAt |
+
+Also add to User model: `apiKey String? @unique` (Block B2)
 
 ### Vision Phase Models (schema only — no API/UI yet)
 
@@ -286,6 +336,14 @@ Plans: Free (500 credits/mo, Ollama only), Pro (1K credits/mo, Claude enabled), 
 | `STRIPE_WEBHOOK_SECRET` | ❌ future | Stripe webhook validation |
 | `BITPAY_API_KEY` | ❌ future | BitPay crypto payments |
 | `MERCADOPAGO_ACCESS_TOKEN` | ⚠️ ar site | MercadoPago Checkout Pro (ar.agentplayground.net sales) |
+| `VAULT_PATH` | ⚠️ brain | Path to vault folder inside Docker (`/var/syncthing/vault`) |
+| `OBSIDIAN_MCP_URL` | ⚠️ brain | Internal URL of obsidian-mcp container (`http://obsidian-mcp:3001`) |
+| `BRAIN_SECRET` | ⚠️ brain | Secret header for n8n → `/api/brain/index` (prevents public access) |
+| `VAULT_CONTEXT_ENABLED` | ⚠️ brain | `true` to inject vault context into Keeper (default false until vault is set up) |
+| `SYNCTHING_API_KEY` | ⚠️ brain | From Syncthing web UI → Actions → API key (fill after first run) |
+| `STRIPE_SECRET_KEY` | ❌ payments | Stripe live key (from dashboard.stripe.com) |
+| `STRIPE_WEBHOOK_SECRET` | ❌ payments | Stripe webhook secret (from dashboard.stripe.com) |
+| `REQUIRE_INVITE_CODE` | ⚠️ auth | `false` = open registration, `true` = invite code required |
 
 ---
 
@@ -346,6 +404,167 @@ DNS: Two A records — `@` and `*` → VPS IP.
 ---
 
 ## Recent Work
+
+### Session 2026-05-02b — Block A: 2nd Brain Core implementation
+
+**All 7 Block A tasks completed. Build: ✓ Compiled successfully (0 errors).**
+
+**New files created:**
+- `lib/brain/index.ts` — 5 helpers: `searchVault`, `readVaultNote`, `writeVaultNote`, `getDailyNotes`, `ingestToVault`, `indexVaultNote`
+- `app/api/brain/index/route.ts` — n8n indexer endpoint (POST, secret-header auth, no session required)
+- `app/api/brain/search/route.ts` — semantic search (GET ?q=, session-protected)
+- `app/api/brain/note/route.ts` — read/write single note (GET/POST, session-protected)
+- `app/api/brain/daily/route.ts` — daily notes (GET/POST, session-protected)
+- `app/api/brain/ingest/route.ts` — quick capture (POST, session-protected, indexes async)
+- `docs/n8n-vault-indexer.md` — n8n workflow JSON + shell script alternative + setup steps
+
+**Modified files:**
+- `prisma/schema.prisma` — added `VaultNote` model (path unique, pgvector(768), tags[], frontmatter Json?)
+- `docker-compose.yml` — added `syncthing` + `obsidian-mcp` services, `vaultdata` volume, mounted vault in dashboard
+- `docker-compose.prod.yml` — added `sync.DOMAIN` Traefik router for Syncthing
+- `middleware.ts` — `/api/brain/index` added to public routes (secret-header auth instead of session)
+- `app/api/chat/route.ts` — A5: vault context injection before Claude calls; A6: session write-back to daily note after response
+- Ran `npx prisma generate` — VaultNote model in client
+
+**How vault context injection works:**
+- Only when `VAULT_CONTEXT_ENABLED=true` and provider is Anthropic
+- Runs `searchVault(lastUserMessage, 5)` + `getDailyNotes(3)` in parallel via `Promise.allSettled`
+- Appends matching notes to systemPrompt under `## Relevant Vault Context` / `## Recent Daily Notes`
+- Non-blocking: if vault search fails, chat continues without it
+
+**How session write-back works:**
+- After each Anthropic streaming response, fire-and-forget `writeVaultNote('daily/YYYY-MM-DD.md', summary, true)`
+- Summary = ISO timestamp + first 200 chars of user message + first 200 chars of assistant response + tool names used
+- Silently catches errors — never blocks the response
+
+**Architecture note:** `lib/brain/index.ts` uses direct filesystem access (Node.js `fs/promises`) for read/write/ingest operations. The `vaultdata` volume is mounted at `/var/syncthing/vault` in both the dashboard and syncthing containers. The `obsidian-mcp` service is scaffolded for Block B (MCP endpoint) but not yet functional — it requires Obsidian's REST API plugin or a compatible MCP server image.
+
+**Next steps (start here next session):**
+1. Run `npx prisma db push` on VPS to create `vault_notes` table
+2. Deploy to VPS (sync + rebuild)
+3. Start Block B: MCP endpoint (`app/api/mcp/route.ts`) + API key management
+
+### Session 2026-05-02 — 2nd Brain planning + full task queue
+
+**No code written — architecture and product planning session.**
+
+**What was decided:**
+- The 2nd Brain is the next major feature and main selling point
+- The vault is a **passive dump** — any AI, any channel, any person writes to it
+- Agent teams **read vault context** before every task — zero cold starts, no repeated context
+- The platform exposes a **MCP endpoint** so ChatGPT, Claude Desktop, Cursor can write/read the vault natively
+- Telegram (already working) extended so any message → vault note (covers non-technical users)
+- Files tab gets 3 new panels: Brain (vault browser + quick capture), Graph (D3.js knowledge graph), Search (semantic)
+- Business model: $299/$499/$799 one-time install tiers + $79-299/month managed hosting + agent team add-ons
+
+**Documents created:**
+- `docs/MASTER-TODO.md` — full task queue, 8 blocks (A-H), every task has exact files to touch. START HERE.
+- `docs/BRAIN-INTEGRATION-PLAN.md` — full technical + business spec
+- `OBSIDIAN-BRAIN-INTEGRATION.md` — original proposal (in repo root)
+
+**Priority order for next sessions:**
+1. **Block A** — Vault core (Docker containers, VaultNote model, /api/brain/* routes, Keeper injection, session write-back)
+2. **Block B** — MCP endpoint + API key management
+3. **Block C** — Telegram → vault pipeline (extend existing bot)
+4. **Block D** — Files tab redesign (Brain/Graph/Search tabs, D3.js graph)
+5. **Block E** — Agent teams vault-aware (vault tools in chat-tools.ts, Research + Financial team prompts)
+6. **Block F** — Payments (Stripe keys, credit gate, self-registration)
+7. **Block G** — Landing page (Brain section, pricing update)
+8. **Block H** — Client delivery standardization (onboarding script, .env.template)
+
+**The demo that sells it (real estate example):**
+1. User sends Telegram voice: "Thinking about real estate in BA, budget $120k"
+2. → Transcribed + saved to vault automatically
+3. Days later, user asks Keeper: "Analyze real estate for me"
+4. → Keeper reads vault (knows the budget, city, preferences)
+5. → Dispatches Research team + Financial team simultaneously
+6. → Report written back to vault, shown in chat
+7. User: "Send summary to my Telegram" → done
+
+### Session 2026-04-17 — Audit + Security fixes on all new features
+
+**All 7 features from docs/IMPLEMENTATION_PLAN.md were already implemented (previous session). This session audited and fixed issues.**
+
+**Fixes applied:**
+- `app/api/mercadopago/webhook/route.ts` — fixed bad `import prisma from` → `import { prisma } from` (was causing build warning)
+- `app/api/server/stats/route.ts` — added regex validation for Ollama model name before shell interpolation (shell injection fix)
+- `lib/tool-installer/installer.ts` — added `assertSafeName()` with strict regex for npm/pip/MCP package names before SSH exec (shell injection fix)
+
+**Verified working:**
+- Build: `✓ Compiled successfully` (clean, no errors, no warnings)
+- Tests: 180 tests pass
+- All 7 new features confirmed present: token counter, file/image/audio in chat, Telegram voice+photo, tool installer via SSH, email channel, WhatsApp channel
+- New pages: `/server` (Docker + Ollama monitor, admin only), `/websites` (uptime checker)
+- New providers: `LanguageProvider` + `ThemeProvider` in root layout, i18n keys for all new UI strings
+
+**New pages added (previous session, confirmed this session):**
+- `/server` — admin Docker container monitor + Ollama model manager (`app/(app)/server/page.tsx`)
+- `/websites` — uptime/latency monitor for all subdomains (`app/(app)/websites/page.tsx`)
+
+**New API routes confirmed:**
+- `GET /api/server/stats` — Docker ps + free/df (admin only)
+- `POST /api/server/stats` — restart container / pull Ollama model (admin only, validated)
+- `GET /api/websites/check?url=` — HEAD ping with latency
+- `POST /api/transcribe` — Whisper transcription (uses OPENAI_API_KEY)
+- `POST /api/files/extract` — PDF/doc text extraction
+- `POST /api/tools/install` — SSH-based npm/pip/MCP installer
+- `POST /api/channels/whatsapp/webhook` — Twilio WhatsApp handler
+
+**VPS deployed this session:**
+- Synced all local changes to VPS via tar + scp
+- Rebuilt and restarted `vps-dashboard` container — `✓ healthy`
+- **IMPORTANT lesson:** rsync/tar overwrites VPS `.env` with local dev defaults. After every deploy, run `cp .env.local .env` on the VPS before restarting. This is now documented in `docs/IMPLEMENTATION_PLAN.md` deploy steps.
+
+**Monetization readiness (honest assessment):**
+- AR managed-service model: ~80% ready. Add `MERCADOPAGO_ACCESS_TOKEN` → payments work. Create user accounts manually.
+- Self-serve SaaS: ~30% ready. Missing: self-registration, active payment keys, credit enforcement gate.
+- **Fastest path to revenue:** find one client, demo the platform, charge setup fee, create their account via `/users`. No extra code needed.
+
+### Session 2026-04-16 — Feature Planning: Token Counter, File Sharing, Tool Installer, Messaging Channels
+
+**No code written — planning + documentation session.**
+
+Created `docs/` folder with full implementation specs for the next 4 feature groups:
+
+| Doc | Feature | Status |
+|---|---|---|
+| `docs/features/01-token-counter.md` | Live token + cost counter in chat UI | ⬜ Ready to build |
+| `docs/features/02-file-media-chat.md` | File/image/audio/PDF attachments in chat | ⬜ Ready to build |
+| `docs/features/03-telegram-full.md` | Telegram voice notes, photos, conversation memory | 🟡 Telegram text works; add voice/media |
+| `docs/features/04-auto-tool-installer.md` | Auto-install npm/pip/MCP via SSH with safety checker | ⬜ Ready to build |
+| `docs/features/05-messaging-channels.md` | Email (Gmail polling) + WhatsApp (Twilio) channels | ⬜ Ready to build |
+
+**Master plan:** `docs/IMPLEMENTATION_PLAN.md` — priority order, all new files to create, new env vars, npm packages needed.
+
+**Priority order to implement:**
+1. Token counter (2-3 hrs, quick win)
+2. File/audio in chat (1-2 days, unlocks voice note flow everywhere)
+3. Telegram voice notes (1.5 days, needs #2 done first)
+4. Auto-tool installer via SSH (2-3 days)
+5. Email + WhatsApp (1-2 days each)
+
+**New env vars that will be needed (add to VPS .env.local as features are built):**
+```
+OPENAI_API_KEY=          # Whisper audio transcription ($0.006/min)
+TELEGRAM_BOT_TOKEN=      # From @BotFather
+TELEGRAM_WEBHOOK_SECRET= # openssl rand -hex 20
+VPS_SSH_HOST=95.217.163.247
+VPS_SSH_USER=root
+VPS_SSH_KEY=             # base64 < ~/.ssh/id_rsa
+TWILIO_ACCOUNT_SID=      # WhatsApp (later)
+TWILIO_AUTH_TOKEN=       # WhatsApp (later)
+GMAIL_USER=              # Email polling (later)
+GMAIL_APP_PASSWORD=      # Email polling (later)
+```
+
+**Key existing files relevant to these features:**
+- `lib/integrations/telegram/bot.ts` — Telegram text bot (already works, needs voice/media added)
+- `app/api/telegram/webhook/route.ts` — webhook handler (exists, works)
+- `app/api/chat/route.ts` — needs: usage sentinel for token counter + attachment handling
+- `app/(app)/chat/page.tsx` — needs: token counter UI + attachment input UI
+- `lib/chat-tools.ts` — needs: `search_tools` + `install_tool` added
+
+---
 
 ### Session 2026-04-14 — ar.agentplayground.net + private network + landing page
 

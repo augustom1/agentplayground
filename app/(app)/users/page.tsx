@@ -6,6 +6,7 @@ import {
   ShieldCheck, User as UserIcon, Eye,
 } from "lucide-react";
 import { useToast } from "@/components/ToastProvider";
+import { useLanguage } from "@/components/LanguageProvider";
 
 type AppUser = {
   id: string;
@@ -32,6 +33,7 @@ const PLAN_COLORS: Record<string, { bg: string; text: string }> = {
 
 export default function UsersPage() {
   const { addToast } = useToast();
+  const { t } = useLanguage();
   const [users, setUsers]         = useState<AppUser[]>([]);
   const [loading, setLoading]     = useState(true);
   const [showAdd, setShowAdd]     = useState(false);
@@ -111,19 +113,20 @@ export default function UsersPage() {
   }
 
   return (
+    <>
     <div className="flex flex-col gap-5 p-6 max-w-4xl animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>
-            Users
+            {t("users")}
           </h1>
           <p className="text-xs mt-0.5" style={{ color: "var(--color-muted)" }}>
-            Manage platform access — invite clients, set roles and plans
+            {t("manageAccess")}
           </p>
         </div>
         <button onClick={() => setShowAdd(true)} className="btn-primary flex items-center gap-2 px-4 py-2.5">
           <Plus size={15} />
-          Invite User
+          {t("inviteUser")}
         </button>
       </div>
 
@@ -154,7 +157,7 @@ export default function UsersPage() {
         {!loading && users.length === 0 && (
           <div className="flex flex-col items-center py-12 gap-2">
             <Users size={24} style={{ color: "var(--color-muted)", opacity: 0.4 }} />
-            <p className="text-sm" style={{ color: "var(--color-muted)" }}>No users yet</p>
+            <p className="text-sm" style={{ color: "var(--color-muted)" }}>{t("noUsersYet")}</p>
           </div>
         )}
 
@@ -325,7 +328,9 @@ export default function UsersPage() {
         })}
       </div>
 
-      {/* Add User Modal */}
+    </div>
+
+      {/* Add User Modal — outside animated wrapper so fixed positioning uses viewport */}
       {showAdd && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
@@ -335,11 +340,11 @@ export default function UsersPage() {
           <form
             onSubmit={createUser}
             className="glass-card p-6 animate-fade-in"
-            style={{ width: "420px" }}
+            style={{ width: "min(420px, calc(100vw - 2rem))", maxHeight: "90vh", overflowY: "auto" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-5">
-              <h2 className="font-semibold text-base" style={{ color: "var(--color-text)" }}>Invite User</h2>
+              <h2 className="font-semibold text-base" style={{ color: "var(--color-text)" }}>{t("inviteUser")}</h2>
               <button type="button" onClick={() => setShowAdd(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-muted)" }}>
                 <X size={18} />
               </button>
@@ -347,9 +352,9 @@ export default function UsersPage() {
 
             <div className="flex flex-col gap-3">
               {[
-                { label: "Name (optional)", key: "name", type: "text", placeholder: "Client name" },
-                { label: "Email", key: "email", type: "email", placeholder: "client@company.com", required: true },
-                { label: "Password", key: "password", type: "password", placeholder: "Min. 8 characters", required: true },
+                { label: t("nameOptional"), key: "name", type: "text", placeholder: t("clientName") },
+                { label: t("emailAddress"), key: "email", type: "email", placeholder: "client@company.com", required: true },
+                { label: t("password"), key: "password", type: "password", placeholder: t("minChars"), required: true },
               ].map(({ label, key, type, placeholder, required }) => (
                 <div key={key}>
                   <label className="text-[11px] font-medium block mb-1" style={{ color: "var(--color-muted)" }}>{label}</label>
@@ -367,7 +372,7 @@ export default function UsersPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-medium block mb-1" style={{ color: "var(--color-muted)" }}>Role</label>
+                  <label className="text-[11px] font-medium block mb-1" style={{ color: "var(--color-muted)" }}>{t("role")}</label>
                   <select
                     value={form.role}
                     onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
@@ -380,7 +385,7 @@ export default function UsersPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] font-medium block mb-1" style={{ color: "var(--color-muted)" }}>Plan</label>
+                  <label className="text-[11px] font-medium block mb-1" style={{ color: "var(--color-muted)" }}>{t("plan")}</label>
                   <select
                     value={form.plan}
                     onChange={(e) => setForm((f) => ({ ...f, plan: e.target.value }))}
@@ -400,12 +405,12 @@ export default function UsersPage() {
                 className="btn-primary flex items-center justify-center gap-2 py-2.5 mt-1"
               >
                 {submitting ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                {submitting ? "Creating..." : "Create User"}
+                {submitting ? t("creatingUser") : t("createUser")}
               </button>
             </div>
           </form>
         </div>
       )}
-    </div>
+    </>
   );
 }
