@@ -405,6 +405,40 @@ DNS: Two A records — `@` and `*` → VPS IP.
 
 ## Recent Work
 
+### Session 2026-05-02c — Block B: MCP endpoint + API key management
+
+**Deployed to VPS. Build: ✓. Health: 200.**
+
+**New files:**
+- `app/api/mcp/route.ts` — MCP JSON-RPC endpoint (POST). Methods: `initialize`, `tools/list`, `tools/call`, `ping`. Tools: `vault_search`, `vault_read`, `vault_write`, `dispatch_task`, `get_context`. Auth: `Authorization: Bearer <key>` → SHA-256 hash lookup in `User.apiKey`.
+- `app/api/settings/api-key/route.ts` — GET (hasKey?), POST (generate, returns plaintext once), DELETE (revoke)
+- `components/ApiKeySection.tsx` — client component: generate/revoke key, show Claude Desktop config JSON snippet
+
+**Modified:**
+- `prisma/schema.prisma` — added `apiKey String? @unique` to User model (stores SHA-256 hash)
+- `app/(app)/settings/page.tsx` — added ApiKeySection above Billing section
+- `middleware.ts` — `/api/mcp` added to public routes (API key auth, not session)
+
+**MCP connects to Claude Desktop / Cursor:**
+```json
+{
+  "mcpServers": {
+    "agentplayground": {
+      "url": "https://app.agentplayground.net/api/mcp",
+      "headers": { "Authorization": "Bearer agp_<your_key>" }
+    }
+  }
+}
+```
+Generate key at Settings → MCP API Key.
+
+**2nd Brain activation (done this session):**
+- `VAULT_PATH=/var/syncthing/vault`, `BRAIN_SECRET=<secret>`, `VAULT_CONTEXT_ENABLED=false` added to VPS `.env.local`
+- `.gitattributes` added to enforce LF for shell scripts (prevents CRLF deploy failures)
+- Vault volume created on VPS, `vault_notes` table populated (0 rows, ready)
+
+**Next: Block C** — Telegram → vault pipeline (extend existing bot: any message → `ingestToVault`)
+
 ### Session 2026-05-02b — Block A: 2nd Brain Core implementation
 
 **All 7 Block A tasks completed. Build: ✓ Compiled successfully (0 errors).**
