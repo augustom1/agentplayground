@@ -54,7 +54,7 @@
 | Session write-back to vault | — | ✅ | — | ✅ Block A6 done |
 | MCP endpoint (/api/mcp) | — | ❌ | ❌ | ❌ Block B1 |
 | API key management | ❌ | ❌ | ❌ | ❌ Block B2 |
-| Telegram → vault pipeline | — | ❌ | — | ❌ Block C1 |
+| Telegram → vault pipeline | — | ✅ | — | ✅ Block C1 done |
 | Files tab: Brain/Graph/Search tabs | — | — | ❌ | ❌ Block D |
 | D3.js knowledge graph | — | ❌ | ❌ | ❌ Block D3 |
 | vault_search/write tools in chat | — | ❌ | — | ❌ Block E1 |
@@ -404,6 +404,28 @@ DNS: Two A records — `@` and `*` → VPS IP.
 ---
 
 ## Recent Work
+
+### Session 2026-05-02d — Block C: Telegram → vault pipeline + web capture
+
+**Build: ✓ Compiled successfully (0 errors).**
+
+**Modified:**
+- `lib/integrations/telegram/bot.ts` — Full vault integration:
+  - Added imports: `ingestToVault`, `searchVault`, `getDailyNotes` from `lib/brain`
+  - Non-command text → `ingestToVault(text, ['#telegram'])` → reply "✓ Saved to your brain"
+  - Voice note → transcribed → `ingestToVault(transcript, ['#telegram', '#voice'])`
+  - Audio file → transcribed → `ingestToVault(transcript, ['#telegram', '#audio'])`
+  - Photo → Anthropic vision description → `ingestToVault(description, ['#telegram', '#photo'])`
+  - Document → extracted text → `ingestToVault(text, ['#telegram', '#document'])`
+  - New commands: `/note <text>` (explicit save), `/brain <query>` (search top 3), `/daily` (today's note), `/ask <q>` or `/chat <q>` (Keeper AI), `/help` (command list)
+
+**New files:**
+- `app/(app)/brain/capture/page.tsx` — Quick capture page: textarea + tags input + "Save to Brain" button → POST `/api/brain/ingest`. Session-protected, accessible at `/brain/capture`.
+- `docs/n8n-email-to-vault.md` — n8n workflow (Gmail/IMAP trigger → parse body → POST `/api/brain/ingest`), includes importable workflow JSON.
+
+**Behavior change:** Telegram bot is now primarily an inbox. All content goes to vault automatically. `/ask` or `/chat` commands preserved for AI chat. Old "any text → Keeper response" behavior replaced with "any text → vault save".
+
+**Next: Block D** — Files tab redesign (Brain/Graph/Search tabs, D3.js knowledge graph)
 
 ### Session 2026-05-02c — Block B: MCP endpoint + API key management
 

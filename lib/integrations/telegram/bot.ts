@@ -11,12 +11,14 @@
  * 4. Add to .env.local: TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET
  *
  * Supports: text, voice notes, audio files, photos, documents, memory per chat
+ * Brain commands: /note, /brain, /daily — all other text is saved to vault automatically
  */
 
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { CHAT_TOOLS, executeTool } from "@/lib/chat-tools";
 import { downloadTelegramFile, transcribeAudio } from "./audio";
+import { ingestToVault, searchVault, getDailyNotes } from "@/lib/brain";
 
 const TELEGRAM_API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
 
@@ -253,6 +255,49 @@ async function extractDocumentText(fileId: string, filename: string, mimeType?: 
   return `[File received: ${filename}]`;
 }
 
+// ─── Brain command handlers ────────────────────────────────────────────────────
+
+function makeTitleFromText(text: string): string {
+  return text.trim().slice(0, 60).replace(/\s+/g, " ") || "Untitled";
+}
+
+async function handleBrainSearch(chatId: number, query: string): Promise<void> {
+  const results = await searchVault(query, 3);
+  if (results.length === 0) {
+    await sendTelegramMessage(chatId, `🔍 No results found for: "${query}"`);
+    return;
+  }
+  const lines = [`🔍 *Brain search:* "${query}"\n`];
+  results.forEach((r, i) => {
+    const score = r.score != null ? ` _(${(r.score * 100).toFixed(0)}% match)_` : "";
+    const preview = r.content.trim().slice(0, 150).replace(/\n+/g, " ");
+    lines.push(`${i + 1}. *${r.title}*${score}\n   ${preview}…`);
+  });
+  await sendTelegramMessage(chatId, lines.join("\n"));
+}
+
+async function handleDailyNote(chatId: number): Promise<void> {
+  const notes = await getDailyNotes(1);
+  if (notes.length === 0) {
+    await sendTelegramMessage(chatId, "📅 No daily note for today yet.");
+    return;
+  }
+  const note = notes[0];
+  const content = note.content.trim().slice(0, 3500);
+  await sendTelegramMessage(chatId, `📅 *${note.title}*\n\n${content}`);
+}
+
+async function handleIngest(
+  chatId: number,
+  text: string,
+  tags: string[],
+  replyPrefix = "✓ Saved to your brain"
+): Promise<void> {
+  const title = makeTitleFromText(text);
+  await ingestToVault(text, title, tags);
+  await sendTelegramMessage(chatId, replyPrefix);
+}
+
 // ─── Main update processor ─────────────────────────────────────────────────────
 
 /** Process a Telegram update and send a reply */
@@ -263,77 +308,164 @@ export async function processUpdate(update: TelegramUpdate): Promise<void> {
   const chatId = msg.chat.id;
 
   try {
-    // Show typing indicator immediately
     await sendTypingAction(chatId);
 
-    let userMessage: string;
+    // ── Text messages ──────────────────────────────────────────────────────────
+    if (msg.text) {
+      const text = msg.text.trim();
 
+      // /brain <query> — search the vault
+      if (text.startsWith("/brain")) {
+        const query = text.slice(6).trim();
+        if (!query) {
+          await sendTelegramMessage(chatId, "Usage: /brain <search query>");
+          return;
+        }
+        await handleBrainSearch(chatId, query);
+        return;
+      }
+
+      // /daily — show today's daily note
+      if (text === "/daily") {
+        await handleDailyNote(chatId);
+        return;
+      }
+
+      // /note <text> — explicit vault save
+      if (text.startsWith("/note")) {
+        const noteText = text.slice(5).trim();
+        if (!noteText) {
+          await sendTelegramMessage(chatId, "Usage: /note <text to save>");
+          return;
+        }
+        await handleIngest(chatId, noteText, ["#telegram", "#note"]);
+        return;
+      }
+
+      // /ask <message> or /chat <message> — talk to the Keeper
+      if (text.startsWith("/ask") || text.startsWith("/chat")) {
+        const question = text.startsWith("/ask") ? text.slice(4).trim() : text.slice(5).trim();
+        if (!question) {
+          await sendTelegramMessage(chatId, "Usage: /ask <your question>");
+          return;
+        }
+        const response = await getKeeperResponse(question, chatId);
+        await sendTelegramMessage(chatId, response);
+        return;
+      }
+
+      // /start or /help
+      if (text === "/start" || text === "/help") {
+        await sendTelegramMessage(
+          chatId,
+          "🧠 *Agent Playground Brain*\n\n" +
+          "Send any message and it gets saved to your second brain.\n\n" +
+          "*Commands:*\n" +
+          "/note <text> — save a note explicitly\n" +
+          "/brain <query> — search your brain\n" +
+          "/daily — view today's daily note\n" +
+          "/ask <question> — chat with the Keeper\n\n" +
+          "You can also send voice notes, photos, and documents — they're all captured automatically."
+        );
+        return;
+      }
+
+      // Any other text (non-command) → save to vault
+      await handleIngest(chatId, text, ["#telegram"]);
+      return;
+    }
+
+    // ── Voice note → transcribe → ingest ──────────────────────────────────────
     if (msg.voice) {
       const transcript = await transcribeAudio(msg.voice.file_id, msg.voice.duration);
-      userMessage = `[Voice note — ${msg.voice.duration}s]: "${transcript}"`;
+      await handleIngest(
+        chatId,
+        transcript,
+        ["#telegram", "#voice"],
+        `🎙️ Voice note saved to your brain`
+      );
+      return;
+    }
 
-    } else if (msg.audio) {
+    // ── Audio file → transcribe → ingest ──────────────────────────────────────
+    if (msg.audio) {
       const transcript = await transcribeAudio(msg.audio.file_id, msg.audio.duration);
-      userMessage = `[Audio file: ${msg.audio.file_name ?? "audio"} — ${msg.audio.duration}s]: "${transcript}"`;
+      const label = msg.audio.file_name ? ` (${msg.audio.file_name})` : "";
+      await handleIngest(
+        chatId,
+        transcript,
+        ["#telegram", "#audio"],
+        `🎵 Audio${label} saved to your brain`
+      );
+      return;
+    }
 
-    } else if (msg.photo) {
-      // Get largest photo variant, download, send as vision message
-      const photo = msg.photo[msg.photo.length - 1];
-      const photoBuffer = await downloadTelegramFile(photo.file_id);
-      const base64 = photoBuffer.toString("base64");
-      const caption = msg.caption ?? "What is in this image?";
-
-      // Build a vision-capable message directly to Anthropic
+    // ── Photo → vision description → ingest ───────────────────────────────────
+    if (msg.photo) {
       const apiKey = process.env.ANTHROPIC_API_KEY;
       if (!apiKey) {
         await sendTelegramMessage(chatId, "⚠️ ANTHROPIC_API_KEY is not configured.");
         return;
       }
 
-      const conversationId = await getOrCreateConversation(chatId);
-      const history = await getConversationHistory(conversationId);
+      const photo = msg.photo[msg.photo.length - 1];
+      const photoBuffer = await downloadTelegramFile(photo.file_id);
+      const base64 = photoBuffer.toString("base64");
+      const caption = msg.caption ?? "";
+
       const client = new Anthropic({ apiKey });
-
-      const visionMessages: Parameters<typeof client.messages.create>[0]["messages"] = [
-        ...history.map((h) => ({ role: h.role, content: h.content })),
-        {
-          role: "user",
-          content: [
-            { type: "image", source: { type: "base64", media_type: "image/jpeg", data: base64 } },
-            { type: "text", text: caption },
-          ],
-        },
-      ];
-
       const res = await client.messages.create({
         model: "claude-sonnet-4-6",
-        max_tokens: 1024,
-        system: "You are the Playground Keeper. The user sent a photo via Telegram. Be concise (under 500 words).",
-        messages: visionMessages,
+        max_tokens: 512,
+        system: "Describe this image in detail for a personal knowledge base note. Include what you see, any text visible, and any relevant context. Be specific and factual.",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "image", source: { type: "base64", media_type: "image/jpeg", data: base64 } },
+              { type: "text", text: caption || "Describe this image." },
+            ],
+          },
+        ],
       });
 
-      const answer = res.content.filter((b) => b.type === "text").map((b) => (b as { type: "text"; text: string }).text).join("");
-      saveToConversation(conversationId, "user", `[Photo] ${caption}`).catch(() => {});
-      saveToConversation(conversationId, "assistant", answer).catch(() => {});
-      await sendTelegramMessage(chatId, answer || "I see your photo.");
-      return;
+      const description = res.content
+        .filter((b) => b.type === "text")
+        .map((b) => (b as { type: "text"; text: string }).text)
+        .join("");
 
-    } else if (msg.document) {
-      const filename = msg.document.file_name ?? "document";
-      const extractedText = await extractDocumentText(msg.document.file_id, filename, msg.document.mime_type);
-      const caption = msg.caption ?? "Please process this document.";
-      userMessage = `[Document: ${filename}]\n\n${extractedText}\n\nUser note: "${caption}"`;
+      const noteContent = caption
+        ? `Caption: ${caption}\n\n${description}`
+        : description;
 
-    } else if (msg.text) {
-      userMessage = msg.text;
-
-    } else {
-      await sendTelegramMessage(chatId, "I can handle text, voice notes, photos, and documents. Send me a message!");
+      await handleIngest(
+        chatId,
+        noteContent,
+        ["#telegram", "#photo"],
+        `📷 Photo saved to your brain`
+      );
       return;
     }
 
-    const response = await getKeeperResponse(userMessage, chatId);
-    await sendTelegramMessage(chatId, response);
+    // ── Document → extract text → ingest ──────────────────────────────────────
+    if (msg.document) {
+      const filename = msg.document.file_name ?? "document";
+      const extractedText = await extractDocumentText(msg.document.file_id, filename, msg.document.mime_type);
+      const caption = msg.caption ?? "";
+      const noteContent = caption
+        ? `${extractedText}\n\nNote: ${caption}`
+        : extractedText;
+
+      await handleIngest(
+        chatId,
+        noteContent,
+        ["#telegram", "#document"],
+        `📄 Document "${filename}" saved to your brain`
+      );
+      return;
+    }
+
+    await sendTelegramMessage(chatId, "I can handle text, voice notes, photos, and documents. Send me a message!");
 
   } catch (err) {
     console.error("[telegram] Error processing update:", err);
