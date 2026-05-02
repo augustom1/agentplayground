@@ -25,6 +25,7 @@ model User {
   plan          String    @default("free")        // free | pro | enterprise
   planExpiresAt DateTime?                         // null = no expiry
   active        Boolean   @default(true)          // soft-disable without deleting
+  apiKey        String?   @unique                 // SHA-256 hash of MCP API key (Block B2)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

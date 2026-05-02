@@ -1,6 +1,7 @@
 import { CheckCircle2, XCircle, ExternalLink, Cpu, Sparkles } from "lucide-react";
 import { OllamaPanel } from "@/components/OllamaPanel";
 import { BillingSection } from "@/components/BillingSection";
+import { ApiKeySection } from "@/components/ApiKeySection";
 
 function EnvRow({
   name,
@@ -236,6 +237,9 @@ export default function SettingsPage() {
           ))}
         </div>
       </div>
+
+      {/* MCP API Key */}
+      <ApiKeySection appUrl={process.env.NEXT_PUBLIC_APP_URL || "https://app.agentplayground.net"} />
 
       {/* Billing */}
       <BillingSection />
