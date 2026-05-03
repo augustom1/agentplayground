@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
+import { seedDefaults } from "@/lib/seed-defaults";
+import { seedTeams } from "@/lib/seed-teams";
 
 // GET — check if setup is still needed
 export async function GET() {
@@ -57,6 +59,11 @@ export async function POST(req: NextRequest) {
         lifetimeUsed: 0,
       },
     });
+
+    // Seed default teams in the background — non-blocking, so setup response is instant
+    Promise.all([seedDefaults(), seedTeams()]).catch((e) =>
+      console.error("[setup] Background seeding failed:", e)
+    );
 
     return NextResponse.json({ success: true, user }, { status: 201 });
   } catch (err) {

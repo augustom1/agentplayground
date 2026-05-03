@@ -18,8 +18,11 @@ export default auth((req) => {
     pathname.startsWith("/api/channels") ||
     pathname.startsWith("/api/brain/index") ||  // n8n indexer — secret-header auth
     pathname.startsWith("/api/mcp") ||          // MCP endpoint — API key auth
+    pathname.startsWith("/api/admin/seed") ||   // Seed endpoint — CRON_SECRET or admin session
     pathname.startsWith("/login") ||
     pathname.startsWith("/setup") ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/api/auth/register") ||
     pathname.startsWith("/_next") ||
     pathname === "/favicon.ico";
 

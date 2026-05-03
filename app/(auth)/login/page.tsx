@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Bot, Loader2, AlertCircle } from "lucide-react";
 import { Suspense } from "react";
+import Link from "next/link";
 
 function LoginForm() {
   const router = useRouter();
@@ -125,7 +126,8 @@ function LoginForm() {
         </form>
 
         <p className="text-center text-[11px] mt-4" style={{ color: "var(--color-muted)" }}>
-          Access is by invitation only.
+          Don&apos;t have an account?{" "}
+          <Link href="/register" style={{ color: "var(--color-accent)" }}>Create one →</Link>
         </p>
       </div>
     </div>

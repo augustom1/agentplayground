@@ -347,7 +347,25 @@ done
 [[ $RETRIES -lt 40 ]] && log "Dashboard is ready"
 
 # ══════════════════════════════════════════════════════════════════
-header "6. Ollama LLM Models"
+header "6. Seeding Default Agent Teams"
+# ══════════════════════════════════════════════════════════════════
+
+info "Seeding 5 default agent teams (Dev Core, DevOps, Product, Business, Command Center)..."
+CURRENT_CRON_SECRET=$(grep '^CRON_SECRET=' "$ENV_FILE" | cut -d= -f2)
+SEED_STATUS=$(curl -sf -o /dev/null -w "%{http_code}" -X POST http://localhost:3000/api/admin/seed \
+  -H "Authorization: Bearer ${CURRENT_CRON_SECRET}" \
+  -H "Content-Type: application/json" \
+  -d '{}' 2>/dev/null || echo "000")
+
+if [[ "$SEED_STATUS" == "200" ]]; then
+  log "Default teams seeded — app is ready to use"
+else
+  warn "Seeding returned HTTP $SEED_STATUS — non-critical. Teams can be seeded later via:"
+  warn "  curl -X POST https://app.${SRC_DOMAIN}/api/admin/seed -H 'Authorization: Bearer \$CRON_SECRET'"
+fi
+
+# ══════════════════════════════════════════════════════════════════
+header "7. Ollama LLM Models"
 # ══════════════════════════════════════════════════════════════════
 
 info "Ollama is pulling models automatically in the background:"
@@ -365,24 +383,43 @@ header "Setup Complete"
 
 echo -e "${GREEN}${BOLD}  Your VPS stack is live!${NC}"
 echo ""
+
+# ── Step 1: Create admin account ─────────────────────────────────
+echo -e "  ${BOLD}${YELLOW}► FIRST: Create your admin account${NC}"
+echo -e "  ${CYAN}https://app.${SRC_DOMAIN}/setup${NC}"
+echo -e "  (This screen appears only once — sets your email + password)"
+echo ""
+
+# ── Services ──────────────────────────────────────────────────────
 echo -e "  ${BOLD}Services:${NC}"
-echo -e "  ${CYAN}https://app.${SRC_DOMAIN}${NC}       Agent Dashboard"
-echo -e "  ${CYAN}https://n8n.${SRC_DOMAIN}${NC}       n8n Automation"
-echo -e "  ${CYAN}https://files.${SRC_DOMAIN}${NC}     FileBrowser"
-echo -e "  ${CYAN}https://manage.${SRC_DOMAIN}${NC}    Portainer (Docker UI)"
-echo -e "  ${CYAN}https://${SRC_DOMAIN}${NC}           Your Website (Nginx)"
+echo -e "  ${CYAN}https://app.${SRC_DOMAIN}${NC}        Agent Dashboard"
+echo -e "  ${CYAN}https://n8n.${SRC_DOMAIN}${NC}        n8n Automation"
+echo -e "  ${CYAN}https://files.${SRC_DOMAIN}${NC}      FileBrowser"
+echo -e "  ${CYAN}https://manage.${SRC_DOMAIN}${NC}     Portainer (Docker UI)"
+echo -e "  ${CYAN}https://${SRC_DOMAIN}${NC}            Your Website (Nginx)"
 echo ""
-echo -e "  ${BOLD}Add a client website:${NC}"
-echo -e "  ${CYAN}./add-site.sh client.${SRC_DOMAIN}${NC}"
+
+# ── DNS ───────────────────────────────────────────────────────────
+echo -e "  ${BOLD}Required DNS records (point both to this server's IP):${NC}"
+echo -e "  ${YELLOW}A  @   → $(curl -sf https://api.ipify.org 2>/dev/null || echo '<your VPS IP>')${NC}"
+echo -e "  ${YELLOW}A  *   → same IP   (wildcard covers all subdomains)${NC}"
 echo ""
-echo -e "  ${BOLD}Required DNS records:${NC}"
-echo -e "  ${YELLOW}A  @          → <your VPS IP>${NC}"
-echo -e "  ${YELLOW}A  *          → <your VPS IP>   (wildcard — covers all subdomains)${NC}"
+
+# ── What's next ───────────────────────────────────────────────────
+echo -e "  ${BOLD}After creating your admin account:${NC}"
+echo -e "  1. Log in and open Chat — 5 agent teams are pre-loaded"
+echo -e "  2. Add your Anthropic API key to .env.local for Claude models"
+echo -e "  3. Set up Telegram bot (optional) — any message saves to vault"
+echo -e "  4. Configure n8n workflows for email/automation pipelines"
 echo ""
+
+# ── Common commands ───────────────────────────────────────────────
 echo -e "  ${BOLD}Common commands:${NC}"
-echo -e "  View logs:    ${CYAN}docker compose logs -f [service-name]${NC}"
+echo -e "  Logs:         ${CYAN}docker compose logs -f dashboard${NC}"
 echo -e "  All status:   ${CYAN}docker compose ps${NC}"
-echo -e "  Update stack: ${CYAN}git pull && docker compose --env-file .env.local -f docker-compose.yml -f docker-compose.prod.yml up -d --build${NC}"
+echo -e "  Rebuild app:  ${CYAN}docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build dashboard${NC}"
 echo -e "  DB backup:    ${CYAN}./backup-db.sh${NC}"
+echo -e "  Re-seed teams:${CYAN}curl -X POST https://app.${SRC_DOMAIN}/api/admin/seed -H 'Authorization: Bearer \$(grep CRON_SECRET .env.local | cut -d= -f2)'${NC}"
 echo ""
-log "Done."
+
+log "Done. Visit ${CYAN}https://app.${SRC_DOMAIN}/setup${NC} to create your admin account."
