@@ -61,7 +61,7 @@
 | Research team vault-first | — | ❌ | — | ❌ Block E2 |
 | Stripe payments wired | ✅ | ✅ written | ✅ written | ❌ needs keys Block F1 |
 | Credit gate in chat route | — | ❌ | — | ❌ Block F2 |
-| Self-registration | — | ❌ | ❌ | ❌ Block F3 |
+| Self-registration | — | ✅ | ✅ | ✅ Block F3 done |
 | Landing page: Brain section + pricing | — | — | ❌ | ❌ Block G |
 | Client onboarding script | — | — | ❌ | ❌ Block H1 |
 
@@ -404,6 +404,40 @@ DNS: Two A records — `@` and `*` → VPS IP.
 ---
 
 ## Recent Work
+
+### Session 2026-05-03 — Final touches: auto-seed, self-registration, env template
+
+**Build: ✓. VPS: ✓ healthy. Git: pushed.**
+
+**New files:**
+- `lib/seed-teams.ts` — exportable `seedTeams()` using singleton prisma. 5 teams: Dev Core, DevOps & Infrastructure, Product & Design, Business & Growth, Command Center — all with full agent roster and skills.
+- `app/api/admin/seed/route.ts` — POST endpoint. Auth: CRON_SECRET bearer OR admin session. Idempotent. Called by `setup.sh` after deploy. Manual re-seed: `curl -X POST https://app.DOMAIN/api/admin/seed -H "Authorization: Bearer $CRON_SECRET"`.
+- `app/api/auth/register/route.ts` — Self-registration. Controlled by `REQUIRE_INVITE_CODE` env var. When `true` (default), requires invite code = CRON_SECRET. When `false`, open registration. New users get plan=free, 500 credits.
+- `app/(auth)/register/page.tsx` — Registration UI with auto sign-in on success. Shows invite code field when required.
+- `.env.template` — Comprehensive documented template for all env vars (grouped: domain, DB, auth, AI, Ollama, n8n, vault, Telegram, payments, channels). Ships with repo (whitelisted in .gitignore).
+
+**Modified:**
+- `app/api/auth/setup/route.ts` — After creating first admin, fires `seedDefaults()` + `seedTeams()` in background. New clients see 7 teams on first login (2 system + 5 specialist).
+- `app/(auth)/login/page.tsx` — Added "Create account →" link to `/register`.
+- `middleware.ts` — `/register`, `/api/auth/register`, `/api/admin/seed` added to public routes.
+- `setup.sh` — Auto-seeds teams via API after health check. `Setup Complete` section now shows `/setup` URL prominently, shows VPS public IP, and lists next steps.
+- `.gitignore` — Whitelisted `.env.template`.
+
+**New install flow on a fresh VPS:**
+```bash
+git clone https://github.com/augustom1/agentplayground-vpsinstall /opt/vps
+cd /opt/vps && bash setup.sh
+# → Prompts: domain, email, DB password, n8n password, Anthropic key, Ollama path
+# → Starts full stack, waits for health, seeds 5 agent teams automatically
+# → Output shows: https://app.DOMAIN/setup (create admin account)
+# → First login: 7 teams ready, dashboard populated
+```
+
+**For client delivery:**
+1. Copy `.env.template` → fill in client's domain + passwords
+2. Run `setup.sh` on their VPS
+3. Send them the `/setup` URL to create their admin account
+4. Done — no manual seeding, no empty dashboard
 
 ### Session 2026-05-02d — Block C: Telegram → vault pipeline + web capture
 
