@@ -404,6 +404,49 @@ export const CHAT_TOOLS: ToolDefinition[] = [
       required: ["query"],
     },
   },
+  // ─── 2nd Brain / Vault Tools ─────────────────────────────────────────────────
+  {
+    name: "vault_search",
+    description:
+      "Semantically search the 2nd Brain vault. Use this before starting any research task to find relevant context the user has already saved. Returns notes ranked by relevance.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Natural language search query" },
+        limit: { type: "number", description: "Max results to return (default: 5)" },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "vault_read",
+    description: "Read the full content of a specific vault note by its path. Use after vault_search to get complete note content.",
+    input_schema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Note path returned by vault_search (e.g. 'inbox/2026-05-04-10-30-my-note.md')" },
+      },
+      required: ["path"],
+    },
+  },
+  {
+    name: "vault_write",
+    description:
+      "Save a note, finding, summary, or research result to the 2nd Brain vault. Use this to preserve any important information the user will need later. Content is indexed for semantic search.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Descriptive note title" },
+        content: { type: "string", description: "Note content in markdown" },
+        tags: {
+          type: "array",
+          items: { type: "string" },
+          description: "Tags for organization (e.g. ['#research', '#finance', '#agent'])",
+        },
+      },
+      required: ["title", "content"],
+    },
+  },
   // ─── Memory Tools ─────────────────────────────────────────────────────────────
   {
     name: "save_memory",
@@ -541,6 +584,18 @@ export const CHAT_TOOLS: ToolDefinition[] = [
       required: ["package", "type", "teamId", "purpose"],
     },
   },
+  {
+    name: "plan_task",
+    description:
+      "Generate a detailed step-by-step execution plan for a task and save it to the Brain (at plans/<taskId>.md). The plan includes objective, context from the vault, numbered steps with checkboxes, and expected output. Agent teams read this plan before starting work. Use this for any complex or multi-step task before delegating.",
+    input_schema: {
+      type: "object",
+      properties: {
+        taskId: { type: "string", description: "ID of an existing Task to generate a plan for" },
+      },
+      required: ["taskId"],
+    },
+  },
 ];
 
 /**
@@ -611,6 +666,14 @@ export async function executeTool(
         return await toolSearchTools(input);
       case "install_tool":
         return await toolInstallTool(input);
+      case "vault_search":
+        return await toolVaultSearch(input);
+      case "vault_read":
+        return await toolVaultRead(input);
+      case "vault_write":
+        return await toolVaultWrite(input);
+      case "plan_task":
+        return await toolPlanTask(input);
       default:
         return JSON.stringify({ error: `Unknown tool: ${toolName}` });
     }
@@ -1474,4 +1537,64 @@ async function toolInstallTool(input: Record<string, unknown>): Promise<string> 
     cliFunction: { id: fn.id, name: fn.name, command: fn.command },
     message: `✅ Installed "${packageName}" (safety score: ${safety.score}/10, ${safety.metadata.weeklyDownloads?.toLocaleString() ?? "?"} weekly downloads). Registered as CLI function "${fn.name}" for this team.`,
   });
+}
+
+// ─── Vault Tool Handlers ───────────────────────────────────────────────────────
+
+async function toolVaultSearch(input: Record<string, unknown>): Promise<string> {
+  const { searchVault } = await import("@/lib/brain");
+  const results = await searchVault(input.query as string, (input.limit as number) || 5);
+  if (!results.length) {
+    return JSON.stringify({
+      success: true,
+      query: input.query,
+      results: [],
+      note: "No matching notes found. The vault may be empty or notes may not be indexed yet.",
+    });
+  }
+  return JSON.stringify({ success: true, query: input.query, results });
+}
+
+async function toolVaultRead(input: Record<string, unknown>): Promise<string> {
+  const { readVaultNote } = await import("@/lib/brain");
+  const content = await readVaultNote(input.path as string);
+  if (!content) return JSON.stringify({ error: `Note not found: ${input.path}` });
+  return JSON.stringify({ success: true, path: input.path, content });
+}
+
+async function toolVaultWrite(input: Record<string, unknown>): Promise<string> {
+  const { ingestToVault, indexVaultNote } = await import("@/lib/brain");
+  const tags = (input.tags as string[]) || ["#agent"];
+  const notePath = await ingestToVault(
+    input.content as string,
+    input.title as string,
+    tags
+  );
+  indexVaultNote({
+    path: notePath,
+    title: input.title as string,
+    content: input.content as string,
+    tags,
+  }).catch(() => {});
+  return JSON.stringify({
+    success: true,
+    path: notePath,
+    message: `Saved to vault: ${notePath}. It will be available for future searches.`,
+  });
+}
+
+async function toolPlanTask(input: Record<string, unknown>): Promise<string> {
+  const { generateTaskPlan } = await import("@/lib/executor");
+  const taskId = input.taskId as string;
+  if (!taskId) return JSON.stringify({ error: "taskId is required" });
+  try {
+    const result = await generateTaskPlan(taskId);
+    return JSON.stringify({
+      success: true,
+      planPath: result.planPath,
+      message: `✓ Execution plan generated and saved to Brain at ${result.planPath}. Agent teams can now read this plan before starting work.`,
+    });
+  } catch (err) {
+    return JSON.stringify({ error: String(err) });
+  }
 }

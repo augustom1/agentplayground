@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { readVaultNote, writeVaultNote } from "@/lib/brain";
+import { prisma } from "@/lib/prisma";
+import fs from "fs/promises";
+import path from "path";
+
+const VAULT_PATH = process.env.VAULT_PATH || "/var/syncthing/vault";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -41,4 +46,18 @@ export async function POST(req: NextRequest) {
 
   await writeVaultNote(notePath, content, append);
   return NextResponse.json({ ok: true, path: notePath });
+}
+
+export async function DELETE(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const notePath = req.nextUrl.searchParams.get("path")?.replace(/\.\./g, "").replace(/^\//, "");
+  if (!notePath) return NextResponse.json({ error: "path is required" }, { status: 400 });
+
+  const fullPath = path.join(VAULT_PATH, notePath);
+  await fs.rm(fullPath, { force: true });
+  await prisma.vaultNote.deleteMany({ where: { path: notePath } });
+
+  return NextResponse.json({ ok: true });
 }

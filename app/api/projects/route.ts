@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { initProjectBrain } from "@/lib/brain";
 
 export async function GET() {
   const session = await auth();
@@ -34,6 +35,9 @@ export async function POST(req: Request) {
       status: "active",
     },
   });
+
+  // Auto-create brain folder for project
+  initProjectBrain(project.id, project.name, project.description ?? undefined).catch(() => {});
 
   return NextResponse.json(project, { status: 201 });
 }

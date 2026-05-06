@@ -93,7 +93,8 @@ export async function getDailyNotes(last = 3): Promise<VaultNoteResult[]> {
 export async function ingestToVault(
   text: string,
   title: string,
-  tags: string[] = []
+  tags: string[] = [],
+  folder = "inbox"
 ): Promise<string> {
   const now = new Date();
   const dateStr = now.toISOString().split("T")[0];
@@ -103,12 +104,80 @@ export async function ingestToVault(
     .replace(/[^a-z0-9]+/g, "-")
     .slice(0, 40)
     .replace(/-+$/, "");
-  const notePath = `inbox/${dateStr}-${timeStr}-${slug}.md`;
+  const safeFolder = folder.replace(/\.\./g, "").replace(/^\//, "") || "inbox";
+  const notePath = `${safeFolder}/${dateStr}-${timeStr}-${slug}.md`;
 
   const tagLine = tags.length > 0 ? `tags: [${tags.join(", ")}]\n` : "";
   const frontmatter = `---\ntitle: "${title}"\ndate: ${now.toISOString()}\n${tagLine}---\n\n`;
   await writeVaultNote(notePath, frontmatter + text);
   return notePath;
+}
+
+// ── Brain sync helpers ─────────────────────────────────────────────────────────
+
+function slugify(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 40);
+}
+
+export async function initProjectBrain(
+  projectId: string,
+  projectName: string,
+  description?: string
+): Promise<string> {
+  const slug = slugify(projectName);
+  const notePath = `Projects/${slug}/README.md`;
+  const content = `# ${projectName}\n\n${description || "No description provided."}\n\n**Project ID:** ${projectId}\n**Created:** ${new Date().toISOString()}\n\n---\n\n## Notes\n\n_Add project notes here._\n\n## Outputs\n\n_Agent outputs will appear here._\n`;
+  await writeVaultNote(notePath, content);
+  indexVaultNote({ path: notePath, title: projectName, content, tags: ["project", slug] }).catch(() => {});
+  return notePath;
+}
+
+export async function initTeamBrain(
+  teamId: string,
+  teamName: string,
+  description?: string
+): Promise<string> {
+  const slug = slugify(teamName);
+  const notePath = `Teams/${slug}/README.md`;
+  const content = `# Team: ${teamName}\n\n${description || "No description provided."}\n\n**Team ID:** ${teamId}\n**Created:** ${new Date().toISOString()}\n\n---\n\n## Mission\n\n_Define what this team is responsible for._\n\n## Work Log\n\n_Completed tasks and outputs appear here._\n`;
+  await writeVaultNote(notePath, content);
+  indexVaultNote({ path: notePath, title: `Team: ${teamName}`, content, tags: ["team", slug] }).catch(() => {});
+  return notePath;
+}
+
+// Extract the first ISO/named date from text. Returns undefined if not found.
+export function extractDate(text: string): Date | undefined {
+  // ISO date like 2026-05-10 or 2026-05-10T14:30
+  const isoMatch = text.match(/\b(\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?)\b/);
+  if (isoMatch) {
+    const d = new Date(isoMatch[1]);
+    if (!isNaN(d.getTime()) && d > new Date()) return d;
+  }
+  // Named month like "May 10" or "May 10 2026"
+  const namedMatch = text.match(
+    /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})(?:,?\s+(\d{4}))?\b/i
+  );
+  if (namedMatch) {
+    const year = namedMatch[3] ? parseInt(namedMatch[3]) : new Date().getFullYear();
+    const d = new Date(`${namedMatch[1]} ${namedMatch[2]} ${year}`);
+    if (!isNaN(d.getTime()) && d > new Date()) return d;
+  }
+  // Relative: tomorrow, next week
+  const now = new Date();
+  if (/\btomorrow\b/i.test(text)) {
+    const d = new Date(now); d.setDate(d.getDate() + 1); return d;
+  }
+  if (/\bnext week\b/i.test(text)) {
+    const d = new Date(now); d.setDate(d.getDate() + 7); return d;
+  }
+  return undefined;
+}
+
+const SCHEDULE_TAGS = new Set(["task", "meeting", "event", "call", "deadline", "scheduled", "reminder"]);
+
+export function isScheduledNote(tags: string[], text: string): boolean {
+  return tags.some((t) => SCHEDULE_TAGS.has(t.toLowerCase().replace(/^#/, ""))) ||
+    /\b(meeting|appointment|deadline|reminder|schedule[d]?|due|at \d{1,2}(?::\d{2})?\s*(?:am|pm))\b/i.test(text);
 }
 
 export async function indexVaultNote(params: {

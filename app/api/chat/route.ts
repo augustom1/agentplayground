@@ -50,18 +50,27 @@ const COORDINATOR_INTRO = `You are the **Playground Keeper** — the central int
 
 ## Your responsibilities
 1. **Understand intent** — What does the user really need? Is this a one-time task, a recurring operation, or a permanent project?
-2. **Create projects** — When the user describes a goal with multiple steps or lasting work, create a project using create_project to organize it.
-3. **Delegate work** — Route tasks to the right team using delegate_to_team. Explain which team and why.
-4. **Manage the system** — Create teams, agents, and skills when needed. Retire idle teams when asked.
-5. **Log outputs** — Use log_project_output to record what was produced for each project.
-6. **Research** — Use web_search and web_browse proactively when the user needs current information.
-7. **Suggest next steps** — After completing any task, suggest the logical next action in the workflow.
+2. **Create projects** — When the user describes a goal with multiple steps or lasting work, create a project using create_project. This auto-creates a brain folder at Projects/<name>/ for all project context.
+3. **Plan complex tasks** — Use plan_task to generate a structured execution plan in the Brain before delegating. Agents read this plan at execution time.
+4. **Delegate work** — Route tasks to the right team using delegate_to_team. Explain which team and why.
+5. **Manage the system** — Create teams, agents, and skills when needed. New teams auto-create brain folders at Teams/<name>/.
+6. **Log outputs** — Use log_project_output to record what was produced for each project.
+7. **Research** — Use web_search and web_browse proactively when the user needs current information.
+8. **Suggest next steps** — After completing any task, suggest the logical next action in the workflow.
+
+## Brain Integration
+- Every team has a brain folder: Teams/<team-name>/ for work logs and context
+- Every project has a folder: Projects/<project-name>/ for briefs, notes, outputs
+- Task plans are saved at: plans/<task-id>.md — agents read this before starting work
+- Always search the vault (vault_search) before answering domain questions
+- Use vault_write to log results, decisions, and insights back into the brain
 
 ## Decision framework
-- Single task → delegate_to_team directly
-- Multi-step goal → create_project first, then delegate tasks within that project
-- Repeating workflow → create a recurring project + schedule recurring tasks
-- System setup → create teams and agents as needed
+- Single simple task → delegate_to_team directly
+- Single complex task → plan_task first, then delegate_to_team
+- Multi-step goal → create_project, then plan+delegate tasks within it
+- Repeating workflow → create recurring project + schedule recurring tasks
+- User mentions a date/event → schedule_task AND vault_write with #meeting or #event tag
 
 ## Proactive behavior
 - If the user mentions something they do repeatedly, suggest automating it
@@ -111,13 +120,23 @@ async function buildCoordinatorContext(): Promise<string> {
   } else {
     const teamList = teams
       .map((t) => {
+        const slug = t.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
         const agentNames = t.agents.map((a) => `${a.name} (${a.model})`).join(", ") || "no agents";
         const skillNames = t.skills.map((s) => s.name).join(", ") || "no skills";
-        return `### ${t.name} [ID: ${t.id}]\n- Status: ${t.status} · ${t.agents.length} agents · ${t._count.tasks} tasks\n- Agents: ${agentNames}\n- Skills: ${skillNames}`;
+        return `### ${t.name} [ID: ${t.id}]\n- Status: ${t.status} · ${t.agents.length} agents · ${t._count.tasks} tasks\n- Brain folder: Teams/${slug}/\n- Agents: ${agentNames}\n- Skills: ${skillNames}`;
       })
       .join("\n\n");
     sections.push(`## Agent Teams\n${teamList}`);
   }
+
+  // Include pending task plans count
+  try {
+    const pendingTaskCount = await prisma.task.count({ where: { status: "pending" } });
+    const planCount = await prisma.vaultNote.count({ where: { path: { startsWith: "plans/" } } });
+    if (pendingTaskCount > 0) {
+      sections.push(`## Task Queue\n- ${pendingTaskCount} pending task(s)\n- ${planCount} have execution plans in Brain (plans/ folder)\n- Use plan_task to generate plans for complex tasks before delegating`);
+    }
+  } catch { /* non-fatal */ }
 
   return sections.join("\n\n");
 }
@@ -151,11 +170,15 @@ async function buildTeamContext(teamId: string): Promise<string> {
       .map((f) => `- ${f.name}: \`${f.command}\`${f.dangerous ? " ⚠ dangerous" : ""}`)
       .join("\n") || "No CLI functions.";
 
+  const slug = team.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
+
   return `You are the AI coordinator for the **${team.name}** team (ID: ${team.id}).
 
 ## Team Overview
 - Runtime: ${team.language} · Port: ${team.port} · Status: ${team.status}
 - ${team.description || "No description"}
+- Brain folder: Teams/${slug}/ — write outputs and logs here with vault_write
+- Task plans: Check plans/<taskId>.md in the Brain before starting any delegated task
 
 ## Agents
 ${agentList}
@@ -166,7 +189,8 @@ ${skillList}
 ## CLI Functions
 ${cliFnList}
 
-Help the user work with this team's agents and capabilities. Use the team ID above when calling tools that modify this team.`;
+When working on tasks: (1) search the vault first for relevant context, (2) read the plan file if one exists, (3) execute steps, (4) write results to Teams/${slug}/ in the Brain.
+Use the team ID above when calling tools that modify this team.`;
 }
 
 // ─── Provider streaming functions ─────────────────────────────────────────────

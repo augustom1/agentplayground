@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import {
   LayoutDashboard, FlaskConical, MessageSquare, Calendar, FolderOpen, Settings,
   Bot, PanelLeftClose, PanelLeft, Users, Wrench, Layers, Sparkles,
-  Server, ChevronRight, Clock, Globe, MoreHorizontal, X, Check,
+  Server, ChevronRight, Clock, Globe, MoreHorizontal, X, Check, Brain, Cpu, Link2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
@@ -21,7 +21,7 @@ type NavItem = {
   icon: React.ComponentType<{ size?: number; className?: string }>;
 };
 
-const DEFAULT_PINNED = ["/dashboard", "/chat", "/agent-lab", "/schedule", "/files"];
+const DEFAULT_PINNED = ["/dashboard", "/chat", "/agent-lab", "/schedule", "/files", "/brain", "/executor", "/connect"];
 
 // ── Customize Modal ────────────────────────────────────────────────────────────
 
@@ -149,7 +149,10 @@ export function Sidebar() {
       { href: "/projects",  label: t("projects"),  icon: Layers },
       { href: "/tools",     label: t("tools"),     icon: Wrench },
       { href: "/schedule",  label: t("schedule"),  icon: Calendar },
-      { href: "/files",     label: t("files"),     icon: FolderOpen },
+      { href: "/files",     label: "Knowledge",    icon: Brain },
+      { href: "/brain",     label: "Brain",        icon: Brain },
+      { href: "/executor",  label: "Executor",     icon: Cpu },
+      { href: "/connect",   label: "Connect",      icon: Link2 },
       { href: "/websites",  label: t("websites"),  icon: Globe },
       { href: "/optimize",  label: t("optimize"),  icon: Sparkles },
       { href: "/server",    label: t("server"),    icon: Server },
