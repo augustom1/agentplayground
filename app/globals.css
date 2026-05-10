@@ -23,13 +23,40 @@
   --color-yellow-dim: rgba(251, 191, 36, 0.12);
   --font-sans: "Inter", var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), "JetBrains Mono", monospace;
-  /* btn-primary text color (dark on white in dark mode) */
   --color-btn-primary-text: #0d0d0d;
-  /* subtle hover overlay */
   --color-hover-subtle: rgba(255, 255, 255, 0.04);
   --color-hover-medium: rgba(255, 255, 255, 0.08);
+  /* ─── Brand (logo / active indicators) */
+  --color-brand: #6366f1;
+  --color-brand-dim: rgba(99, 102, 241, 0.12);
+  --color-brand-hover: #818cf8;
 }
 
+/* ─── Light theme ─────────────────────────────────────── */
+[data-theme="light"] {
+  --color-background: #f4f4f5;
+  --color-surface: #ffffff;
+  --color-surface-2: #f0f0f1;
+  --color-surface-3: #e4e4e7;
+  --color-border: #d4d4d8;
+  --color-border-light: #a1a1aa;
+  --color-accent: #09090b;
+  --color-accent-hover: #18181b;
+  --color-accent-dim: #3f3f46;
+  --color-accent-glow: rgba(0, 0, 0, 0.06);
+  --color-text: #09090b;
+  --color-text-secondary: #52525b;
+  --color-muted: #71717a;
+  --color-green: #16a34a;
+  --color-green-dim: rgba(22, 163, 74, 0.1);
+  --color-red: #dc2626;
+  --color-red-dim: rgba(220, 38, 38, 0.1);
+  --color-yellow: #d97706;
+  --color-yellow-dim: rgba(217, 119, 6, 0.1);
+  --color-btn-primary-text: #ffffff;
+  --color-hover-subtle: rgba(0, 0, 0, 0.04);
+  --color-hover-medium: rgba(0, 0, 0, 0.07);
+}
 
 /* ─── Reset ───────────────────────────────────────────── */
 * {
@@ -100,11 +127,12 @@ body {
   border: 1px solid var(--color-border);
   border-radius: 12px;
   color: var(--color-text);
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   outline: none;
 }
 .glass-input:focus-within {
-  border-color: var(--color-border-light);
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 2px var(--color-brand-dim);
 }
 
 /* ─── Buttons ─────────────────────────────────────────── */
@@ -157,9 +185,9 @@ body {
   border-color: var(--color-border-light);
 }
 
-/* ─── Active Bar ──────────────────────────────────────── */
+/* ─── Active Nav Bar — brand colored ─────────────────── */
 .gradient-bar {
-  background: var(--color-accent);
+  background: var(--color-brand);
   border-radius: 2px;
 }
 

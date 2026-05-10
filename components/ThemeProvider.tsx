@@ -17,10 +17,11 @@ const ThemeContext = createContext<ThemeContextValue>({
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>("dark");
 
-  // Always force dark mode — light theme removed
   useEffect(() => {
-    localStorage.setItem("theme", "dark");
-    document.documentElement.setAttribute("data-theme", "dark");
+    const stored = localStorage.getItem("theme") as Theme | null;
+    const initial: Theme = stored === "light" ? "light" : "dark";
+    setTheme(initial);
+    document.documentElement.setAttribute("data-theme", initial);
   }, []);
 
   function toggle() {

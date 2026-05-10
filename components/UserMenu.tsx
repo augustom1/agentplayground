@@ -1,24 +1,14 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import {
-  LogOut, ShieldCheck, ChevronUp, Languages, Sliders,
-} from "lucide-react";
+import { LogOut, ShieldCheck, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { useLanguage } from "@/components/LanguageProvider";
 
-export function UserMenu({
-  collapsed,
-  onCustomize,
-}: {
-  collapsed: boolean;
-  onCustomize?: () => void;
-}) {
+export function UserMenu({ collapsed }: { collapsed: boolean }) {
   const { data: session } = useSession();
   const [open, setOpen] = useState(false);
-  const { locale, toggle: toggleLocale, t } = useLanguage();
 
   if (!session?.user) return null;
 
@@ -35,9 +25,20 @@ export function UserMenu({
 
   const isAdmin = role === "admin";
 
+  const menuItemStyle: React.CSSProperties = {
+    color: "var(--color-muted)",
+    fontSize: "13px",
+    textDecoration: "none",
+    display: "flex",
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    width: "100%",
+    textAlign: "left",
+  };
+
   return (
     <div className="relative">
-      {/* Popup menu */}
       {open && !collapsed && (
         <div
           className="glass-panel animate-fade-in"
@@ -50,14 +51,13 @@ export function UserMenu({
             zIndex: 50,
           }}
         >
-          {/* Admin: Manage Users */}
           {isAdmin && (
             <Link
               href="/users"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2.5 transition-colors"
-              style={{ color: "var(--color-text)", fontSize: "13px", textDecoration: "none" }}
-              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)")}
+              className="flex items-center gap-2.5 px-3 py-2"
+              style={{ ...menuItemStyle, color: "var(--color-text)" }}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)")}
               onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "transparent")}
             >
               <ShieldCheck size={13} style={{ color: "var(--color-text-secondary)" }} />
@@ -65,44 +65,13 @@ export function UserMenu({
             </Link>
           )}
 
-          {/* Separator */}
-          <div style={{ height: "1px", background: "var(--color-border)", margin: "2px 0" }} />
+          {isAdmin && <div style={{ height: "1px", background: "var(--color-border)", margin: "2px 0" }} />}
 
-          {/* Language toggle */}
-          <button
-            onClick={() => { toggleLocale(); }}
-            className="flex items-center gap-2.5 px-3 py-2.5 w-full text-left transition-colors"
-            style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-muted)", fontSize: "13px" }}
-            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)")}
-            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "transparent")}
-          >
-            <Languages size={13} style={{ color: "var(--color-text-secondary)" }} />
-            {locale === "en" ? "Español" : "English"}
-          </button>
-
-          {/* Customize sidebar */}
-          {onCustomize && (
-            <button
-              onClick={() => { setOpen(false); onCustomize(); }}
-              className="flex items-center gap-2.5 px-3 py-2.5 w-full text-left transition-colors"
-              style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-muted)", fontSize: "13px" }}
-              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)")}
-              onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "transparent")}
-            >
-              <Sliders size={13} style={{ color: "var(--color-text-secondary)" }} />
-              Customize sidebar
-            </button>
-          )}
-
-          {/* Separator */}
-          <div style={{ height: "1px", background: "var(--color-border)", margin: "2px 0" }} />
-
-          {/* Sign out */}
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="flex items-center gap-2.5 px-3 py-2.5 w-full text-left transition-colors"
-            style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-red)", fontSize: "13px" }}
-            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)")}
+            className="flex items-center gap-2.5 px-3 py-2"
+            style={{ ...menuItemStyle, color: "var(--color-red)" }}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)")}
             onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "transparent")}
           >
             <LogOut size={13} />
@@ -111,27 +80,26 @@ export function UserMenu({
         </div>
       )}
 
-      {/* Trigger button */}
       <button
         onClick={() => setOpen((o) => !o)}
         className={cn(
           "flex items-center w-full rounded-lg transition-colors",
-          collapsed ? "justify-center p-2" : "gap-2.5 px-3 py-2"
+          collapsed ? "justify-center p-1.5" : "gap-2.5 px-2.5 py-1.5"
         )}
         style={{ background: "transparent", border: "none", cursor: "pointer" }}
         title={collapsed ? `${name ?? email} (${role})` : undefined}
         onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)")}
         onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "transparent")}
       >
-        {/* Avatar */}
         <div
-          className="flex items-center justify-center shrink-0 text-[11px] font-bold"
+          className="flex items-center justify-center shrink-0 text-[10px] font-bold"
           style={{
-            width: "28px",
-            height: "28px",
-            borderRadius: "8px",
-            background: "var(--color-surface-3)",
-            color: "var(--color-text)",
+            width: "26px",
+            height: "26px",
+            borderRadius: "7px",
+            background: "var(--color-brand-dim)",
+            color: "var(--color-brand-hover)",
+            border: "1px solid rgba(99,102,241,0.25)",
           }}
         >
           {initials}
@@ -147,8 +115,8 @@ export function UserMenu({
                 <span
                   className="text-[9px] px-1.5 py-0 rounded-full font-medium"
                   style={{
-                    background: role === "admin" ? "rgba(255,255,255,0.08)" : "var(--color-green-dim)",
-                    color: role === "admin" ? "var(--color-text)" : "var(--color-green)",
+                    background: role === "admin" ? "var(--color-brand-dim)" : "var(--color-green-dim)",
+                    color: role === "admin" ? "var(--color-brand-hover)" : "var(--color-green)",
                   }}
                 >
                   {role}
@@ -157,7 +125,7 @@ export function UserMenu({
               </div>
             </div>
             <ChevronUp
-              size={13}
+              size={12}
               style={{
                 color: "var(--color-muted)",
                 transform: open ? "rotate(0deg)" : "rotate(180deg)",
