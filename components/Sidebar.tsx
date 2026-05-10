@@ -21,7 +21,7 @@ type NavItem = {
   icon: React.ComponentType<{ size?: number; className?: string }>;
 };
 
-const DEFAULT_PINNED = ["/dashboard", "/chat", "/agent-lab", "/schedule", "/files", "/brain", "/executor", "/connect"];
+const DEFAULT_PINNED = ["/dashboard", "/chat", "/agent-lab", "/brain", "/schedule", "/projects"];
 
 // ── Customize Modal ────────────────────────────────────────────────────────────
 
@@ -146,16 +146,16 @@ export function Sidebar() {
       { href: "/dashboard", label: t("dashboard"), icon: LayoutDashboard },
       { href: "/chat",      label: t("chat"),      icon: MessageSquare },
       { href: "/agent-lab", label: t("agentLab"),  icon: FlaskConical },
+      { href: "/brain",     label: "Brain",        icon: Brain },
+      { href: "/schedule",  label: t("schedule"),  icon: Calendar },
       { href: "/projects",  label: t("projects"),  icon: Layers },
       { href: "/tools",     label: t("tools"),     icon: Wrench },
-      { href: "/schedule",  label: t("schedule"),  icon: Calendar },
-      { href: "/files",     label: "Knowledge",    icon: Brain },
-      { href: "/brain",     label: "Brain",        icon: Brain },
       { href: "/executor",  label: "Executor",     icon: Cpu },
       { href: "/connect",   label: "Connect",      icon: Link2 },
       { href: "/websites",  label: t("websites"),  icon: Globe },
-      { href: "/optimize",  label: t("optimize"),  icon: Sparkles },
       { href: "/server",    label: t("server"),    icon: Server },
+      { href: "/optimize",  label: t("optimize"),  icon: Sparkles },
+      { href: "/files",     label: "Files",        icon: FolderOpen },
       ...(isAdmin ? [{ href: "/users", label: t("users"), icon: Users }] : []),
     ],
     [t, isAdmin]

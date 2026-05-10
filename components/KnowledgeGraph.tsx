@@ -10,40 +10,30 @@ interface SimNode extends GraphNode { x: number; y: number; vx: number; vy: numb
 const FOLDER_COLORS: Record<string, string> = {
   Personal:  "#60a5fa",
   Business:  "#4ade80",
-  Education: "#facc15",
+  Education: "#f59e0b",
   Resources: "#f87171",
-  inbox:     "#c084fc",
+  inbox:     "#a78bfa",
+  plans:     "#38bdf8",
+  Teams:     "#34d399",
+  Projects:  "#fb923c",
 };
-const nodeColor = (f: string) => FOLDER_COLORS[f] || "#94a3b8";
+const nodeColor = (f: string) => FOLDER_COLORS[f] || "#64748b";
 
-// Stable star field
-const STARS = Array.from({ length: 120 }, (_, i) => ({
-  x: ((i * 137.508 + 13) * 1.618) % 1,
-  y: ((i * 97.345 + 7) * 2.71) % 1,
-  r: 0.3 + (i % 5) * 0.18,
-  o: 0.1 + (i % 9) * 0.03,
-}));
-
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
+// Square node size based on degree
+const nodeSize = (degree: number) => Math.max(7, Math.min(16, 8 + degree * 1.6));
 
 export default function KnowledgeGraph({
   nodes: rawNodes,
   edges: rawEdges,
   onClickNode,
   loading,
+  className,
 }: {
   nodes: GraphNode[];
   edges: GraphEdge[];
   onClickNode?: (id: string) => void;
   loading?: boolean;
+  className?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const simRef = useRef<SimNode[]>([]);
@@ -55,9 +45,14 @@ export default function KnowledgeGraph({
   const draggingRef = useRef<string | null>(null);
   const dragOffRef = useRef({ x: 0, y: 0 });
   const wasDragRef = useRef(false);
+  // Pan + zoom state
+  const panRef = useRef({ x: 0, y: 0 });
+  const zoomRef = useRef(1);
+  const isPanningRef = useRef(false);
+  const panStartRef = useRef({ x: 0, y: 0 });
   const [cursor, setCursor] = useState("default");
 
-  // ── Measure container ──────────────────────────────────────────────────────
+  // Measure container
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -73,7 +68,7 @@ export default function KnowledgeGraph({
     return () => ro.disconnect();
   }, []);
 
-  // ── Init simulation from props ─────────────────────────────────────────────
+  // Init simulation from props
   useEffect(() => {
     const { w: W, h: H } = sizeRef.current;
     const degrees: Record<string, number> = {};
@@ -85,7 +80,7 @@ export default function KnowledgeGraph({
     simRef.current = rawNodes.map((n) => {
       const p = existing.get(n.id);
       const angle = Math.random() * Math.PI * 2;
-      const dist = Math.random() * Math.min(W, H) * 0.3;
+      const dist = Math.random() * Math.min(W, H) * 0.28;
       return {
         ...n,
         x: p?.x ?? W / 2 + Math.cos(angle) * dist,
@@ -96,31 +91,44 @@ export default function KnowledgeGraph({
     });
     edgesRef.current = rawEdges;
     iterRef.current = 0;
+    panRef.current = { x: 0, y: 0 };
+    zoomRef.current = 1;
   }, [rawNodes, rawEdges]);
 
-  // ── Main render + physics loop ─────────────────────────────────────────────
+  // Render + physics loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d")!;
-    const MAX_ITER = 700;
-    const REPULSION = 4000;
-    const SPRING_K = 0.022;
-    const SPRING_LEN = 140;
-    const GRAVITY = 0.003;
-    const DAMP = 0.78;
+    const MAX_ITER = 500;
+    const REPULSION = 3500;
+    const SPRING_K = 0.018;
+    const SPRING_LEN = 120;
+    const GRAVITY = 0.004;
+    const DAMP = 0.75;
 
-    // Animated pulse phase
-    let phase = 0;
+    function drawSquare(x: number, y: number, s: number, r = 2) {
+      const half = s / 2;
+      ctx.beginPath();
+      ctx.moveTo(x - half + r, y - half);
+      ctx.lineTo(x + half - r, y - half);
+      ctx.arcTo(x + half, y - half, x + half, y - half + r, r);
+      ctx.lineTo(x + half, y + half - r);
+      ctx.arcTo(x + half, y + half, x + half - r, y + half, r);
+      ctx.lineTo(x - half + r, y + half);
+      ctx.arcTo(x - half, y + half, x - half, y + half - r, r);
+      ctx.lineTo(x - half, y - half + r);
+      ctx.arcTo(x - half, y - half, x - half + r, y - half, r);
+      ctx.closePath();
+    }
 
     function frame() {
-      phase += 0.025;
       const { w: W, h: H } = sizeRef.current;
       const nodes = simRef.current;
       const dragging = draggingRef.current;
       const hov = hoveredRef.current;
 
-      // ── Physics ────────────────────────────────────────────────────────────
+      // Physics
       if (iterRef.current < MAX_ITER) {
         for (const n of nodes) {
           if (n.id === dragging) continue;
@@ -129,7 +137,7 @@ export default function KnowledgeGraph({
           for (const o of nodes) {
             if (o === n) continue;
             const dx = n.x - o.x, dy = n.y - o.y;
-            const d2 = Math.max(dx * dx + dy * dy, 25);
+            const d2 = Math.max(dx * dx + dy * dy, 16);
             const d = Math.sqrt(d2);
             const f = REPULSION / d2;
             fx += (dx / d) * f;
@@ -148,7 +156,7 @@ export default function KnowledgeGraph({
           s.vx += (dx / d) * f; s.vy += (dy / d) * f;
           t.vx -= (dx / d) * f; t.vy -= (dy / d) * f;
         }
-        const pad = 55;
+        const pad = 45;
         for (const n of nodes) {
           if (n.id === dragging) continue;
           n.x = Math.max(pad, Math.min(W - pad, n.x + n.vx));
@@ -157,31 +165,28 @@ export default function KnowledgeGraph({
         iterRef.current++;
       }
 
-      // ── Clear + Background ─────────────────────────────────────────────────
+      // Clear — minimal dark background
       canvas.width = W; canvas.height = H;
-      const bg = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.8);
-      bg.addColorStop(0, "#0e0823");
-      bg.addColorStop(0.5, "#080518");
-      bg.addColorStop(1, "#02020a");
-      ctx.fillStyle = bg;
+      ctx.fillStyle = "#0c0c0f";
       ctx.fillRect(0, 0, W, H);
 
-      // Subtle grid
-      ctx.strokeStyle = "rgba(255,255,255,0.018)";
-      ctx.lineWidth = 1;
-      const gridSize = 60;
-      for (let gx = 0; gx < W; gx += gridSize) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke(); }
-      for (let gy = 0; gy < H; gy += gridSize) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke(); }
-
-      // Stars
-      for (const s of STARS) {
-        ctx.beginPath();
-        ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${s.o})`;
-        ctx.fill();
+      // Very subtle dot grid
+      ctx.fillStyle = "rgba(255,255,255,0.025)";
+      const gridSz = 28;
+      for (let gx = gridSz; gx < W; gx += gridSz) {
+        for (let gy = gridSz; gy < H; gy += gridSz) {
+          ctx.beginPath();
+          ctx.arc(gx, gy, 0.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
 
-      // ── Edges ──────────────────────────────────────────────────────────────
+      // Apply pan + zoom transform
+      ctx.save();
+      ctx.translate(panRef.current.x, panRef.current.y);
+      ctx.scale(zoomRef.current, zoomRef.current);
+
+      // Edges
       for (const e of edgesRef.current) {
         const s = nodes.find((n) => n.id === e.source);
         const t = nodes.find((n) => n.id === e.target);
@@ -190,114 +195,94 @@ export default function KnowledgeGraph({
         ctx.beginPath();
         ctx.moveTo(s.x, s.y);
         ctx.lineTo(t.x, t.y);
-        if (isHov) {
-          const grad = ctx.createLinearGradient(s.x, s.y, t.x, t.y);
-          grad.addColorStop(0, `${nodeColor(s.folder)}60`);
-          grad.addColorStop(1, `${nodeColor(t.folder)}60`);
-          ctx.strokeStyle = grad;
-          ctx.lineWidth = 1.5;
-        } else {
-          ctx.strokeStyle = "rgba(148,163,184,0.07)";
-          ctx.lineWidth = 0.8;
-        }
+        ctx.strokeStyle = isHov
+          ? `rgba(255,255,255,0.35)`
+          : "rgba(255,255,255,0.08)";
+        ctx.lineWidth = isHov ? 1 : 0.6;
         ctx.stroke();
       }
 
-      // ── Nodes ──────────────────────────────────────────────────────────────
+      // Nodes
       for (const n of nodes) {
-        const r = Math.max(6, Math.min(18, 7 + n.degree * 1.8));
+        const sz = nodeSize(n.degree);
         const color = nodeColor(n.folder);
         const isHov = n.id === hov;
         const isDrag = n.id === dragging;
-        const pulse = isHov ? 1 + Math.sin(phase * 3) * 0.15 : 1;
+        const active = isHov || isDrag;
 
-        // Outer glow
-        ctx.save();
-        ctx.shadowColor = color;
-        ctx.shadowBlur = isHov ? 28 : 14;
-
-        const grad = ctx.createRadialGradient(n.x - r * 0.3, n.y - r * 0.3, 0, n.x, n.y, r * pulse);
-        grad.addColorStop(0, `${color}ff`);
-        grad.addColorStop(0.6, `${color}cc`);
-        grad.addColorStop(1, `${color}66`);
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, r * pulse, 0, Math.PI * 2);
-        ctx.fillStyle = grad;
-        ctx.fill();
-        ctx.restore();
-
-        // Inner highlight
-        ctx.save();
-        ctx.globalAlpha = 0.35;
-        const hl = ctx.createRadialGradient(n.x - r * 0.35, n.y - r * 0.35, 0, n.x - r * 0.35, n.y - r * 0.35, r * 0.7);
-        hl.addColorStop(0, "white");
-        hl.addColorStop(1, "transparent");
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, r * pulse, 0, Math.PI * 2);
-        ctx.fillStyle = hl;
-        ctx.fill();
-        ctx.restore();
-
-        // Animated ring on hover
-        if (isHov || isDrag) {
-          const ringR = r * pulse + 5 + Math.sin(phase * 4) * 3;
-          ctx.beginPath();
-          ctx.arc(n.x, n.y, ringR, 0, Math.PI * 2);
-          ctx.strokeStyle = `${color}50`;
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-        }
-
-        // Label
-        if (isHov || nodes.length <= 12) {
-          ctx.font = isHov ? "bold 11px system-ui" : "10px system-ui";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "top";
-          const label = n.title.length > 22 ? n.title.slice(0, 21) + "…" : n.title;
-          // Text shadow
-          ctx.shadowColor = "black";
-          ctx.shadowBlur = 8;
-          ctx.fillStyle = isHov ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.45)";
-          ctx.fillText(label, n.x, n.y + r * pulse + 6);
-          ctx.shadowBlur = 0;
-        }
-      }
-
-      // ── Tooltip ────────────────────────────────────────────────────────────
-      if (hov) {
-        const n = nodes.find((nd) => nd.id === hov);
-        if (n) {
-          const TW = 190, TH = 64;
-          const tx = Math.min(n.x + 18, W - TW - 8);
-          const ty = Math.max(8, Math.min(n.y - TH / 2, H - TH - 8));
-
+        if (active) {
+          // Soft glow (square outline)
           ctx.save();
-          ctx.shadowColor = "rgba(139,92,246,0.4)";
-          ctx.shadowBlur = 16;
-          roundRect(ctx, tx, ty, TW, TH, 10);
-          ctx.fillStyle = "rgba(7,4,20,0.94)";
-          ctx.strokeStyle = "rgba(139,92,246,0.45)";
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 12;
+          ctx.strokeStyle = `${color}60`;
           ctx.lineWidth = 1;
-          ctx.fill();
+          drawSquare(n.x, n.y, sz + 8, 3);
           ctx.stroke();
           ctx.restore();
+        }
 
-          ctx.textAlign = "left";
-          ctx.textBaseline = "alphabetic";
-          ctx.font = "bold 11px system-ui";
-          ctx.fillStyle = "rgba(255,255,255,0.92)";
-          ctx.fillText(n.title.slice(0, 26), tx + 12, ty + 20);
+        // Square fill
+        drawSquare(n.x, n.y, sz, 2);
+        ctx.fillStyle = active ? color : `${color}cc`;
+        ctx.fill();
 
-          ctx.font = "10px system-ui";
-          ctx.fillStyle = nodeColor(n.folder);
-          ctx.fillText(n.folder, tx + 12, ty + 35);
+        // Subtle border
+        ctx.strokeStyle = active ? `${color}` : `${color}66`;
+        ctx.lineWidth = active ? 1.2 : 0.6;
+        ctx.stroke();
+
+        // Label
+        const showLabel = active || nodes.length <= 8 || n.degree >= 3;
+        if (showLabel) {
+          const label = n.title.length > 20 ? n.title.slice(0, 19) + "…" : n.title;
+          ctx.font = active ? "bold 10px -apple-system,system-ui,sans-serif" : "9.5px -apple-system,system-ui,sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          ctx.fillStyle = active ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.5)";
+          ctx.fillText(label, n.x, n.y + sz / 2 + 4);
+        }
+
+        // Hover: folder color dot + tag list
+        if (isHov) {
+          const TW = 170, TH = n.tags.length > 0 ? 54 : 38;
+          const tx = Math.min(n.x + sz + 10, W / zoomRef.current - TW - 8);
+          const ty = Math.max(8, Math.min(n.y - TH / 2, H / zoomRef.current - TH - 8));
+          ctx.save();
+          ctx.fillStyle = "rgba(10,10,15,0.92)";
+          ctx.strokeStyle = `${color}40`;
+          ctx.lineWidth = 1;
+          const r2 = 8;
+          ctx.beginPath();
+          ctx.moveTo(tx + r2, ty); ctx.lineTo(tx + TW - r2, ty);
+          ctx.arcTo(tx + TW, ty, tx + TW, ty + r2, r2);
+          ctx.lineTo(tx + TW, ty + TH - r2);
+          ctx.arcTo(tx + TW, ty + TH, tx + TW - r2, ty + TH, r2);
+          ctx.lineTo(tx + r2, ty + TH);
+          ctx.arcTo(tx, ty + TH, tx, ty + TH - r2, r2);
+          ctx.lineTo(tx, ty + r2);
+          ctx.arcTo(tx, ty, tx + r2, ty, r2);
+          ctx.closePath();
+          ctx.fill(); ctx.stroke();
+          ctx.restore();
+
+          ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+          ctx.font = "bold 10px -apple-system,system-ui,sans-serif";
+          ctx.fillStyle = "rgba(255,255,255,0.9)";
+          ctx.fillText(n.title.slice(0, 22), tx + 10, ty + 17);
+
+          ctx.font = "9px -apple-system,system-ui,sans-serif";
+          ctx.fillStyle = color;
+          ctx.fillText(n.folder, tx + 10, ty + 30);
 
           if (n.tags.length > 0) {
-            ctx.fillStyle = "rgba(148,163,184,0.6)";
-            ctx.fillText(n.tags.slice(0, 3).join("  "), tx + 12, ty + 52);
+            ctx.fillStyle = "rgba(148,163,184,0.55)";
+            ctx.fillText(n.tags.slice(0, 3).map(t => `#${t}`).join(" "), tx + 10, ty + 46);
           }
         }
       }
+
+      ctx.restore();
 
       animRef.current = requestAnimationFrame(frame);
     }
@@ -307,16 +292,25 @@ export default function KnowledgeGraph({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Hit testing ────────────────────────────────────────────────────────────
-  const hitNode = useCallback((x: number, y: number): SimNode | null => {
-    let closest: SimNode | null = null, minD = 28;
+  // Convert screen coords to sim coords (accounting for pan/zoom)
+  const toSimCoords = useCallback((sx: number, sy: number) => {
+    return {
+      x: (sx - panRef.current.x) / zoomRef.current,
+      y: (sy - panRef.current.y) / zoomRef.current,
+    };
+  }, []);
+
+  // Hit testing
+  const hitNode = useCallback((sx: number, sy: number): SimNode | null => {
+    const { x, y } = toSimCoords(sx, sy);
+    let closest: SimNode | null = null, minD = 30;
     for (const n of simRef.current) {
-      const r = Math.max(6, Math.min(18, 7 + n.degree * 1.8));
+      const sz = nodeSize(n.degree);
       const d = Math.hypot(n.x - x, n.y - y);
-      if (d < r + 10 && d < minD) { minD = d; closest = n; }
+      if (d < sz + 8 && d < minD) { minD = d; closest = n; }
     }
     return closest;
-  }, []);
+  }, [toSimCoords]);
 
   const canvasPos = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const r = canvasRef.current!.getBoundingClientRect();
@@ -327,8 +321,15 @@ export default function KnowledgeGraph({
     const { x, y } = canvasPos(e);
     if (draggingRef.current) {
       wasDragRef.current = true;
+      const { x: sx, y: sy } = toSimCoords(x, y);
       const n = simRef.current.find((nd) => nd.id === draggingRef.current);
-      if (n) { n.x = x - dragOffRef.current.x; n.y = y - dragOffRef.current.y; n.vx = 0; n.vy = 0; }
+      if (n) { n.x = sx - dragOffRef.current.x; n.y = sy - dragOffRef.current.y; n.vx = 0; n.vy = 0; }
+    } else if (isPanningRef.current) {
+      panRef.current = {
+        x: panRef.current.x + (x - panStartRef.current.x),
+        y: panRef.current.y + (y - panStartRef.current.y),
+      };
+      panStartRef.current = { x, y };
     } else {
       const hit = hitNode(x, y);
       hoveredRef.current = hit?.id ?? null;
@@ -342,13 +343,19 @@ export default function KnowledgeGraph({
     if (n) {
       draggingRef.current = n.id;
       wasDragRef.current = false;
-      dragOffRef.current = { x: x - n.x, y: y - n.y };
+      const sim = toSimCoords(x, y);
+      dragOffRef.current = { x: sim.x - n.x, y: sim.y - n.y };
       iterRef.current = 0;
+      setCursor("grabbing");
+    } else {
+      isPanningRef.current = true;
+      panStartRef.current = { x, y };
       setCursor("grabbing");
     }
   };
 
   const onMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    isPanningRef.current = false;
     const was = wasDragRef.current;
     draggingRef.current = null;
     setCursor("default");
@@ -359,14 +366,25 @@ export default function KnowledgeGraph({
     }
   };
 
-  // ── Empty / loading states ─────────────────────────────────────────────────
+  const onWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const { x, y } = canvasPos(e);
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    const newZoom = Math.max(0.3, Math.min(4, zoomRef.current * delta));
+    // Zoom toward mouse position
+    panRef.current = {
+      x: x - (x - panRef.current.x) * (newZoom / zoomRef.current),
+      y: y - (y - panRef.current.y) * (newZoom / zoomRef.current),
+    };
+    zoomRef.current = newZoom;
+  };
+
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center" style={{ background: "#02020a" }}>
-        <div className="text-center">
-          <div className="w-14 h-14 rounded-full mx-auto mb-3 animate-pulse"
-            style={{ background: "radial-gradient(circle, rgba(124,58,237,0.5) 0%, transparent 70%)" }} />
-          <p className="text-xs" style={{ color: "#475569" }}>Building graph…</p>
+      <div className={`flex items-center justify-center ${className ?? "flex-1"}`} style={{ background: "#0c0c0f" }}>
+        <div className="text-center space-y-2">
+          <div className="w-8 h-8 rounded-sm mx-auto animate-pulse" style={{ background: "#4ade8040" }} />
+          <p className="text-[10px]" style={{ color: "#334155" }}>Loading graph…</p>
         </div>
       </div>
     );
@@ -374,36 +392,17 @@ export default function KnowledgeGraph({
 
   if (rawNodes.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-5"
-        style={{ background: "radial-gradient(ellipse at center, #0e0823 0%, #02020a 100%)" }}>
-        {/* Decorative constellation */}
-        <svg width="180" height="160" style={{ opacity: 0.7 }}>
-          <defs>
-            <radialGradient id="ng" cx="50%" cy="50%"><stop offset="0%" stopColor="#7c3aed" stopOpacity="0.4" /><stop offset="100%" stopColor="#7c3aed" stopOpacity="0" /></radialGradient>
-          </defs>
-          <circle cx="90" cy="80" r="70" fill="url(#ng)" />
-          {/* Orbit rings */}
-          <circle cx="90" cy="80" r="60" fill="none" stroke="rgba(124,58,237,0.15)" strokeWidth="1" strokeDasharray="3 6" />
-          <circle cx="90" cy="80" r="40" fill="none" stroke="rgba(96,165,250,0.12)" strokeWidth="1" strokeDasharray="2 8" />
-          {/* Floating nodes */}
-          {[{x:90,y:20,c:"#60a5fa",r:5},{x:145,y:95,c:"#4ade80",r:4},{x:115,y:140,c:"#facc15",r:4.5},{x:45,y:130,c:"#f87171",r:3.5},{x:30,y:65,c:"#c084fc",r:4}].map((pt,i)=>(
-            <g key={i}>
-              <circle cx={pt.x} cy={pt.y} r={pt.r + 4} fill={pt.c} opacity="0.12" />
-              <circle cx={pt.x} cy={pt.y} r={pt.r} fill={pt.c} opacity="0.85" />
-            </g>
+      <div className={`flex flex-col items-center justify-center gap-3 ${className ?? "flex-1"}`} style={{ background: "#0c0c0f" }}>
+        <svg width="80" height="80" viewBox="0 0 80 80" style={{ opacity: 0.35 }}>
+          {[[20,20],[60,20],[20,60],[60,60],[40,40]].map(([x,y],i) => (
+            <rect key={i} x={x-4} y={y-4} width={8} height={8} rx={1.5}
+              fill={["#60a5fa","#4ade80","#a78bfa","#f87171","#f59e0b"][i]} />
           ))}
-          {/* Connection lines */}
-          {[[90,20,145,95],[145,95,115,140],[115,140,45,130],[45,130,30,65],[30,65,90,20],[90,20,115,140]].map(([x1,y1,x2,y2],i)=>(
-            <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(255,255,255,0.06)" strokeWidth="0.8" />
+          {[[20,20,60,20],[60,20,60,60],[20,60,60,60],[20,20,40,40],[60,60,40,40]].map(([x1,y1,x2,y2],i) => (
+            <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(255,255,255,0.12)" strokeWidth={0.8} />
           ))}
-          {/* Center node */}
-          <circle cx="90" cy="80" r="7" fill="#7c3aed" opacity="0.9" />
-          <circle cx="90" cy="80" r="14" fill="none" stroke="rgba(124,58,237,0.35)" strokeWidth="1.5" />
         </svg>
-        <div className="text-center">
-          <p className="text-sm font-medium mb-1" style={{ color: "#94a3b8" }}>Your knowledge graph is empty</p>
-          <p className="text-xs" style={{ color: "#475569" }}>Add notes — connections appear automatically based on tags and folders</p>
-        </div>
+        <p className="text-[11px]" style={{ color: "#334155" }}>No connections yet</p>
       </div>
     );
   }
@@ -411,12 +410,18 @@ export default function KnowledgeGraph({
   return (
     <canvas
       ref={canvasRef}
-      className="flex-1 w-full h-full block"
+      className={`block w-full h-full ${className ?? ""}`}
       style={{ cursor }}
       onMouseMove={onMouseMove}
       onMouseDown={onMouseDown}
       onMouseUp={onMouseUp}
-      onMouseLeave={() => { draggingRef.current = null; hoveredRef.current = null; setCursor("default"); }}
+      onMouseLeave={() => {
+        draggingRef.current = null;
+        isPanningRef.current = false;
+        hoveredRef.current = null;
+        setCursor("default");
+      }}
+      onWheel={onWheel}
     />
   );
 }

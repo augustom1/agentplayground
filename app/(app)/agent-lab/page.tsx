@@ -27,6 +27,10 @@ import {
   Sparkles,
   FileJson,
   Trash2,
+  Wrench,
+  Code2,
+  ChevronRight,
+  Info,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -728,6 +732,309 @@ function ImportModal({
   );
 }
 
+// ─── TeamInfoModal ────────────────────────────────────────────────────────────
+
+function TeamInfoModal({
+  team,
+  onClose,
+  onEdit,
+  onShare,
+  onExport,
+  onDelete,
+}: {
+  team: Team;
+  onClose: () => void;
+  onEdit: (t: Team) => void;
+  onShare: (id: string) => void;
+  onExport: (id: string, name: string) => void;
+  onDelete: (t: Team) => void;
+}) {
+  const [detail, setDetail] = useState<TeamDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch(`/api/teams/${team.id}`);
+        if (res.ok) setDetail(await res.json());
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [team.id]);
+
+  const statusColor =
+    team.status === "healthy" ? "var(--color-green)"
+    : team.status === "error" ? "var(--color-red)"
+    : team.status === "idle" ? "var(--color-yellow)"
+    : "var(--color-text-secondary)";
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.72)", backdropFilter: "blur(8px)" }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-2xl animate-fade-in flex flex-col"
+        style={{
+          maxHeight: "85vh",
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "20px",
+          overflow: "hidden",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          className="px-6 py-5 flex items-start justify-between gap-4 shrink-0"
+          style={{ borderBottom: "1px solid var(--color-border)" }}
+        >
+          <div className="flex items-center gap-4 min-w-0">
+            <div
+              className="w-11 h-11 flex items-center justify-center shrink-0"
+              style={{ background: "var(--color-surface-3)", borderRadius: "12px" }}
+            >
+              <Zap size={18} style={{ color: statusColor }} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h2 className="font-semibold text-base" style={{ color: "var(--color-text)" }}>
+                  {team.name}
+                </h2>
+                <span
+                  className="text-[11px] px-2 py-0.5 rounded-full font-medium"
+                  style={{
+                    background: team.status === "healthy" ? "rgba(74,222,128,0.12)"
+                      : team.status === "error" ? "rgba(248,113,113,0.12)"
+                      : "rgba(250,204,21,0.12)",
+                    color: statusColor,
+                    border: `1px solid ${statusColor}33`,
+                  }}
+                >
+                  {team.status}
+                </span>
+              </div>
+              <p className="text-xs mt-0.5 truncate" style={{ color: "var(--color-muted)" }}>
+                {team.description || "No description"}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg shrink-0 transition-colors"
+            style={{ color: "var(--color-muted)", cursor: "pointer", background: "transparent", border: "none" }}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)")}
+            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "transparent")}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Stats bar */}
+        <div
+          className="px-6 py-3 flex items-center gap-6 shrink-0"
+          style={{ borderBottom: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}
+        >
+          {[
+            { label: "Agents", value: team._count.agents },
+            { label: "Skills", value: team._count.skills },
+            { label: "Tasks done", value: team.tasksCompleted },
+            { label: "Port", value: `:${team.port}`, mono: true },
+            { label: "Runtime", value: team.language },
+          ].map((s) => (
+            <div key={s.label}>
+              <p className="text-[10px] uppercase tracking-wider" style={{ color: "var(--color-muted)" }}>{s.label}</p>
+              <p
+                className="text-sm font-medium mt-0.5"
+                style={{ color: "var(--color-text)", fontFamily: s.mono ? "var(--font-mono)" : "inherit" }}
+              >
+                {s.value}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Body — scrollable */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5 min-h-0">
+          {loading ? (
+            <div className="flex items-center justify-center py-12" style={{ color: "var(--color-muted)" }}>
+              <Loader2 size={22} className="animate-spin" />
+            </div>
+          ) : (
+            <>
+              {/* Agents */}
+              {detail?.agents && detail.agents.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Bot size={13} style={{ color: "var(--color-text-secondary)" }} />
+                    <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-text-secondary)" }}>
+                      Agents ({detail.agents.length})
+                    </h3>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {detail.agents.map((a) => (
+                      <div key={a.id} className="glass-card p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm" style={{ color: "var(--color-text)" }}>{a.name}</p>
+                            {a.description && (
+                              <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--color-muted)" }}>{a.description}</p>
+                            )}
+                          </div>
+                          <span
+                            className="text-[10px] px-2 py-0.5 rounded font-mono shrink-0"
+                            style={{ background: "var(--color-surface-3)", color: "var(--color-text-secondary)" }}
+                          >
+                            {a.model}
+                          </span>
+                        </div>
+                        {a.capabilities.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2.5">
+                            {a.capabilities.map((cap) => (
+                              <span
+                                key={cap}
+                                className="text-[11px] px-2 py-0.5 rounded-full"
+                                style={{ background: "rgba(99,102,241,0.12)", color: "rgba(165,180,252,0.9)", border: "1px solid rgba(99,102,241,0.2)" }}
+                              >
+                                {cap}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {a.systemPrompt && (
+                          <div
+                            className="mt-3 p-2.5 rounded-lg text-[11px] leading-relaxed line-clamp-3"
+                            style={{ background: "var(--color-surface-3)", color: "var(--color-muted)", fontFamily: "inherit" }}
+                          >
+                            {a.systemPrompt}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Skills */}
+              {detail?.skills && detail.skills.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Wrench size={13} style={{ color: "var(--color-text-secondary)" }} />
+                    <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-text-secondary)" }}>
+                      Skills ({detail.skills.length})
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {detail.skills.map((s) => (
+                      <div key={s.id} className="glass-card p-3">
+                        <div className="flex items-start gap-2">
+                          <Zap size={11} style={{ color: "var(--color-text-secondary)", marginTop: "2px", flexShrink: 0 }} />
+                          <div>
+                            <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{s.name}</p>
+                            <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: "var(--color-muted)" }}>{s.description}</p>
+                          </div>
+                        </div>
+                        {s.category && (
+                          <span className="text-[10px] mt-2 inline-block px-1.5 py-0.5 rounded" style={{ background: "var(--color-surface-3)", color: "var(--color-muted)" }}>
+                            {s.category}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* CLI Functions */}
+              {detail?.cliFunctions && detail.cliFunctions.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Code2 size={13} style={{ color: "var(--color-text-secondary)" }} />
+                    <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-text-secondary)" }}>
+                      CLI Functions ({detail.cliFunctions.length})
+                    </h3>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {detail.cliFunctions.map((f) => (
+                      <div key={f.id} className="glass-card p-3 flex items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{f.name}</p>
+                            {f.dangerous && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "rgba(248,113,113,0.12)", color: "var(--color-red)", border: "1px solid rgba(248,113,113,0.2)" }}>
+                                dangerous
+                              </span>
+                            )}
+                          </div>
+                          {f.description && <p className="text-[11px] mt-0.5" style={{ color: "var(--color-muted)" }}>{f.description}</p>}
+                          <code className="text-[11px] mt-1.5 block" style={{ color: "var(--color-green)", fontFamily: "var(--font-mono)" }}>
+                            {f.command}
+                          </code>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {detail && detail.agents.length === 0 && detail.skills.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-10 gap-2" style={{ color: "var(--color-muted)" }}>
+                  <Info size={24} style={{ opacity: 0.4 }} />
+                  <p className="text-sm">No agents or skills yet — chat to build this team.</p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Footer actions */}
+        <div
+          className="px-6 py-4 flex items-center justify-between gap-3 shrink-0"
+          style={{ borderTop: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}
+        >
+          <div className="flex gap-2">
+            <button
+              onClick={() => { onShare(team.id); }}
+              className="btn-ghost flex items-center gap-1.5 px-3 py-1.5"
+              style={{ fontSize: "12px" }}
+            >
+              <Share2 size={12} />
+              Share
+            </button>
+            <button
+              onClick={() => { onExport(team.id, team.name); }}
+              className="btn-ghost flex items-center gap-1.5 px-3 py-1.5"
+              style={{ fontSize: "12px" }}
+            >
+              <Download size={12} />
+              Export
+            </button>
+            <button
+              onClick={() => { setDetail(null); onDelete(team); onClose(); }}
+              className="btn-ghost flex items-center gap-1.5 px-3 py-1.5"
+              style={{ fontSize: "12px", color: "var(--color-red)" }}
+            >
+              <Trash2 size={12} />
+              Delete
+            </button>
+          </div>
+          <button
+            onClick={() => { onEdit(team); onClose(); }}
+            className="btn-primary flex items-center gap-2 px-4 py-2"
+            style={{ fontSize: "13px" }}
+          >
+            <MessageSquare size={13} />
+            Chat to Edit
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AgentLabPage() {
@@ -738,7 +1045,6 @@ export default function AgentLabPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(true);
   const [teamsError, setTeamsError] = useState<string | null>(null);
-  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
 
   // Playground
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -756,6 +1062,7 @@ export default function AgentLabPage() {
   const [showImport, setShowImport] = useState(false);
   const [deleteTeam, setDeleteTeam] = useState<Team | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [infoTeam, setInfoTeam] = useState<Team | null>(null);
 
   const targets = ["All Teams", ...teams.map((t) => t.name)];
 
@@ -894,7 +1201,6 @@ export default function AgentLabPage() {
       if (res.ok) {
         addToast(`${deleteTeam.name} deleted`, "success");
         setDeleteTeam(null);
-        setSelectedTeam(null);
         fetchTeams();
       } else {
         addToast("Failed to delete team", "error");
@@ -983,29 +1289,21 @@ export default function AgentLabPage() {
               />
             ))}
 
-          {teams.map((t) => {
-            const isSelected = selectedTeam === t.id;
+          {teams.map((team) => {
             const statusColor =
-              t.status === "healthy"
-                ? "var(--color-green)"
-                : t.status === "error"
-                ? "var(--color-red)"
-                : t.status === "idle"
-                ? "var(--color-yellow)"
-                : "var(--color-text-secondary)";
+              team.status === "healthy" ? "var(--color-green)"
+              : team.status === "error" ? "var(--color-red)"
+              : team.status === "idle" ? "var(--color-yellow)"
+              : "var(--color-text-secondary)";
 
             return (
               <button
-                key={t.id}
+                key={team.id}
                 onClick={() => {
-                  setSelectedTeam(isSelected ? null : t.id);
-                  if (!isSelected) setTarget(t.name);
+                  setInfoTeam(team);
+                  setTarget(team.name);
                 }}
-                className="glass-card-interactive p-4 text-left"
-                style={{
-                  borderTopWidth: "2px",
-                  borderTopColor: isSelected ? statusColor : "transparent",
-                }}
+                className="glass-card-interactive p-4 text-left group"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
@@ -1013,106 +1311,39 @@ export default function AgentLabPage() {
                       className="flex items-center justify-center w-9 h-9 shrink-0"
                       style={{ background: "var(--color-surface-3)", borderRadius: "10px" }}
                     >
-                      <Zap size={16} style={{ color: "var(--color-text-secondary)" }} />
+                      <Zap size={16} style={{ color: statusColor }} />
                     </div>
                     <div>
                       <p className="font-semibold text-sm" style={{ color: "var(--color-text)" }}>
-                        {t.name}
+                        {team.name}
                       </p>
                       <p className="text-[11px] mt-0.5" style={{ color: "var(--color-muted)" }}>
-                        {t.description || "No description"}
+                        {team.description || "No description"}
                       </p>
                     </div>
                   </div>
-                  <StatusBadge status={t.status} />
+                  <div className="flex items-center gap-2 shrink-0">
+                    <StatusBadge status={team.status} />
+                    <ChevronRight size={14} style={{ color: "var(--color-muted)", opacity: 0.5 }} />
+                  </div>
                 </div>
 
                 <div className="flex gap-5 mt-3">
                   {[
-                    { label: "Agents", value: String(t._count.agents) },
-                    { label: "Tasks", value: String(t.tasksCompleted) },
-                    { label: "Port", value: `:${t.port}`, mono: true },
+                    { label: "Agents", value: String(team._count.agents) },
+                    { label: "Skills", value: String(team._count.skills) },
+                    { label: "Tasks done", value: String(team.tasksCompleted) },
                   ].map((stat) => (
                     <div key={stat.label}>
                       <p className="text-[10px]" style={{ color: "var(--color-muted)" }}>
                         {stat.label}
                       </p>
-                      <p
-                        className="text-[12px]"
-                        style={{
-                          color: "var(--color-text)",
-                          fontFamily: stat.mono ? "var(--font-mono)" : "inherit",
-                        }}
-                      >
+                      <p className="text-[12px]" style={{ color: "var(--color-text)" }}>
                         {stat.value}
                       </p>
                     </div>
                   ))}
                 </div>
-
-                {isSelected && (
-                  <div
-                    className="mt-3 pt-3 flex flex-col gap-2.5 animate-fade-in"
-                    style={{ borderTop: "1px solid var(--color-border)" }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Server size={12} style={{ color: "var(--color-muted)" }} />
-                      <span className="text-[11px]" style={{ color: "var(--color-muted)" }}>
-                        Runtime:
-                      </span>
-                      <span className="text-[11px]" style={{ color: "var(--color-text)" }}>
-                        {t.language}
-                      </span>
-                    </div>
-                    <div className="flex gap-2 mt-1 flex-wrap">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setBuilderEditTeam(t);
-                          setShowBuilder(true);
-                        }}
-                        className="btn-ghost px-3 py-1.5 flex items-center gap-1.5"
-                        style={{ fontSize: "12px" }}
-                      >
-                        <MessageSquare size={11} />
-                        {t("chatToEdit")}
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          shareTeam(t.id);
-                        }}
-                        className="btn-ghost px-3 py-1.5 flex items-center gap-1.5"
-                        style={{ fontSize: "12px" }}
-                      >
-                        <Share2 size={11} />
-                        Share
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          exportTeam(t.id, t.name);
-                        }}
-                        className="btn-ghost px-3 py-1.5 flex items-center gap-1.5"
-                        style={{ fontSize: "12px" }}
-                      >
-                        <Download size={11} />
-                        Export
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteTeam(t);
-                        }}
-                        className="btn-ghost px-3 py-1.5 flex items-center gap-1.5"
-                        style={{ fontSize: "12px", color: "var(--color-red)" }}
-                      >
-                        <Trash2 size={11} />
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                )}
               </button>
             );
           })}
@@ -1388,6 +1619,16 @@ export default function AgentLabPage() {
     </div>
 
       {/* ── Modals — outside animated wrapper so fixed positioning uses viewport ── */}
+      {infoTeam && (
+        <TeamInfoModal
+          team={infoTeam}
+          onClose={() => setInfoTeam(null)}
+          onEdit={(team) => { setBuilderEditTeam(team); setShowBuilder(true); }}
+          onShare={shareTeam}
+          onExport={exportTeam}
+          onDelete={(team) => { setDeleteTeam(team); setInfoTeam(null); }}
+        />
+      )}
       {showBuilder && (
         <TeamBuilderModal
           editTeam={builderEditTeam}

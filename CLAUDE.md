@@ -23,8 +23,8 @@
 | Teams & Agents, Skills, Chat (streaming, tools) | ✅ Active |
 | Dashboard widgets, File management + embeddings | ✅ Active |
 | Schedule / recurring tasks | ✅ Active |
-| Billing schema + UI | ✅ Schema done, payments need keys |
-| Stripe / BitPay checkout + webhook | ✅ Written — ❌ needs keys |
+| Billing schema + UI | ✅ Crypto-only (USDT/USDC) — update wallet addresses in billing/page.tsx |
+| Stripe / BitPay / MercadoPago | ❌ Removed — crypto only |
 | Plan enforcement (credit gate) | ❌ not built |
 | Self-registration | ✅ Active (`REQUIRE_INVITE_CODE`) |
 | Token counter, file/image/audio in chat | ✅ Active |
@@ -201,6 +201,42 @@ VPS IP: 95.217.163.247 · App: `/root/opt/vps/` · Secrets: `.env.local`
 ---
 
 ## Recent Work
+
+### Session 2026-05-09 — Payments → crypto, Brain redesign, business vault seed
+
+**Payment infrastructure removed:**
+- Deleted: Stripe, BitPay, MercadoPago API routes and webhooks
+- Billing page rewritten: USDT/USDC crypto-only with wallet address display, network selector, copy button
+- **ACTION REQUIRED:** Update wallet addresses in `app/(app)/billing/page.tsx` (WALLETS constant at top)
+- Also update `CONTACT_INFO.telegram` in the same file
+
+**Brain page redesigned (3-pane layout):**
+- New layout: Left (notes sidebar with folder tree) · Center (note viewer) · Right (Knowledge Graph widget — always visible)
+- Graph removed from tabs — now a persistent panel on the right side
+- Search bar inline in header (no separate tab)
+- Capture as a button that replaces the center pane
+- Folder tree with expand/collapse, active note highlighting
+
+**KnowledgeGraph redesigned (Obsidian style):**
+- Square nodes with rounded corners (replaces circles)
+- Minimal dark background (#0c0c0f) — no stars, no radial glow
+- Thin edges (0.6px normal, 1px hover), square glow on hover
+- Dot grid background (very subtle)
+- Pan with drag, zoom with scroll wheel
+- Labels shown on hover + always for hub nodes (degree ≥ 3)
+
+**Brain vault seeded with business context:**
+- `Business/Overview.md` — What AgentPlayground is and how it works
+- `Business/Services-Pricing.md` — All service tiers and pricing
+- `Business/Customers-ICP.md` — Target customer profiles
+- `Business/Vision-Direction.md` — Strategic direction and roadmap
+- `Agents/Keeper-Briefing.md` — Instructions for the Keeper coordinator
+- `Agents/Agent-Ground-Rules.md` — Rules and context for all agent teams
+- All 6 files indexed with embeddings and searchable via vault_search
+
+**VPS cleanup (same session):**
+- Docker build cache pruned: 112GB → 36GB disk usage
+- node_modules removed from /root/opt/vps/ (1.2GB — not needed in Docker)
 
 ### Session 2026-05-06 — Autonomous machine: Brain sync + Task Executor + Connect page
 
