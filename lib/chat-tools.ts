@@ -8,6 +8,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { PERMISSION_PRESETS } from "@/lib/agent-permissions";
+import { saveTeamConfig, initTeamBrain } from "@/lib/brain";
 import fs from "fs";
 import path from "path";
 
@@ -705,6 +706,9 @@ async function toolCreateTeam(input: Record<string, unknown>): Promise<string> {
     },
   });
 
+  initTeamBrain(team.id, team.name, team.description).catch(() => {});
+  saveTeamConfig(team.id).catch(() => {});
+
   return JSON.stringify({
     success: true,
     team: { id: team.id, name: team.name, description: team.description, port: team.port },
@@ -724,6 +728,8 @@ async function toolCreateAgent(input: Record<string, unknown>): Promise<string> 
     },
   });
 
+  saveTeamConfig(agent.teamId).catch(() => {});
+
   return JSON.stringify({
     success: true,
     agent: { id: agent.id, name: agent.name, model: agent.model },
@@ -742,6 +748,8 @@ async function toolAddSkill(input: Record<string, unknown>): Promise<string> {
     },
   });
 
+  saveTeamConfig(skill.teamId).catch(() => {});
+
   return JSON.stringify({
     success: true,
     skill: { id: skill.id, name: skill.name },
@@ -759,6 +767,8 @@ async function toolAddCliFunction(input: Record<string, unknown>): Promise<strin
       teamId: input.teamId as string,
     },
   });
+
+  saveTeamConfig(fn.teamId).catch(() => {});
 
   return JSON.stringify({
     success: true,

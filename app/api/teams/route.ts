@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
-import { initTeamBrain } from "@/lib/brain";
+import { initTeamBrain, saveTeamConfig } from "@/lib/brain";
 
 // GET /api/teams — list all teams
 export async function GET() {
@@ -33,8 +33,9 @@ export async function POST(req: NextRequest) {
         sourceUrl: body.sourceUrl ?? null,
       },
     });
-    // Auto-create brain folder for team
+    // Auto-create brain folder and config snapshot
     initTeamBrain(team.id, team.name, team.description).catch(() => {});
+    saveTeamConfig(team.id).catch(() => {});
 
     return NextResponse.json(team, { status: 201 });
   } catch (err) {

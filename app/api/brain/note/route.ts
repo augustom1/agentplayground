@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { readVaultNote, writeVaultNote } from "@/lib/brain";
+import { readVaultNote, writeVaultNote, syncTeamFromConfig } from "@/lib/brain";
 import { prisma } from "@/lib/prisma";
 import fs from "fs/promises";
 import path from "path";
@@ -45,6 +45,21 @@ export async function POST(req: NextRequest) {
   }
 
   await writeVaultNote(notePath, content, append);
+
+  // Auto-sync: if this is a team config file, push changes to the DB
+  if (!append && /^Teams\/[^/]+\/config\.json$/.test(notePath)) {
+    try {
+      const parsed = JSON.parse(content) as Record<string, unknown>;
+      if (parsed.teamId) {
+        const syncResult = await syncTeamFromConfig(parsed);
+        return NextResponse.json({ ok: true, path: notePath, syncResult });
+      }
+      return NextResponse.json({ ok: true, path: notePath, syncWarning: "Saved but not synced — missing teamId in config.json" });
+    } catch {
+      return NextResponse.json({ ok: true, path: notePath, syncWarning: "Saved but not synced — invalid JSON" });
+    }
+  }
+
   return NextResponse.json({ ok: true, path: notePath });
 }
 

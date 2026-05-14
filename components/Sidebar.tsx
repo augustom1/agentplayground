@@ -4,9 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef, useMemo } from "react";
 import {
-  LayoutDashboard, FlaskConical, MessageSquare, Calendar, FolderOpen, Settings,
+  LayoutDashboard, FlaskConical, MessageSquare, Calendar, Settings,
   Bot, PanelLeftClose, PanelLeft, Users, Wrench, Layers, Sparkles,
-  Server, ChevronRight, Clock, Globe, MoreHorizontal, X, Check, Brain, Cpu, Link2,
+  Server, ChevronRight, Clock, Globe, MoreHorizontal, X, Check, Brain, Workflow, Link2,
   CreditCard, Languages, Sun, Moon, Sliders,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,7 @@ type NavItem = {
   icon: React.ComponentType<{ size?: number; className?: string }>;
 };
 
-const DEFAULT_PINNED = ["/dashboard", "/chat", "/agent-lab", "/brain", "/schedule", "/projects"];
+const DEFAULT_PINNED = ["/dashboard", "/chat", "/agent-lab", "/files", "/pipeline"];
 
 // ── Customize Modal ────────────────────────────────────────────────────────────
 
@@ -143,20 +143,19 @@ export function Sidebar() {
 
   const allNavItems = useMemo<NavItem[]>(
     () => [
-      { href: "/dashboard", label: t("dashboard"), icon: LayoutDashboard },
-      { href: "/chat",      label: t("chat"),      icon: MessageSquare },
-      { href: "/agent-lab", label: t("agentLab"),  icon: FlaskConical },
-      { href: "/brain",     label: "Brain",        icon: Brain },
-      { href: "/schedule",  label: t("schedule"),  icon: Calendar },
-      { href: "/projects",  label: t("projects"),  icon: Layers },
-      { href: "/executor",  label: "Executor",     icon: Cpu },
-      { href: "/files",     label: "Files",        icon: FolderOpen },
-      { href: "/tools",     label: t("tools"),     icon: Wrench },
-      { href: "/connect",   label: "Connect",      icon: Link2 },
-      { href: "/billing",   label: "Billing",      icon: CreditCard },
-      { href: "/websites",  label: t("websites"),  icon: Globe },
-      { href: "/server",    label: t("server"),    icon: Server },
-      { href: "/optimize",  label: t("optimize"),  icon: Sparkles },
+      { href: "/dashboard", label: "Home",          icon: LayoutDashboard },
+      { href: "/chat",      label: t("chat"),        icon: MessageSquare },
+      { href: "/agent-lab", label: "Teams",          icon: FlaskConical },
+      { href: "/files",     label: "Knowledge",      icon: Brain },
+      { href: "/pipeline",  label: "Pipeline",       icon: Workflow },
+      { href: "/schedule",  label: t("schedule"),    icon: Calendar },
+      { href: "/projects",  label: t("projects"),    icon: Layers },
+      { href: "/connect",   label: "Connect",        icon: Link2 },
+      { href: "/tools",     label: t("tools"),       icon: Wrench },
+      { href: "/billing",   label: "Billing",        icon: CreditCard },
+      { href: "/websites",  label: t("websites"),    icon: Globe },
+      { href: "/server",    label: t("server"),      icon: Server },
+      { href: "/optimize",  label: t("optimize"),    icon: Sparkles },
       ...(isAdmin ? [{ href: "/users", label: t("users"), icon: Users }] : []),
     ],
     [t, isAdmin]

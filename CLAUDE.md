@@ -202,6 +202,42 @@ VPS IP: 95.217.163.247 · App: `/root/opt/vps/` · Secrets: `.env.local`
 
 ## Recent Work
 
+### Session 2026-05-14 — Brain push API, agent team config sync, connect page overhaul
+
+**Brain push endpoint (`/api/brain/push`):**
+- New Bearer-token endpoint usable by any external AI (no session required)
+- `team` field routes content directly to `Teams/<slug>/` folder
+- GET returns OpenAPI schema — paste URL into ChatGPT Custom GPT Actions to connect
+- Added to middleware public routes (no session wall)
+- End-to-end tested: `Teams/marketing/config.json` written ✓
+
+**Agent team ↔ Brain two-way sync:**
+- `saveTeamConfig(teamId)` in `lib/brain/index.ts` — writes `Teams/<slug>/config.json` (full export JSON + `teamId` field)
+- `syncTeamFromConfig(config)` — reads config.json, wipes+recreates agents/skills/CLI functions in DB
+- Auto-triggered from: `toolCreateTeam`, `toolCreateAgent`, `toolAddSkill`, `toolAddCliFunction` (chat-tools.ts)
+- Also triggered from: `POST /api/teams` (UI creation), `PATCH /api/teams/[id]` (UI edit)
+- `POST /api/brain/note` auto-syncs when saved path matches `Teams/*/config.json`
+- Knowledge tab shows **LIVE CONFIG** badge + **"Save & Sync"** button for config.json files
+- Backfilled config.json for existing teams (tech-ops-core, research-team)
+
+**Connect page completely rebuilt:**
+- Workflow diagram: External AI → Brain Push → Agent Teams
+- Provider tabs: Claude Mobile, Claude Desktop, ChatGPT Custom GPT, Direct API, Cursor, n8n
+- Copy-paste system prompt templates for each provider (teaches Claude/ChatGPT when and how to push)
+- Brain Push endpoint reference with 3 example payloads (inbox, team-routed, research)
+
+**Key file moves:**
+- `app/(app)/brain/page.tsx` → now redirects to `/files` (brain UI merged into Knowledge/Files page)
+- `app/(app)/files/page.tsx` — is now the unified Knowledge + Files page
+
+**Claude Mobile MCP:** Works today via Settings → Integrations → Custom → `https://app.agentplayground.net/api/mcp`
+
+**Config.json format (agent team in vault):**
+```json
+{ "teamId": "...", "name": "...", "agents": [...], "skills": [...], "cliFunctions": [...] }
+```
+Edit in Knowledge tab → Save & Sync → live in platform instantly. `teamId` must stay.
+
 ### Session 2026-05-09 — Payments → crypto, Brain redesign, business vault seed
 
 **Payment infrastructure removed:**

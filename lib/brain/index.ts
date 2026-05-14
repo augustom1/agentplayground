@@ -180,6 +180,147 @@ export function isScheduledNote(tags: string[], text: string): boolean {
     /\b(meeting|appointment|deadline|reminder|schedule[d]?|due|at \d{1,2}(?::\d{2})?\s*(?:am|pm))\b/i.test(text);
 }
 
+// ── Team config sync ──────────────────────────────────────────────────────────
+
+export async function saveTeamConfig(teamId: string): Promise<void> {
+  const team = await prisma.agentTeam.findUnique({
+    where: { id: teamId },
+    include: { agents: true, skills: true, cliFunctions: true },
+  });
+  if (!team) return;
+
+  const slug = slugify(team.name);
+  const notePath = `Teams/${slug}/config.json`;
+
+  const config = {
+    teamId: team.id,
+    name: team.name,
+    description: team.description,
+    port: team.port,
+    language: team.language,
+    version: "1.0.0",
+    updatedAt: new Date().toISOString(),
+    agents: team.agents.map((a) => ({
+      name: a.name,
+      description: a.description,
+      model: a.model,
+      capabilities: a.capabilities,
+      systemPrompt: a.systemPrompt,
+      temperature: a.temperature,
+      maxTokens: a.maxTokens,
+    })),
+    skills: team.skills.map((s) => ({
+      name: s.name,
+      description: s.description,
+      category: s.category,
+      instructions: s.instructions,
+      examples: s.examples,
+    })),
+    cliFunctions: team.cliFunctions.map((f) => ({
+      name: f.name,
+      command: f.command,
+      description: f.description,
+      args: f.args,
+      dangerous: f.dangerous,
+    })),
+  };
+
+  await writeVaultNote(notePath, JSON.stringify(config, null, 2));
+
+  // Index with a plain-text summary so it's semantically searchable
+  const summary = [
+    `Team: ${team.name}`,
+    team.description,
+    `Agents: ${team.agents.map((a) => a.name).join(", ") || "none"}`,
+    `Skills: ${team.skills.map((s) => s.name).join(", ") || "none"}`,
+  ].filter(Boolean).join(". ");
+
+  indexVaultNote({
+    path: notePath,
+    title: `Team Config: ${team.name}`,
+    content: summary,
+    tags: ["team-config", `team:${slug}`],
+  }).catch(() => {});
+}
+
+export async function syncTeamFromConfig(
+  config: Record<string, unknown>
+): Promise<{ agents: number; skills: number; cliFunctions: number }> {
+  const teamId = config.teamId as string;
+  if (!teamId) throw new Error("config.teamId is required");
+
+  await prisma.agentTeam.update({
+    where: { id: teamId },
+    data: {
+      name: config.name as string,
+      description: (config.description as string) ?? "",
+      port: (config.port as number) ?? 8000,
+      language: (config.language as string) ?? "Python / FastAPI",
+    },
+  });
+
+  const agents = (config.agents as Record<string, unknown>[]) ?? [];
+  await prisma.agent.deleteMany({ where: { teamId } });
+  for (const a of agents) {
+    await prisma.agent.create({
+      data: {
+        name: a.name as string,
+        description: (a.description as string) ?? null,
+        model: (a.model as string) ?? "claude-sonnet-4-6",
+        capabilities: (a.capabilities as string[]) ?? [],
+        systemPrompt: (a.systemPrompt as string) ?? null,
+        temperature: (a.temperature as number) ?? 0.7,
+        maxTokens: (a.maxTokens as number) ?? 4096,
+        teamId,
+      },
+    });
+  }
+
+  const skills = (config.skills as Record<string, unknown>[]) ?? [];
+  await prisma.skill.deleteMany({ where: { teamId } });
+  for (const s of skills) {
+    await prisma.skill.create({
+      data: {
+        name: s.name as string,
+        description: (s.description as string) ?? "",
+        category: (s.category as string) ?? "general",
+        instructions: (s.instructions as string) ?? null,
+        examples: (s.examples as string) ?? null,
+        teamId,
+      },
+    });
+  }
+
+  const cliFunctions = (config.cliFunctions as Record<string, unknown>[]) ?? [];
+  await prisma.cliFunction.deleteMany({ where: { teamId } });
+  for (const f of cliFunctions) {
+    await prisma.cliFunction.create({
+      data: {
+        name: f.name as string,
+        command: f.command as string,
+        description: (f.description as string) ?? null,
+        args: (f.args as Record<string, unknown>) ?? null,
+        dangerous: (f.dangerous as boolean) ?? false,
+        teamId,
+      },
+    });
+  }
+
+  await prisma.activityLog.create({
+    data: {
+      action: `Synced team "${config.name}" from Brain config.json`,
+      type: "import",
+      teamName: config.name as string,
+      teamId,
+    },
+  }).catch(() => {});
+
+  // Re-save the config so updatedAt reflects the sync time
+  await saveTeamConfig(teamId);
+
+  return { agents: agents.length, skills: skills.length, cliFunctions: cliFunctions.length };
+}
+
 export async function indexVaultNote(params: {
   path: string;
   title: string;
