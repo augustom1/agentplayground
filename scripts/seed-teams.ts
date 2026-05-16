@@ -6,12 +6,19 @@
  */
 
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import pg from "pg";
 import * as dotenv from "dotenv";
 
 dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.local", override: true });
 
-const prisma = new PrismaClient();
+const connectionString =
+  process.env.DATABASE_URL ||
+  "postgresql://postgres:postgres@localhost:5432/agent_dashboard";
+const pool = new pg.Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 // ─── Team definitions ────────────────────────────────────────────────────────
 
@@ -1404,8 +1411,8 @@ You make final technical decisions when teams disagree or when a decision has cr
 
 ## Standards you enforce
 1. All API routes validate session before any DB operation
-2. No `any` types in TypeScript
-3. Prisma queries use `select` to limit exposed fields
+2. No 'any' types in TypeScript
+3. Prisma queries use 'select' to limit exposed fields
 4. Secrets only in .env.local (gitignored) — never in docker-compose.yml
 5. New features must include Vitest tests
 6. Schema changes require a migration (no direct DB edits)
