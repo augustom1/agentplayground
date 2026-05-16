@@ -7,7 +7,7 @@ import {
   LayoutDashboard, FlaskConical, MessageSquare, Calendar, Settings,
   Bot, PanelLeftClose, PanelLeft, Users, Wrench, Layers, Sparkles,
   Server, ChevronRight, Clock, Globe, MoreHorizontal, X, Check, Brain, Workflow, Link2,
-  CreditCard, Languages, Sun, Moon, Sliders,
+  CreditCard, Languages, Sun, Moon, Sliders, BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
@@ -151,6 +151,7 @@ export function Sidebar() {
       { href: "/schedule",  label: t("schedule"),    icon: Calendar },
       { href: "/projects",  label: t("projects"),    icon: Layers },
       { href: "/connect",   label: "Connect",        icon: Link2 },
+      { href: "/blog",      label: "Blog",           icon: BookOpen },
       { href: "/tools",     label: t("tools"),       icon: Wrench },
       { href: "/billing",   label: "Billing",        icon: CreditCard },
       { href: "/websites",  label: t("websites"),    icon: Globe },
