@@ -1,5 +1,5 @@
 # Session Handoff
-> Last updated: 2026-05-16
+> Last updated: 2026-05-18
 > Read this at the start of every session BEFORE reading CLAUDE.md.
 > Update the "Current Session" block when ending a session.
 
@@ -15,67 +15,64 @@
 
 ---
 
-## Current Session — 2026-05-18
+## Current Session — 2026-05-18 (session 2)
 
 ### Done this session
-- **PWA / iOS "Add to Home Screen"**
-  - `app/manifest.ts` — Next.js manifest route (name, icons, display:standalone, theme #06060e)
-  - `app/layout.tsx` — added `appleWebApp` metadata + apple-touch-icon link
-  - `public/icons/icon.svg` — placeholder SVG icon (lightning bolt on dark bg)
-  - ⚠️ **Action needed**: add PNG icons to `public/icons/` — 180x180 (`apple-touch-icon.png`), 192x192 (`icon-192.png`), 512x512 (`icon-512.png`). Export from the SVG or use a tool like [realfavicongenerator.net](https://realfavicongenerator.net).
-- **Direct Agent Editor (game-like)**
-  - `app/api/agents/[id]/route.ts` — NEW: `PATCH` (update fields) + `DELETE` (remove agent)
-  - `app/(app)/agent-lab/page.tsx` — added `AgentEditModal` component with form fields: name, description, model (dropdown), capabilities (tag chips), system prompt
-  - Pencil icon button on each agent card in `TeamInfoModal` opens the editor
-  - Saves via `PATCH /api/agents/:id`, updates card in-place without closing the info modal
-- **Marketplace Plan**
-  - Full spec written at `docs/MARKETPLACE-PLAN.md` — **awaiting approval before building**
-  - 8 starter packages defined, JSON format spec'd, API routes planned, no DB changes needed
+- **Mobile-first responsive overhaul (iOS/PWA)**
+  - `components/MobileNav.tsx` — NEW: iOS-style bottom tab bar with 4 primary tabs (Home, Chat, Teams, Brain) + "More" bottom-sheet drawer for all other pages. In-flow (not fixed) so it never overlaps content. Respects `env(safe-area-inset-bottom)` for iPhone home indicator.
+  - `app/(app)/layout.tsx` — Sidebar wrapped in `hidden md:flex` (desktop only). Layout restructured to flex-column: `main` (flex-1) + `MobileNav` (in-flow shrink-0). No hacky pb offsets needed.
+  - `app/(app)/chat/page.tsx` — Outer div `h-screen` → `h-full` so chat fills the constrained main height instead of breaking out to 100vh. Header padding `px-6` → `px-4 md:px-6`.
+  - `app/(app)/dashboard/page.tsx` — Widget picker modal fixed `width:480px` → `w-full max-w-[480px] mx-4`. Page `p-6` → `p-4 md:p-6`.
+  - `app/(app)/agent-lab/page.tsx` — TeamBuilder left preview panel `hidden md:flex` on mobile. Modal header/form padding responsive. Page `p-6` → `p-4 md:p-6`.
+  - All 11 other page containers — `p-6` → `p-4 md:p-6` (billing, blog, brain/capture, connect, optimize, projects, schedule, server, settings, tools, users, websites).
+  - `app/layout.tsx` — Added `viewport: Viewport` export with `viewportFit: "cover"` for iPhone notch/safe-area support.
+  - Committed, pushed to GitHub, deployed to VPS (tar → scp → docker rebuild).
+- **Marketplace plan reviewed**
+  - Plan at `docs/MARKETPLACE-PLAN.md` — approved for next session
+  - Suggested improvement: add `featured: boolean` to package JSON for curation; dedup check on `packageId` at install time before needing a DB table
 
 ### Immediate next steps (priority order)
-1. **Add PNG icons** — generate from `public/icons/icon.svg` at 180, 192, 512px
-2. **Marketplace** — review `docs/MARKETPLACE-PLAN.md`, approve, then build (~4-6h)
-3. **Credit gate** — build `lib/credits.ts` + add check in `app/api/chat/route.ts` (see Billing Plan below)
-4. **Admin credits panel** — manual grant UI at `/settings` or `/admin` so you can onboard first customers
+1. **Build Marketplace** — `docs/MARKETPLACE-PLAN.md` is approved. ~4-6h. Files to create:
+   - `data/packages/*.json` — 8 package JSON files
+   - `app/(app)/marketplace/page.tsx` — browse UI
+   - `app/api/marketplace/route.ts` — GET list
+   - `app/api/marketplace/install/route.ts` — POST install
+   - `components/Sidebar.tsx` — add Marketplace nav link (ShoppingBag icon)
+2. **Add PNG icons** for PWA — generate from `public/icons/icon.svg` at 180×180, 192×192, 512×512 and add to `public/icons/`
+3. **Credit gate** — `lib/credits.ts` + gate in `app/api/chat/route.ts` (see Billing Plan)
+4. **Admin credits panel** — manual grant UI so you can onboard first customers
 5. **Landing page Block G** — Brain section + updated pricing + blog link
 
-### Done last session (2026-05-16)
-- **Marketing Team** added to `scripts/seed-teams.ts`
-  - Agents: Nova (Strategist), Spark (Copywriter), Pixel (Visual Director)
-  - Skills: Weekly Content Plan, Twitter Thread, LinkedIn Post
-  - Vault-aware: reads blog queue from BLOGPOSTS.md, writes social briefs
-- **Blog Team** added to `scripts/seed-teams.ts`
-  - Agents: Quill (Writer), Reed (Editor), Press (Publisher)
-  - Skills: Draft Post, Review Post, Publish Post, Full Pipeline
-  - Posts saved to vault under `Blog/<slug>.md` tagged `#blog-post`
-- **`/api/blog/public`** — new public route (no session required)
-  - Reads vault notes tagged `#blog-post` with `status: published`
-  - Supports `?slug=` for single post, list for index
-  - Wire up `agentplayground.net/blog` to call this endpoint
-- **`/app/(app)/blog/page.tsx`** — in-app Blog Pipeline management page
-  - Shows published / ready / draft counts
-  - Lists all 12 planned posts from BLOGPOSTS.md with vault status
-  - Instructions for agent-driven pipeline
-- **Blog link** added to `components/Sidebar.tsx` (BookOpen icon)
-- **HANDOFF.md** created (this file)
-- **CLAUDE.md** trimmed — old session history moved to `docs/SESSION-HISTORY.md`
-- Teams seeded on VPS via SSH
-
-### Immediate next steps (priority order)
-1. **Credit gate** — build `lib/credits.ts` + add check in `app/api/chat/route.ts` (see Billing Plan below)
-2. **Admin credits panel** — manual grant UI at `/settings` or `/admin` so you can onboard first customers
-3. **Landing page Block G** — Brain section + updated pricing + blog link
-4. **Stripe keys** — wire up existing checkout routes to enable automated payment
-5. **Client onboarding script** (`scripts/onboard-client.sh`) — makes delivery fast
-
 ### Files touched this session
-- `scripts/seed-teams.ts` — +2 teams (Marketing, Blog)
-- `app/api/blog/public/route.ts` — NEW
-- `app/(app)/blog/page.tsx` — NEW
-- `components/Sidebar.tsx` — +Blog nav link
-- `HANDOFF.md` — NEW
-- `CLAUDE.md` — trimmed (history archived)
-- `docs/SESSION-HISTORY.md` — created with archived sessions
+- `components/MobileNav.tsx` — NEW
+- `app/(app)/layout.tsx`
+- `app/(app)/chat/page.tsx`
+- `app/(app)/dashboard/page.tsx`
+- `app/(app)/agent-lab/page.tsx`
+- `app/(app)/billing/page.tsx`
+- `app/(app)/blog/page.tsx`
+- `app/(app)/brain/capture/page.tsx`
+- `app/(app)/connect/page.tsx`
+- `app/(app)/optimize/page.tsx`
+- `app/(app)/projects/page.tsx`
+- `app/(app)/schedule/page.tsx`
+- `app/(app)/server/page.tsx`
+- `app/(app)/settings/page.tsx`
+- `app/(app)/tools/page.tsx`
+- `app/(app)/users/page.tsx`
+- `app/(app)/websites/page.tsx`
+- `app/layout.tsx`
+- `HANDOFF.md`
+
+---
+
+## Previous Session — 2026-05-18 (session 1)
+
+### Done
+- **PWA / iOS "Add to Home Screen"** — manifest, apple meta, icon.svg
+  - ⚠️ **Still needed**: PNG icons at 180×180, 192×192, 512×512
+- **Direct Agent Editor** — `AgentEditModal` in agent-lab with PATCH/DELETE API
+- **Marketplace Plan** — written at `docs/MARKETPLACE-PLAN.md`, reviewed this session, approved
 
 ---
 
@@ -123,15 +120,12 @@ Add to `/settings` (admin only):
 - Existing files already written: `app/api/billing/stripe/create-checkout/route.ts`
 - Add `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` to VPS `.env.local`
 - Webhook credits user on `checkout.session.completed` event
-- Test with: `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
 
 **Option B — Crypto manual (current UI, manual verification):**
 - Add "I've paid" button on billing page → creates support notification
 - Admin verifies on-chain → manually grants credits via Phase 2 panel
-- No automation, but works immediately without Stripe keys
 
-**Recommendation:** Build Phase 1 + 2 immediately (stops abuse, enables first customers).
-Add Stripe when you have 3+ paying customers and the manual flow becomes a bottleneck.
+**Recommendation:** Build Phase 1 + 2 immediately. Add Stripe when you have 3+ paying customers.
 
 ### Phase 4 — Monthly Credit Reset
 
@@ -149,6 +143,7 @@ Add: on 1st of month → `resetMonthlyCredits()` for all active plan users.
 - Connect page (Claude Mobile/Desktop, ChatGPT, n8n)
 - Brain push API (`/api/brain/push`)
 - Agent team ↔ Brain config sync
+- **Mobile-first UI (bottom nav, responsive pages)** ← new this session
 
 ### Built but needs env vars ⚠️
 - Telegram bot (needs `TELEGRAM_BOT_TOKEN`)
@@ -157,12 +152,13 @@ Add: on 1st of month → `resetMonthlyCredits()` for all active plan users.
 - Crypto billing UI (needs wallet addresses updated in `billing/page.tsx`)
 
 ### Not built yet ❌
+- Marketplace (`docs/MARKETPLACE-PLAN.md` approved — build next)
 - Credit gate + credit deduction
 - Admin credits panel
 - Stripe payment automation
 - Landing page Brain section (Block G)
 - Admin monitoring panel
-- Client onboarding script (`scripts/onboard-client.sh`)
+- PNG icons for PWA (180/192/512px)
 - `agentplayground.net/blog` static page wired to `/api/blog/public`
 
 ---
@@ -175,14 +171,14 @@ ssh -i ~/.ssh/id_ed25519 root@95.217.163.247
 docker exec vps-dashboard npx tsx scripts/seed-teams.ts
 ```
 
-Current teams (after this session):
+Current teams:
 1. Dev Core
 2. DevOps & Infrastructure
 3. Product & Design
 4. Business & Growth
 5. Command Center (Coordinator)
-6. Marketing Team ← new
-7. Blog Team ← new
+6. Marketing Team
+7. Blog Team
 
 ---
 
@@ -194,6 +190,7 @@ Current teams (after this session):
 | App path on VPS | `/root/opt/vps/` |
 | Deploy command | `scp file → restart container` (never git pull) |
 | Wallet addresses | `app/(app)/billing/page.tsx` WALLETS constant |
+| Marketplace plan | `docs/MARKETPLACE-PLAN.md` |
 | Blog post briefs | `docs/BLOGPOSTS.md` |
 | Full task queue | `docs/MASTER-TODO.md` |
 | Session history | `docs/SESSION-HISTORY.md` |
