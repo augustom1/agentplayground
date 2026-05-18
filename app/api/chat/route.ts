@@ -9,6 +9,7 @@ import { trackUsage } from "@/lib/usage-tracker";
 import { retrieveMemories } from "@/lib/memory/retrieve";
 import { evaluateAndWriteProtocol } from "@/lib/optimizer/protocol-writer";
 import { searchVault, getDailyNotes, writeVaultNote } from "@/lib/brain";
+import { getUserCredits, deductCredits } from "@/lib/credits";
 
 // ─── System Prompts ────────────────────────────────────────────────────────────
 
@@ -598,6 +599,20 @@ export async function POST(req: Request) {
   };
   const resolvedModel = model || defaultModels[provider] || "claude-sonnet-4-6";
 
+  // Credit gate — Anthropic only, admin-exempt
+  if (provider === "anthropic") {
+    const userRole = (session?.user as { role?: string })?.role;
+    if (userRole !== "admin") {
+      const { balance } = await getUserCredits(userId);
+      if (balance <= 0) {
+        return new Response(
+          JSON.stringify({ error: "No credits remaining. Top up at /billing.", code: "insufficient_credits" }),
+          { status: 402, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+  }
+
   const readable = new ReadableStream({
     async start(controller) {
       try {
@@ -626,6 +641,10 @@ export async function POST(req: Request) {
           }
           if (usage.webBrowseCalls > 0) {
             trackUsage({ userId, service: "web_browse", units: usage.webBrowseCalls, unitType: "calls" }).catch(() => {});
+          }
+          // Deduct credits (fire-and-forget)
+          if (usage.inputTokens > 0) {
+            deductCredits(userId, resolvedModel, usage.inputTokens, usage.outputTokens).catch(() => {});
           }
           // A6: Session write-back to vault daily note (fire-and-forget)
           if (process.env.VAULT_CONTEXT_ENABLED === "true" && usage.responseText) {

@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-  LayoutDashboard, FlaskConical, MessageSquare, Calendar, Settings,
-  Bot, PanelLeftClose, PanelLeft, Users, Wrench, Layers, Sparkles,
-  Server, ChevronRight, Clock, Globe, MoreHorizontal, X, Check, Brain, Workflow, Link2,
-  CreditCard, Languages, Sun, Moon, Sliders, BookOpen,
+  LayoutDashboard, MessageSquare, Calendar, Settings,
+  Bot, PanelLeftClose, PanelLeft, Users, Wrench, Layers,
+  Sparkles, Server, ChevronRight, Clock, Globe, Brain,
+  Workflow, Link2, CreditCard, Languages, Sun, Moon, FolderOpen, BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
@@ -17,167 +17,81 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { useTheme } from "@/components/ThemeProvider";
 
 type Conversation = { id: string; title: string; updatedAt: string };
-type NavItem = {
-  href: string;
+
+function SectionDivider({ label, collapsed, action, actionOpen }: {
   label: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-};
-
-const DEFAULT_PINNED = ["/dashboard", "/chat", "/agent-lab", "/files", "/pipeline"];
-
-// ── Customize Modal ────────────────────────────────────────────────────────────
-
-function CustomizeModal({
-  allItems,
-  pinnedHrefs,
-  onSave,
-  onClose,
-}: {
-  allItems: NavItem[];
-  pinnedHrefs: string[];
-  onSave: (hrefs: string[]) => void;
-  onClose: () => void;
+  collapsed: boolean;
+  action?: () => void;
+  actionOpen?: boolean;
 }) {
-  const [selected, setSelected] = useState<Set<string>>(new Set(pinnedHrefs));
-
-  function toggle(href: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(href)) next.delete(href);
-      else next.add(href);
-      return next;
-    });
+  if (collapsed) {
+    return <div style={{ height: "1px", background: "var(--color-border)", margin: "8px 4px" }} />;
   }
-
-  return (
-    <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)" }}
-      onClick={onClose}
-    >
-      <div
-        className="glass-card p-5 w-full max-w-xs animate-slide-up"
-        style={{ border: "1px solid var(--color-border)" }}
-        onClick={(e) => e.stopPropagation()}
+  if (action) {
+    return (
+      <button
+        onClick={action}
+        className="w-full flex items-center justify-between px-3 pt-3 pb-1 group"
+        style={{ background: "none", border: "none", cursor: "pointer" }}
       >
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-sm" style={{ color: "var(--color-text)" }}>
-            Customize Sidebar
-          </h2>
-          <button
-            onClick={onClose}
-            style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-muted)", padding: "2px" }}
-          >
-            <X size={15} />
-          </button>
-        </div>
-        <p className="text-[11px] mb-3" style={{ color: "var(--color-muted)", lineHeight: 1.5 }}>
-          Choose which items appear in your sidebar. Unchecked items go in the More menu.
-        </p>
-
-        <div className="flex flex-col gap-0.5 mb-4">
-          {allItems.map((item) => {
-            const pinned = selected.has(item.href);
-            return (
-              <button
-                key={item.href}
-                onClick={() => toggle(item.href)}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg transition-all w-full text-left"
-                style={{
-                  background: pinned ? "var(--color-surface-3)" : "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                }}
-                onMouseEnter={(e) => {
-                  if (!pinned) (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)";
-                }}
-                onMouseLeave={(e) => {
-                  if (!pinned) (e.currentTarget as HTMLElement).style.background = "transparent";
-                }}
-              >
-                <item.icon
-                  size={14}
-                  style={{ color: pinned ? "var(--color-brand)" : "var(--color-muted)", flexShrink: 0 }}
-                />
-                <span
-                  className="text-[13px] flex-1"
-                  style={{ color: pinned ? "var(--color-text)" : "var(--color-muted)" }}
-                >
-                  {item.label}
-                </span>
-                <div
-                  className="w-4 h-4 flex items-center justify-center rounded shrink-0"
-                  style={{
-                    background: pinned ? "var(--color-brand)" : "var(--color-surface-2)",
-                    border: `1px solid ${pinned ? "var(--color-brand)" : "var(--color-border)"}`,
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {pinned && <Check size={9} style={{ color: "#fff" }} />}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        <button
-          onClick={() => onSave([...selected])}
-          className="btn-primary w-full py-2 text-sm"
-        >
-          Save
-        </button>
-      </div>
+        <span className="text-[10px] font-semibold tracking-wider uppercase" style={{ color: "var(--color-muted)", letterSpacing: "0.08em" }}>
+          {label}
+        </span>
+        <ChevronRight
+          size={10}
+          style={{
+            color: "var(--color-muted)",
+            transform: actionOpen ? "rotate(90deg)" : "rotate(0deg)",
+            transition: "transform 0.2s",
+          }}
+        />
+      </button>
+    );
+  }
+  return (
+    <div className="px-3 pt-3 pb-1">
+      <span className="text-[10px] font-semibold tracking-wider uppercase" style={{ color: "var(--color-muted)", letterSpacing: "0.08em" }}>
+        {label}
+      </span>
     </div>
   );
 }
-
-// ── Sidebar ────────────────────────────────────────────────────────────────────
 
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const { data: session } = useSession();
   const isAdmin = (session?.user as { role?: string })?.role === "admin";
-  const { t, locale, toggle: toggleLocale } = useLanguage();
+  const { locale, toggle: toggleLocale } = useLanguage();
   const { theme, toggle: toggleTheme } = useTheme();
 
-  const allNavItems = useMemo<NavItem[]>(
-    () => [
-      { href: "/dashboard", label: "Home",          icon: LayoutDashboard },
-      { href: "/chat",      label: t("chat"),        icon: MessageSquare },
-      { href: "/agent-lab", label: "Teams",          icon: FlaskConical },
-      { href: "/files",     label: "Knowledge",      icon: Brain },
-      { href: "/pipeline",  label: "Pipeline",       icon: Workflow },
-      { href: "/schedule",  label: t("schedule"),    icon: Calendar },
-      { href: "/projects",  label: t("projects"),    icon: Layers },
-      { href: "/connect",   label: "Connect",        icon: Link2 },
-      { href: "/blog",      label: "Blog",           icon: BookOpen },
-      { href: "/tools",     label: t("tools"),       icon: Wrench },
-      { href: "/billing",   label: "Billing",        icon: CreditCard },
-      { href: "/websites",  label: t("websites"),    icon: Globe },
-      { href: "/server",    label: t("server"),      icon: Server },
-      { href: "/optimize",  label: t("optimize"),    icon: Sparkles },
-      ...(isAdmin ? [{ href: "/users", label: t("users"), icon: Users }] : []),
-    ],
-    [t, isAdmin]
-  );
+  // Playground sub-items
+  const playgroundSubPaths = ["/projects", "/schedule", "/pipeline"];
+  const isOnPlaygroundSub = playgroundSubPaths.some(p => pathname === p || pathname.startsWith(p + "/"));
+  const [playgroundOpen, setPlaygroundOpen] = useState(false);
+  useEffect(() => { if (isOnPlaygroundSub) setPlaygroundOpen(true); }, [pathname]);
 
-  const [pinnedHrefs, setPinnedHrefs] = useState<string[]>(DEFAULT_PINNED);
-
+  // Stack section (collapsed by default)
+  const [stackOpen, setStackOpen] = useState(false);
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("sidebarPinned");
-      if (saved) setPinnedHrefs(JSON.parse(saved));
+      const saved = localStorage.getItem("sidebarStackOpen");
+      if (saved !== null) setStackOpen(JSON.parse(saved));
     } catch {}
   }, []);
-
-  function savePinned(hrefs: string[]) {
-    setPinnedHrefs(hrefs);
-    localStorage.setItem("sidebarPinned", JSON.stringify(hrefs));
+  function toggleStack() {
+    const next = !stackOpen;
+    setStackOpen(next);
+    try { localStorage.setItem("sidebarStackOpen", JSON.stringify(next)); } catch {}
   }
 
-  const pinnedItems = allNavItems.filter((item) => pinnedHrefs.includes(item.href));
-  const moreItems = allNavItems.filter((item) => !pinnedHrefs.includes(item.href));
+  // Auto-expand stack if on a stack page
+  const stackPaths = ["/optimize", "/server", "/websites", "/tools", "/connect", "/blog"];
+  useEffect(() => {
+    if (stackPaths.some(p => pathname === p || pathname.startsWith(p + "/"))) {
+      setStackOpen(true);
+    }
+  }, [pathname]);
 
   // Chat dropdown
   const [chatOpen, setChatOpen] = useState(false);
@@ -201,332 +115,261 @@ export function Sidebar() {
 
   const isChatActive = pathname.startsWith("/chat");
 
-  // More popup
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  // Customize modal
-  const [customizeOpen, setCustomizeOpen] = useState(false);
-
-  // Shared nav item style helpers
+  // Styles
   const navItemCls = (active: boolean) =>
     cn(
-      "nav-hover relative flex items-center gap-2.5 text-[13px] font-medium transition-all duration-200",
-      collapsed ? "px-0 py-2 justify-center" : "px-3 py-2",
-      "rounded-lg"
+      "nav-hover relative flex items-center gap-2.5 text-[13px] font-medium transition-all duration-200 rounded-lg",
+      collapsed ? "px-0 py-2 justify-center" : "px-3 py-2"
     );
 
-  const navItemStyle = (active: boolean) => ({
+  const navItemStyle = (active: boolean): React.CSSProperties => ({
     color: active ? "var(--color-brand-hover)" : "var(--color-muted)",
     background: active ? "var(--color-brand-dim)" : "transparent",
+    textDecoration: "none",
   });
 
-  // Quick-action icon button style
+  const activeBar = (
+    <span
+      className="absolute left-0 gradient-bar"
+      style={{ width: "3px", height: "16px", top: "50%", transform: "translateY(-50%)", borderRadius: "0 3px 3px 0" }}
+    />
+  );
+
   const quickBtnStyle: React.CSSProperties = {
-    width: 26,
-    height: 26,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 6,
-    border: "none",
-    background: "transparent",
-    cursor: "pointer",
-    color: "var(--color-muted)",
-    flexShrink: 0,
-    transition: "background 0.15s, color 0.15s",
+    width: 26, height: 26,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    borderRadius: 6, border: "none", background: "transparent", cursor: "pointer",
+    color: "var(--color-muted)", flexShrink: 0, transition: "background 0.15s, color 0.15s",
   };
 
-  return (
-    <>
-      <aside
-        className={cn(
-          "glass-sidebar flex flex-col min-h-screen shrink-0 transition-all duration-300 ease-in-out",
-          collapsed ? "w-[52px]" : "w-[210px]"
-        )}
+  function renderNavLink(
+    href: string,
+    label: string,
+    Icon: React.ComponentType<{ size?: number; className?: string }>
+  ) {
+    const active = pathname === href || pathname.startsWith(href + "/");
+    return (
+      <Link
+        key={href}
+        href={href}
+        title={collapsed ? label : undefined}
+        className={navItemCls(active)}
+        style={navItemStyle(active)}
       >
-        {/* Logo + collapse toggle */}
-        <div
-          className="flex items-center justify-between px-2.5 py-3"
-          style={{ borderBottom: "1px solid var(--color-border)" }}
+        {active && activeBar}
+        <Icon size={14} className="shrink-0" />
+        {!collapsed && <span className="animate-fade-in">{label}</span>}
+      </Link>
+    );
+  }
+
+  const playgroundSubItems = [
+    { href: "/projects", label: "Projects", icon: FolderOpen },
+    { href: "/schedule", label: "Schedule", icon: Calendar },
+    { href: "/pipeline", label: "Work Queue", icon: Workflow },
+  ];
+
+  const stackItems = [
+    { href: "/optimize", label: "AI Efficiency", icon: Sparkles },
+    { href: "/server",   label: "Server",        icon: Server },
+    { href: "/websites", label: "Websites",      icon: Globe },
+    { href: "/tools",    label: "Apps & Tools",  icon: Wrench },
+    { href: "/connect",  label: "Integrations",  icon: Link2 },
+    { href: "/blog",     label: "Blog",          icon: BookOpen },
+  ];
+
+  return (
+    <aside
+      className={cn(
+        "glass-sidebar flex flex-col min-h-screen shrink-0 transition-all duration-300 ease-in-out",
+        collapsed ? "w-[52px]" : "w-[210px]"
+      )}
+    >
+      {/* Logo + collapse toggle */}
+      <div
+        className="flex items-center justify-between px-2.5 py-3"
+        style={{ borderBottom: "1px solid var(--color-border)" }}
+      >
+        <Link href="/dashboard" className="flex items-center gap-2 min-w-0">
+          <LogoMark size={28} />
+          {!collapsed && (
+            <span className="font-semibold text-[13px] animate-fade-in truncate" style={{ color: "var(--color-text)" }}>
+              Playground
+            </span>
+          )}
+        </Link>
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="nav-hover flex items-center justify-center rounded-lg shrink-0"
+          style={{ color: "var(--color-muted)", background: "transparent", border: "none", cursor: "pointer", width: "24px", height: "24px" }}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          <Link href="/dashboard" className="flex items-center gap-2 min-w-0">
-            <LogoMark size={28} />
+          {collapsed ? <PanelLeft size={13} /> : <PanelLeftClose size={13} />}
+        </button>
+      </div>
+
+      {/* Scrollable nav */}
+      <nav className="flex flex-col gap-px p-1.5 flex-1 mt-1 overflow-y-auto">
+
+        {/* Home */}
+        {renderNavLink("/dashboard", "Home", LayoutDashboard)}
+
+        {/* Chat with recent conversations */}
+        <div ref={chatRef} className="relative">
+          <div className="flex items-center">
+            <Link
+              href="/chat"
+              onClick={(e) => {
+                if (pathname.startsWith("/chat")) {
+                  e.preventDefault();
+                  setChatOpen(v => !v);
+                  if (!chatOpen) loadConversations();
+                }
+              }}
+              className={cn(navItemCls(isChatActive), "flex-1")}
+              style={navItemStyle(isChatActive)}
+            >
+              {isChatActive && activeBar}
+              <MessageSquare size={14} className="shrink-0" />
+              {!collapsed && <span className="animate-fade-in flex-1">Chat</span>}
+            </Link>
             {!collapsed && (
-              <span className="font-semibold text-[13px] animate-fade-in truncate" style={{ color: "var(--color-text)" }}>
-                Playground
-              </span>
-            )}
-          </Link>
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="nav-hover flex items-center justify-center rounded-lg transition-colors shrink-0"
-            style={{
-              color: "var(--color-muted)",
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              width: "24px",
-              height: "24px",
-            }}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? <PanelLeft size={13} /> : <PanelLeftClose size={13} />}
-          </button>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex flex-col gap-px p-1.5 flex-1 mt-1 overflow-y-auto">
-          {pinnedItems.map((item) => {
-            if (item.href === "/chat") {
-              return (
-                <div key="/chat" ref={chatRef} className="relative">
-                  <div className="flex items-center">
-                    <Link
-                      href="/chat"
-                      onClick={(e) => {
-                        if (pathname.startsWith("/chat")) {
-                          e.preventDefault();
-                          setChatOpen((v) => !v);
-                          if (!chatOpen) loadConversations();
-                        }
-                      }}
-                      className={cn(navItemCls(isChatActive), "flex-1")}
-                      style={navItemStyle(isChatActive)}
-                    >
-                      {isChatActive && (
-                        <span
-                          className="absolute left-0 gradient-bar"
-                          style={{ width: "3px", height: "16px", top: "50%", transform: "translateY(-50%)", borderRadius: "0 3px 3px 0" }}
-                        />
-                      )}
-                      <MessageSquare size={14} className="shrink-0" />
-                      {!collapsed && <span className="animate-fade-in flex-1">{t("chat")}</span>}
-                    </Link>
-                    {!collapsed && (
-                      <button
-                        onClick={() => { setChatOpen((v) => !v); if (!chatOpen) loadConversations(); }}
-                        className="nav-hover flex items-center justify-center rounded transition-colors mr-0.5"
-                        style={{ width: "20px", height: "20px", border: "none", background: "transparent", cursor: "pointer", color: "var(--color-muted)", flexShrink: 0 }}
-                        title="Recent chats"
-                      >
-                        <ChevronRight size={11} style={{ transform: chatOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
-                      </button>
-                    )}
-                  </div>
-
-                  {chatOpen && !collapsed && (
-                    <div className="animate-fade-in ml-3 mt-px mb-0.5 flex flex-col gap-px">
-                      <Link
-                        href="/chat"
-                        className="nav-hover flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors"
-                        onClick={() => setChatOpen(false)}
-                      >
-                        <Bot size={11} style={{ color: "var(--color-muted)", flexShrink: 0 }} />
-                        <span className="text-[11px] truncate" style={{ color: "var(--color-text-secondary)" }}>{t("newChat")}</span>
-                      </Link>
-                      {conversations.length === 0 ? (
-                        <p className="px-2 py-1 text-[11px]" style={{ color: "var(--color-muted)" }}>{t("noChatsYet")}</p>
-                      ) : (
-                        conversations.map((c) => (
-                          <Link
-                            key={c.id}
-                            href={`/chat?conversation=${c.id}`}
-                            className="nav-hover flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors min-w-0"
-                            onClick={() => setChatOpen(false)}
-                          >
-                            <Clock size={11} style={{ color: "var(--color-muted)", flexShrink: 0 }} />
-                            <span className="text-[11px] truncate" style={{ color: "var(--color-text-secondary)" }}>
-                              {c.title || "Untitled"}
-                            </span>
-                          </Link>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-
-            const active = pathname === item.href || pathname.startsWith(item.href + "/");
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={collapsed ? item.label : undefined}
-                className={navItemCls(active)}
-                style={navItemStyle(active)}
-              >
-                {active && (
-                  <span
-                    className="absolute left-0 gradient-bar"
-                    style={{ width: "3px", height: "16px", top: "50%", transform: "translateY(-50%)", borderRadius: "0 3px 3px 0" }}
-                  />
-                )}
-                <item.icon size={14} className="shrink-0" />
-                {!collapsed && <span className="animate-fade-in">{item.label}</span>}
-              </Link>
-            );
-          })}
-
-          {/* More */}
-          {moreItems.length > 0 && (
-            <div ref={moreRef} className="relative mt-px">
               <button
-                onClick={() => setMoreOpen((v) => !v)}
-                className={cn(
-                  "nav-hover w-full flex items-center gap-2.5 text-[13px] font-medium transition-all duration-200 rounded-lg",
-                  collapsed ? "px-0 py-2 justify-center" : "px-3 py-2"
-                )}
-                style={{ color: "var(--color-muted)", background: "transparent", border: "none", cursor: "pointer" }}
-                title="More"
+                onClick={() => { setChatOpen(v => !v); if (!chatOpen) loadConversations(); }}
+                className="nav-hover flex items-center justify-center rounded mr-0.5"
+                style={{ width: "20px", height: "20px", border: "none", background: "transparent", cursor: "pointer", color: "var(--color-muted)", flexShrink: 0 }}
               >
-                <MoreHorizontal size={14} className="shrink-0" />
-                {!collapsed && <span>More</span>}
+                <ChevronRight size={11} style={{ transform: chatOpen ? "rotate(90deg)" : "none", transition: "transform 0.2s" }} />
               </button>
-
-              {moreOpen && (
-                <div
-                  className="glass-panel animate-fade-in"
-                  style={{
-                    position: "absolute",
-                    left: collapsed ? "calc(100% + 8px)" : 0,
-                    right: collapsed ? "auto" : 0,
-                    bottom: "calc(100% + 4px)",
-                    zIndex: 60,
-                    overflow: "hidden",
-                    minWidth: "160px",
-                  }}
-                >
-                  {moreItems.map((item) => {
-                    const active = pathname === item.href || pathname.startsWith(item.href + "/");
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setMoreOpen(false)}
-                        className="flex items-center gap-2.5 px-3 py-2 transition-colors"
-                        style={{
-                          color: active ? "var(--color-brand-hover)" : "var(--color-muted)",
-                          fontSize: "13px",
-                          textDecoration: "none",
-                          display: "flex",
-                        }}
-                        onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)")}
-                        onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "transparent")}
-                      >
-                        <item.icon size={13} style={{ flexShrink: 0 }} />
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </div>
+            )}
+          </div>
+          {chatOpen && !collapsed && (
+            <div className="animate-fade-in ml-3 mt-px mb-0.5 flex flex-col gap-px">
+              <Link href="/chat" className="nav-hover flex items-center gap-2 px-2 py-1.5 rounded-lg" onClick={() => setChatOpen(false)}>
+                <Bot size={11} style={{ color: "var(--color-muted)", flexShrink: 0 }} />
+                <span className="text-[11px]" style={{ color: "var(--color-text-secondary)" }}>New Chat</span>
+              </Link>
+              {conversations.length === 0 ? (
+                <p className="px-2 py-1 text-[11px]" style={{ color: "var(--color-muted)" }}>No chats yet</p>
+              ) : (
+                conversations.map(c => (
+                  <Link
+                    key={c.id}
+                    href={`/chat?conversation=${c.id}`}
+                    className="nav-hover flex items-center gap-2 px-2 py-1.5 rounded-lg min-w-0"
+                    onClick={() => setChatOpen(false)}
+                  >
+                    <Clock size={11} style={{ color: "var(--color-muted)", flexShrink: 0 }} />
+                    <span className="text-[11px] truncate" style={{ color: "var(--color-text-secondary)" }}>{c.title || "Untitled"}</span>
+                  </Link>
+                ))
               )}
             </div>
           )}
-        </nav>
+        </div>
 
-        {/* Bottom */}
-        <div className="flex flex-col" style={{ borderTop: "1px solid var(--color-border)" }}>
-          {/* Settings */}
-          <div className="px-1.5 pt-1.5 pb-0.5">
+        {/* ── WORK ── */}
+        <SectionDivider label="Work" collapsed={collapsed} />
+
+        {renderNavLink("/agent-lab", "Teams", Users)}
+
+        {/* Playground with sub-items */}
+        <div>
+          <div className="flex items-center">
             <Link
-              href="/settings"
-              title={collapsed ? t("settings") : undefined}
-              className={cn(
-                "nav-hover flex items-center gap-2.5 text-[13px] font-medium rounded-lg transition-colors",
-                collapsed ? "px-0 py-2 justify-center" : "px-3 py-2"
-              )}
-              style={{ color: pathname === "/settings" ? "var(--color-brand-hover)" : "var(--color-muted)" }}
+              href="/playground"
+              className={cn(navItemCls(pathname === "/playground" || isOnPlaygroundSub), "flex-1")}
+              style={navItemStyle(pathname === "/playground" || isOnPlaygroundSub)}
             >
-              <Settings size={14} className="shrink-0" />
-              {!collapsed && <span>{t("settings")}</span>}
+              {(pathname === "/playground" || isOnPlaygroundSub) && activeBar}
+              <Layers size={14} className="shrink-0" />
+              {!collapsed && <span className="animate-fade-in flex-1">Playground</span>}
             </Link>
-          </div>
-
-          {/* Quick action bar: language | theme | customize */}
-          <div
-            className={cn(
-              "px-1.5 pb-1",
-              collapsed ? "flex flex-col items-center gap-0.5" : "flex items-center gap-0.5"
-            )}
-          >
-            {/* Language */}
-            <button
-              onClick={toggleLocale}
-              title={locale === "en" ? "Switch to Español" : "Switch to English"}
-              className="nav-hover"
-              style={quickBtnStyle}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--color-muted)"; }}
-            >
-              <Languages size={13} />
-            </button>
-
-            {/* Theme toggle */}
-            <button
-              onClick={toggleTheme}
-              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              className="nav-hover"
-              style={quickBtnStyle}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--color-muted)"; }}
-            >
-              {theme === "dark" ? <Sun size={13} /> : <Moon size={13} />}
-            </button>
-
-            {/* Customize sidebar */}
             {!collapsed && (
               <button
-                onClick={() => setCustomizeOpen(true)}
-                title="Customize sidebar"
-                className="nav-hover"
-                style={quickBtnStyle}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--color-muted)"; }}
+                onClick={() => setPlaygroundOpen(v => !v)}
+                className="nav-hover flex items-center justify-center rounded mr-0.5"
+                style={{ width: "20px", height: "20px", border: "none", background: "transparent", cursor: "pointer", color: "var(--color-muted)", flexShrink: 0 }}
               >
-                <Sliders size={13} />
+                <ChevronRight size={11} style={{ transform: playgroundOpen ? "rotate(90deg)" : "none", transition: "transform 0.2s" }} />
               </button>
             )}
-
-            {/* Billing shortcut (expanded only) */}
-            {!collapsed && (
-              <Link
-                href="/billing"
-                title="Billing & Credits"
-                className="nav-hover"
-                style={{ ...quickBtnStyle, textDecoration: "none" }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--color-muted)"; }}
-              >
-                <CreditCard size={13} />
-              </Link>
-            )}
           </div>
-
-          {/* User menu */}
-          <div className="px-1.5 pb-2" style={{ borderTop: "1px solid var(--color-border)", paddingTop: "6px" }}>
-            <UserMenu collapsed={collapsed} />
-          </div>
+          {playgroundOpen && !collapsed && (
+            <div className="animate-fade-in ml-3 mt-px mb-0.5 flex flex-col gap-px">
+              {playgroundSubItems.map(({ href, label, icon: Icon }) => {
+                const active = pathname === href || pathname.startsWith(href + "/");
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="nav-hover flex items-center gap-2 px-2 py-1.5 rounded-lg"
+                    style={{
+                      color: active ? "var(--color-brand-hover)" : "var(--color-text-secondary)",
+                      background: active ? "var(--color-brand-dim)" : "transparent",
+                      textDecoration: "none",
+                    }}
+                  >
+                    <Icon size={11} style={{ flexShrink: 0 }} />
+                    <span className="text-[11px]">{label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </div>
-      </aside>
 
-      {customizeOpen && (
-        <CustomizeModal
-          allItems={allNavItems}
-          pinnedHrefs={pinnedHrefs}
-          onSave={(hrefs) => { savePinned(hrefs); setCustomizeOpen(false); }}
-          onClose={() => setCustomizeOpen(false)}
-        />
-      )}
-    </>
+        {/* ── KNOWLEDGE ── */}
+        <SectionDivider label="Knowledge" collapsed={collapsed} />
+        {renderNavLink("/files", "Brain & Files", Brain)}
+
+        {/* ── STACK ── (collapsible, collapsed by default) */}
+        <SectionDivider label="Stack" collapsed={collapsed} action={toggleStack} actionOpen={stackOpen} />
+
+        {/* In collapsed sidebar mode, always show stack icons */}
+        {(stackOpen || collapsed) && stackItems.map(({ href, label, icon }) => renderNavLink(href, label, icon))}
+
+      </nav>
+
+      {/* Bottom: Billing, Settings, quick actions, user */}
+      <div className="flex flex-col" style={{ borderTop: "1px solid var(--color-border)" }}>
+        <div className="px-1.5 pt-1.5 pb-0.5 flex flex-col gap-px">
+          {renderNavLink("/billing", "Billing", CreditCard)}
+          {isAdmin && renderNavLink("/users", "Users", Users)}
+          {renderNavLink("/settings", "App Settings", Settings)}
+        </div>
+
+        {/* Quick actions: language + theme */}
+        <div
+          className={cn("px-1.5 pb-1", collapsed ? "flex flex-col items-center gap-0.5" : "flex items-center gap-0.5")}
+        >
+          <button
+            onClick={toggleLocale}
+            title={locale === "en" ? "Español" : "English"}
+            className="nav-hover"
+            style={quickBtnStyle}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--color-muted)"; }}
+          >
+            <span style={{ fontSize: "11px", fontWeight: 600, lineHeight: 1 }}>{locale === "en" ? "ES" : "EN"}</span>
+          </button>
+          <button
+            onClick={toggleTheme}
+            title={theme === "dark" ? "Light mode" : "Dark mode"}
+            className="nav-hover"
+            style={quickBtnStyle}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--color-muted)"; }}
+          >
+            {theme === "dark" ? <Sun size={13} /> : <Moon size={13} />}
+          </button>
+        </div>
+
+        {/* User menu */}
+        <div className="px-1.5 pb-2" style={{ borderTop: "1px solid var(--color-border)", paddingTop: "6px" }}>
+          <UserMenu collapsed={collapsed} />
+        </div>
+      </div>
+    </aside>
   );
 }

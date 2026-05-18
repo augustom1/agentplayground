@@ -15,9 +15,17 @@
 
 ---
 
-## Current Session — 2026-05-18 (session 3)
+## Current Session — 2026-05-18 (session 4)
 
 ### Done this session
+- **UX Redesign Phase 1 — Navigation restructure** (completed)
+  - `components/Sidebar.tsx` — Full rewrite: grouped sections (WORK / KNOWLEDGE / STACK), Playground expandable sub-items (Projects, Schedule, Work Queue), STACK collapsible chevron (starts collapsed, saves to localStorage), Chat dropdown kept, removed customize modal complexity
+  - `components/MobileNav.tsx` — 5 primary tabs: Home, Chat, Teams, Playground, More. More drawer now has grouped sections with labels (WORK / KNOWLEDGE / STACK / SETTINGS), not a flat grid.
+  - `app/(app)/playground/page.tsx` — NEW hub page: 3 feature cards (Projects, Schedule, Work Queue) + live upcoming meetings + active projects. Empty states with CTAs.
+  - `app/(app)/stack/page.tsx` — NEW hub page: 6 stack tool cards (AI Efficiency, Server, Websites, Apps & Tools, Integrations, Blog)
+  - `app/(app)/pipeline/page.tsx` — Renamed "Pipeline Queue" → "Work Queue" and "New Pipeline Job" → "New Work Queue Job"
+
+### Done previous session (session 3)
 - **Meeting / Event scheduling feature** — full end-to-end:
   - `prisma/schema.prisma` — Added `Meeting` model (title, scheduledFor, reminderMins, participants JSON, status)
   - `app/api/meetings/route.ts` — GET (all/upcoming) + POST
@@ -39,12 +47,10 @@ docker exec vps-dashboard npx prisma generate
 ```
 
 ### Immediate next steps (priority order)
-1. **UX Redesign** — `docs/UX-REDESIGN-PLAN.md` is fully specced. This is the top priority. User wants the app to be intuitive for non-technical users ("grandpa UX"). Full plan with 4 phases and implementation checklist is ready. ~5–8h total.
-   - Phase 1: Navigation restructure (Sidebar groupings, MobileNav, Playground + Stack hub pages)
-   - Phase 2: Empty states + plain English audit
-   - Phase 3: Mobile-specific fixes (from `docs/PHONE-UX-TODO.md`)
-   - Phase 4: Language file (separate session)
-2. **Build Marketplace** — `docs/MARKETPLACE-PLAN.md` is approved. ~4-6h. Files to create:
+1. **Credit gate + admin credits panel** — path to charging customers (2-3h total). See Billing Plan below.
+2. **UX Redesign Phase 2** — empty states + plain English audit (1-2h). Phase 1 done.
+3. **UX Redesign Phase 3** — mobile-specific fixes from `docs/PHONE-UX-TODO.md`
+4. **Build Marketplace**  — `docs/MARKETPLACE-PLAN.md` is approved. ~4-6h. Files to create:
    - `data/packages/*.json` — 8 package JSON files
    - `app/(app)/marketplace/page.tsx` — browse UI
    - `app/api/marketplace/route.ts` — GET list

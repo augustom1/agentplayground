@@ -2,6 +2,8 @@ import { CheckCircle2, XCircle, ExternalLink, Cpu, Sparkles } from "lucide-react
 import { OllamaPanel } from "@/components/OllamaPanel";
 import { BillingSection } from "@/components/BillingSection";
 import { ApiKeySection } from "@/components/ApiKeySection";
+import { CreditsAdminPanel } from "@/components/CreditsAdminPanel";
+import { auth } from "@/auth";
 
 function EnvRow({
   name,
@@ -83,7 +85,9 @@ const providers = [
   },
 ];
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const session = await auth();
+  const isAdmin = (session?.user as { role?: string })?.role === "admin";
   const vars = [
     {
       name: "ANTHROPIC_API_KEY",
@@ -240,6 +244,9 @@ export default function SettingsPage() {
 
       {/* MCP API Key */}
       <ApiKeySection appUrl={process.env.NEXT_PUBLIC_APP_URL || "https://app.agentplayground.net"} />
+
+      {/* Credits Admin (admin only) */}
+      {isAdmin && <CreditsAdminPanel />}
 
       {/* Billing */}
       <BillingSection />

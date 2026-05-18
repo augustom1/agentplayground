@@ -166,7 +166,7 @@ export default function PipelinePage() {
         >
           <Workflow size={15} style={{ color: "var(--color-brand)" }} />
           <h1 className="text-sm font-semibold" style={{ color: "var(--color-text)" }}>
-            New Pipeline Job
+            New Work Queue Job
           </h1>
         </div>
 
@@ -326,7 +326,7 @@ export default function PipelinePage() {
           <div className="flex items-center gap-2">
             <FileText size={14} style={{ color: "var(--color-muted)" }} />
             <h2 className="text-sm font-semibold" style={{ color: "var(--color-text)" }}>
-              Pipeline Queue
+              Work Queue
             </h2>
             {jobs.length > 0 && (
               <span
