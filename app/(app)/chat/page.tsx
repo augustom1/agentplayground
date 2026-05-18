@@ -437,6 +437,11 @@ export default function ChatPage() {
   // Dynamic Ollama models
   const [ollamaModels, setOllamaModels] = useState(PROVIDERS.ollama.models);
 
+  // Meeting reminders
+  type MeetingReminder = { id: string; title: string; scheduledFor: string; reminderMins: number };
+  const [meetingReminders, setMeetingReminders] = useState<MeetingReminder[]>([]);
+  const [dismissedMeetings, setDismissedMeetings] = useState<Set<string>>(new Set());
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -455,6 +460,26 @@ export default function ChatPage() {
       })
       .catch(() => {})
       .finally(() => setTeamsLoading(false));
+  }, []);
+
+  // Check for meeting reminders on mount and every minute
+  useEffect(() => {
+    function checkReminders() {
+      fetch("/api/meetings?upcoming=true")
+        .then((r) => r.json())
+        .then((meetings: MeetingReminder[]) => {
+          const now = Date.now();
+          const active = meetings.filter((m) => {
+            const t = new Date(m.scheduledFor).getTime();
+            return t > now && t - now <= m.reminderMins * 60 * 1000;
+          });
+          setMeetingReminders(active);
+        })
+        .catch(() => {});
+    }
+    checkReminders();
+    const interval = setInterval(checkReminders, 60_000);
+    return () => clearInterval(interval);
   }, []);
 
   // Fetch dynamic Ollama models
@@ -969,6 +994,31 @@ export default function ChatPage() {
           />
         </div>
       </div>
+
+      {/* Meeting reminder banners */}
+      {meetingReminders
+        .filter((m) => !dismissedMeetings.has(m.id))
+        .map((m) => {
+          const minutesUntil = Math.round((new Date(m.scheduledFor).getTime() - Date.now()) / 60000);
+          return (
+            <div
+              key={m.id}
+              className="shrink-0 flex items-center gap-3 px-4 py-2.5"
+              style={{ background: "rgba(251,191,36,0.08)", borderBottom: "1px solid rgba(251,191,36,0.2)" }}
+            >
+              <span style={{ fontSize: "15px" }}>📅</span>
+              <p className="flex-1 text-xs font-medium" style={{ color: "#fbbf24" }}>
+                <span style={{ fontWeight: 700 }}>Meeting in {minutesUntil} min:</span> {m.title}
+              </p>
+              <button
+                onClick={() => setDismissedMeetings((prev) => new Set([...prev, m.id]))}
+                style={{ background: "transparent", border: "none", cursor: "pointer", color: "#fbbf24", opacity: 0.7, padding: "2px" }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          );
+        })}
 
       {/* Messages */}
       <div

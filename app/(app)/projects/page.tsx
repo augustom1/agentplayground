@@ -14,6 +14,10 @@ import {
   RefreshCw,
   Clock,
   ChevronDown,
+  Users,
+  Bell,
+  Bot,
+  UserPlus,
 } from "lucide-react";
 
 type ProjectStatus = "active" | "paused" | "completed" | "archived";
@@ -84,6 +88,18 @@ export default function ProjectsPage() {
   const [showForm, setShowForm] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
+
+  // Upcoming meetings
+  type MeetingParticipant = { type: "user" | "agent"; name: string; teamName?: string };
+  type MeetingSummary = { id: string; title: string; scheduledFor: string; reminderMins: number; participants: MeetingParticipant[] };
+  const [upcomingMeetings, setUpcomingMeetings] = useState<MeetingSummary[]>([]);
+
+  useEffect(() => {
+    fetch("/api/meetings?upcoming=true")
+      .then((r) => r.json())
+      .then((data: MeetingSummary[]) => setUpcomingMeetings(data.slice(0, 5)))
+      .catch(() => {});
+  }, []);
 
   // New project form
   const [name, setName] = useState("");
@@ -287,6 +303,62 @@ export default function ProjectsPage() {
             </button>
           </div>
         </form>
+      )}
+
+      {/* Upcoming Meetings */}
+      {upcomingMeetings.length > 0 && (
+        <div className="glass-card p-4 flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <Users size={13} style={{ color: "#818cf8" }} />
+            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted)" }}>Upcoming Meetings</span>
+          </div>
+          <div className="flex flex-col gap-2">
+            {upcomingMeetings.map((m) => {
+              const scheduledDate = new Date(m.scheduledFor);
+              const minutesUntil = Math.round((scheduledDate.getTime() - Date.now()) / 60000);
+              const isReminding = minutesUntil > 0 && minutesUntil <= m.reminderMins;
+              return (
+                <div key={m.id} className="flex items-start gap-3">
+                  <div
+                    className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-lg"
+                    style={{ background: isReminding ? "rgba(251,191,36,0.12)" : "rgba(129,140,248,0.1)" }}
+                  >
+                    {isReminding ? <Bell size={12} style={{ color: "#fbbf24" }} /> : <Clock size={12} style={{ color: "#818cf8" }} />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium truncate" style={{ color: "var(--color-text)" }}>{m.title}</p>
+                    <p className="text-[11px]" style={{ color: isReminding ? "#fbbf24" : "var(--color-muted)" }}>
+                      {isReminding ? `In ${minutesUntil} min` : scheduledDate.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                    {m.participants && m.participants.length > 0 && (
+                      <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                        {m.participants.slice(0, 3).map((p, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded-full"
+                            style={{
+                              background: p.type === "agent" ? "rgba(99,102,241,0.1)" : "rgba(52,211,153,0.1)",
+                              color: p.type === "agent" ? "#818cf8" : "var(--color-green)",
+                            }}
+                          >
+                            {p.type === "agent" ? <Bot size={8} /> : <UserPlus size={8} />}
+                            {p.name}
+                          </span>
+                        ))}
+                        {m.participants.length > 3 && (
+                          <span className="text-[10px]" style={{ color: "var(--color-muted)" }}>+{m.participants.length - 3}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <a href="/schedule" className="text-[11px] self-start" style={{ color: "#818cf8", textDecoration: "none" }}>
+            View all in Schedule →
+          </a>
+        </div>
       )}
 
       {/* Tabs */}

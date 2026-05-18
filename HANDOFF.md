@@ -15,54 +15,66 @@
 
 ---
 
-## Current Session — 2026-05-18 (session 2)
+## Current Session — 2026-05-18 (session 3)
 
 ### Done this session
-- **Mobile-first responsive overhaul (iOS/PWA)**
-  - `components/MobileNav.tsx` — NEW: iOS-style bottom tab bar with 4 primary tabs (Home, Chat, Teams, Brain) + "More" bottom-sheet drawer for all other pages. In-flow (not fixed) so it never overlaps content. Respects `env(safe-area-inset-bottom)` for iPhone home indicator.
-  - `app/(app)/layout.tsx` — Sidebar wrapped in `hidden md:flex` (desktop only). Layout restructured to flex-column: `main` (flex-1) + `MobileNav` (in-flow shrink-0). No hacky pb offsets needed.
-  - `app/(app)/chat/page.tsx` — Outer div `h-screen` → `h-full` so chat fills the constrained main height instead of breaking out to 100vh. Header padding `px-6` → `px-4 md:px-6`.
-  - `app/(app)/dashboard/page.tsx` — Widget picker modal fixed `width:480px` → `w-full max-w-[480px] mx-4`. Page `p-6` → `p-4 md:p-6`.
-  - `app/(app)/agent-lab/page.tsx` — TeamBuilder left preview panel `hidden md:flex` on mobile. Modal header/form padding responsive. Page `p-6` → `p-4 md:p-6`.
-  - All 11 other page containers — `p-6` → `p-4 md:p-6` (billing, blog, brain/capture, connect, optimize, projects, schedule, server, settings, tools, users, websites).
-  - `app/layout.tsx` — Added `viewport: Viewport` export with `viewportFit: "cover"` for iPhone notch/safe-area support.
-  - Committed, pushed to GitHub, deployed to VPS (tar → scp → docker rebuild).
-- **Marketplace plan reviewed**
-  - Plan at `docs/MARKETPLACE-PLAN.md` — approved for next session
-  - Suggested improvement: add `featured: boolean` to package JSON for curation; dedup check on `packageId` at install time before needing a DB table
+- **Meeting / Event scheduling feature** — full end-to-end:
+  - `prisma/schema.prisma` — Added `Meeting` model (title, scheduledFor, reminderMins, participants JSON, status)
+  - `app/api/meetings/route.ts` — GET (all/upcoming) + POST
+  - `app/api/meetings/[id]/route.ts` — PATCH (update status/participants) + DELETE
+  - `lib/chat-tools.ts` — Added `schedule_meeting` tool (tool #34). Agents can now schedule meetings from chat. The coordinator knows to use this when users mention meetings/syncs.
+  - `app/(app)/schedule/page.tsx` — Added **Meetings tab**: list of meetings with participant chips (user/agent), reminder badge, mark-done + delete. **Schedule Meeting modal**: title, date/time, agenda, reminder picker (5m–1d), participant builder (add humans by name + agents from team dropdown).
+  - `app/(app)/projects/page.tsx` — Added **Upcoming Meetings section** at top of Projects page showing next 5 meetings with reminder indicators. Links to Schedule page.
+  - `app/api/chat/route.ts` — Coordinator context now injects upcoming meetings (next 24h) into system prompt. Highlights meetings in the reminder window with ⚠️.
+  - `app/(app)/chat/page.tsx` — Added **meeting reminder banner** between header and messages. Checks `/api/meetings?upcoming=true` on load + every 60s. Shows amber banner "📅 Meeting in X min: Title" that can be dismissed.
+- **Phone UI/UX audit file** — `docs/PHONE-UX-TODO.md` created with specific issues to fix and implementation approach for next phone-focused session.
+- **UX Redesign Plan** — `docs/UX-REDESIGN-PLAN.md` created. New navigation: Home / Chat / Teams / Playground (Projects+Schedule+Meetings+Work Queue) / Stack (Optimize+Server+Websites+Tools+Connect+Blog) / Settings (Billing+Users+Language). "Grandpa UX" principles documented. 4-phase implementation checklist ready.
+
+### ⚠️ Required deploy step (DB schema changed)
+```bash
+# On VPS after deploying files:
+docker exec vps-dashboard npx prisma db push
+docker exec vps-dashboard npx prisma generate
+# Or on your local machine: npx prisma generate && npx prisma db push
+```
 
 ### Immediate next steps (priority order)
-1. **Build Marketplace** — `docs/MARKETPLACE-PLAN.md` is approved. ~4-6h. Files to create:
+1. **UX Redesign** — `docs/UX-REDESIGN-PLAN.md` is fully specced. This is the top priority. User wants the app to be intuitive for non-technical users ("grandpa UX"). Full plan with 4 phases and implementation checklist is ready. ~5–8h total.
+   - Phase 1: Navigation restructure (Sidebar groupings, MobileNav, Playground + Stack hub pages)
+   - Phase 2: Empty states + plain English audit
+   - Phase 3: Mobile-specific fixes (from `docs/PHONE-UX-TODO.md`)
+   - Phase 4: Language file (separate session)
+2. **Build Marketplace** — `docs/MARKETPLACE-PLAN.md` is approved. ~4-6h. Files to create:
    - `data/packages/*.json` — 8 package JSON files
    - `app/(app)/marketplace/page.tsx` — browse UI
    - `app/api/marketplace/route.ts` — GET list
    - `app/api/marketplace/install/route.ts` — POST install
    - `components/Sidebar.tsx` — add Marketplace nav link (ShoppingBag icon)
-2. **Add PNG icons** for PWA — generate from `public/icons/icon.svg` at 180×180, 192×192, 512×512 and add to `public/icons/`
-3. **Credit gate** — `lib/credits.ts` + gate in `app/api/chat/route.ts` (see Billing Plan)
-4. **Admin credits panel** — manual grant UI so you can onboard first customers
-5. **Landing page Block G** — Brain section + updated pricing + blog link
+3. **Phone UI/UX fixes** — See `docs/PHONE-UX-TODO.md`. Test on real device first, audit each screen.
+4. **Add PNG icons** for PWA — generate from `public/icons/icon.svg` at 180×180, 192×192, 512×512 and add to `public/icons/`
+5. **Credit gate** — `lib/credits.ts` + gate in `app/api/chat/route.ts` (see Billing Plan)
+6. **Admin credits panel** — manual grant UI so you can onboard first customers
+7. **Landing page Block G** — Brain section + updated pricing + blog link
 
 ### Files touched this session
-- `components/MobileNav.tsx` — NEW
-- `app/(app)/layout.tsx`
-- `app/(app)/chat/page.tsx`
-- `app/(app)/dashboard/page.tsx`
-- `app/(app)/agent-lab/page.tsx`
-- `app/(app)/billing/page.tsx`
-- `app/(app)/blog/page.tsx`
-- `app/(app)/brain/capture/page.tsx`
-- `app/(app)/connect/page.tsx`
-- `app/(app)/optimize/page.tsx`
-- `app/(app)/projects/page.tsx`
-- `app/(app)/schedule/page.tsx`
-- `app/(app)/server/page.tsx`
-- `app/(app)/settings/page.tsx`
-- `app/(app)/tools/page.tsx`
-- `app/(app)/users/page.tsx`
-- `app/(app)/websites/page.tsx`
-- `app/layout.tsx`
+- `prisma/schema.prisma` — Meeting model added
+- `app/api/meetings/route.ts` — NEW
+- `app/api/meetings/[id]/route.ts` — NEW
+- `lib/chat-tools.ts` — schedule_meeting tool added
+- `app/(app)/schedule/page.tsx` — Meetings tab added
+- `app/(app)/projects/page.tsx` — Upcoming meetings section added
+- `app/api/chat/route.ts` — Coordinator meeting context injection
+- `app/(app)/chat/page.tsx` — Meeting reminder banners
+- `docs/PHONE-UX-TODO.md` — NEW
 - `HANDOFF.md`
+
+---
+
+## Previous Session — 2026-05-18 (session 2)
+
+### Done
+- Mobile-first responsive overhaul: MobileNav bottom tab bar, `hidden md:flex` sidebar, all pages `p-4 md:p-6`, chat `h-full` fix, all modal widths responsive
+- Marketplace plan reviewed + approved (`docs/MARKETPLACE-PLAN.md`)
 
 ---
 

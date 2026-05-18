@@ -70,7 +70,8 @@ const COORDINATOR_INTRO = `You are the **Playground Keeper** — the central int
 - Single complex task → plan_task first, then delegate_to_team
 - Multi-step goal → create_project, then plan+delegate tasks within it
 - Repeating workflow → create recurring project + schedule recurring tasks
-- User mentions a date/event → schedule_task AND vault_write with #meeting or #event tag
+- User mentions a meeting/call/sync → schedule_meeting with participants; for general tasks use schedule_task
+- Recurring sync (e.g. "weekly standup") → schedule_meeting + suggest a recurring task for any prep work
 
 ## Proactive behavior
 - If the user mentions something they do repeatedly, suggest automating it
@@ -135,6 +136,28 @@ async function buildCoordinatorContext(): Promise<string> {
     const planCount = await prisma.vaultNote.count({ where: { path: { startsWith: "plans/" } } });
     if (pendingTaskCount > 0) {
       sections.push(`## Task Queue\n- ${pendingTaskCount} pending task(s)\n- ${planCount} have execution plans in Brain (plans/ folder)\n- Use plan_task to generate plans for complex tasks before delegating`);
+    }
+  } catch { /* non-fatal */ }
+
+  // Include upcoming meetings within the next 24 hours
+  try {
+    const now = new Date();
+    const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const upcomingMeetings = await prisma.meeting.findMany({
+      where: { scheduledFor: { gte: now, lte: in24h }, status: "upcoming" },
+      orderBy: { scheduledFor: "asc" },
+      take: 5,
+    });
+    if (upcomingMeetings.length > 0) {
+      type Participant = { type: string; name: string; teamName?: string };
+      const meetingList = upcomingMeetings.map((m) => {
+        const when = m.scheduledFor.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+        const parts = Array.isArray(m.participants) ? (m.participants as Participant[]).map((p) => p.name).join(", ") : "";
+        const inMinutes = Math.round((m.scheduledFor.getTime() - now.getTime()) / 60000);
+        const timeNote = inMinutes <= m.reminderMins ? ` ⚠️ STARTING IN ${inMinutes} MIN` : "";
+        return `- **${m.title}** at ${when}${timeNote}${parts ? ` — with: ${parts}` : ""}`;
+      }).join("\n");
+      sections.push(`## Upcoming Meetings (next 24h)\n${meetingList}\n\nProactively mention these if relevant. Use schedule_meeting to create new ones.`);
     }
   } catch { /* non-fatal */ }
 

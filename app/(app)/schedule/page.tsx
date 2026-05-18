@@ -17,6 +17,11 @@ import {
   ToggleLeft,
   ToggleRight,
   Trash2,
+  Users,
+  Bell,
+  UserPlus,
+  Bot,
+  CheckCircle2,
 } from "lucide-react";
 import { useToast } from "@/components/ToastProvider";
 
@@ -50,6 +55,29 @@ type RecurringTask = {
 type Team = {
   id: string;
   name: string;
+};
+
+type MeetingParticipant = {
+  type: "user" | "agent";
+  name: string;
+  teamName?: string;
+};
+
+type Meeting = {
+  id: string;
+  title: string;
+  description: string | null;
+  scheduledFor: string;
+  reminderMins: number;
+  participants: MeetingParticipant[];
+  status: string;
+  createdAt: string;
+};
+
+type AgentOption = {
+  id: string;
+  name: string;
+  teamName: string;
 };
 
 const TEAM_PALETTE = [
@@ -110,7 +138,7 @@ export default function SchedulePage() {
   const now = new Date();
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<"calendar" | "recurring">("calendar");
+  const [activeTab, setActiveTab] = useState<"calendar" | "recurring" | "meetings">("calendar");
 
   // Calendar state
   const [viewYear, setViewYear] = useState(now.getFullYear());
@@ -128,6 +156,24 @@ export default function SchedulePage() {
     recurring: "none",
     teamId: "",
   });
+
+  // Meetings state
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [meetingsLoading, setMeetingsLoading] = useState(false);
+  const [meetingsError, setMeetingsError] = useState<string | null>(null);
+  const [showMeetingModal, setShowMeetingModal] = useState(false);
+  const [meetingSubmitting, setMeetingSubmitting] = useState(false);
+  const [deletingMeetingId, setDeletingMeetingId] = useState<string | null>(null);
+  const [agentOptions, setAgentOptions] = useState<AgentOption[]>([]);
+  const [meetingForm, setMeetingForm] = useState({
+    title: "",
+    description: "",
+    scheduledFor: "",
+    reminderMins: 15,
+  });
+  const [meetingParticipants, setMeetingParticipants] = useState<MeetingParticipant[]>([]);
+  const [humanInput, setHumanInput] = useState("");
+  const [selectedAgent, setSelectedAgent] = useState("");
 
   // Recurring tasks state
   const [recurringTasks, setRecurringTasks] = useState<RecurringTask[]>([]);
@@ -198,6 +244,118 @@ export default function SchedulePage() {
     }
   }
 
+  async function fetchMeetings() {
+    setMeetingsLoading(true);
+    setMeetingsError(null);
+    try {
+      const res = await fetch("/api/meetings");
+      if (!res.ok) throw new Error("Failed to load meetings");
+      const data = await res.json();
+      setMeetings(data);
+    } catch (err) {
+      setMeetingsError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setMeetingsLoading(false);
+    }
+  }
+
+  async function fetchAgentOptions() {
+    try {
+      const res = await fetch("/api/teams?include=agents");
+      if (!res.ok) return;
+      const teamsData = await res.json();
+      const opts: AgentOption[] = [];
+      for (const team of teamsData) {
+        for (const agent of team.agents ?? []) {
+          opts.push({ id: agent.id, name: agent.name, teamName: team.name });
+        }
+      }
+      setAgentOptions(opts);
+      if (opts.length > 0) setSelectedAgent(opts[0].id);
+    } catch { /* non-critical */ }
+  }
+
+  async function deleteMeeting(id: string) {
+    setDeletingMeetingId(id);
+    try {
+      const res = await fetch(`/api/meetings/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
+      setMeetings((prev) => prev.filter((m) => m.id !== id));
+      addToast("Meeting deleted", "success");
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : "Failed to delete meeting", "error");
+    } finally {
+      setDeletingMeetingId(null);
+    }
+  }
+
+  async function markMeetingDone(id: string) {
+    try {
+      const res = await fetch(`/api/meetings/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "done" }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      setMeetings((prev) => prev.map((m) => m.id === id ? { ...m, status: "done" } : m));
+      addToast("Meeting marked as done", "success");
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : "Failed to update meeting", "error");
+    }
+  }
+
+  async function submitMeeting(e: React.FormEvent) {
+    e.preventDefault();
+    if (!meetingForm.title || !meetingForm.scheduledFor) return;
+    setMeetingSubmitting(true);
+    try {
+      const res = await fetch("/api/meetings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: meetingForm.title,
+          description: meetingForm.description || null,
+          scheduledFor: new Date(meetingForm.scheduledFor).toISOString(),
+          reminderMins: meetingForm.reminderMins,
+          participants: meetingParticipants,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to schedule meeting");
+      const created: Meeting = await res.json();
+      setMeetings((prev) => [created, ...prev].sort((a, b) =>
+        new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime()
+      ));
+      setShowMeetingModal(false);
+      setMeetingForm({ title: "", description: "", scheduledFor: "", reminderMins: 15 });
+      setMeetingParticipants([]);
+      setHumanInput("");
+      addToast("Meeting scheduled", "success");
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : "Failed to schedule meeting", "error");
+    } finally {
+      setMeetingSubmitting(false);
+    }
+  }
+
+  function addHumanParticipant() {
+    const name = humanInput.trim();
+    if (!name) return;
+    if (meetingParticipants.some((p) => p.name === name)) return;
+    setMeetingParticipants((prev) => [...prev, { type: "user", name }]);
+    setHumanInput("");
+  }
+
+  function addAgentParticipant() {
+    const agent = agentOptions.find((a) => a.id === selectedAgent);
+    if (!agent) return;
+    if (meetingParticipants.some((p) => p.type === "agent" && p.name === agent.name)) return;
+    setMeetingParticipants((prev) => [...prev, { type: "agent", name: agent.name, teamName: agent.teamName }]);
+  }
+
+  function removeParticipant(name: string) {
+    setMeetingParticipants((prev) => prev.filter((p) => p.name !== name));
+  }
+
   useEffect(() => {
     fetchJobs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -211,6 +369,9 @@ export default function SchedulePage() {
   useEffect(() => {
     if (activeTab === "recurring") {
       fetchRecurringTasks();
+    } else if (activeTab === "meetings") {
+      fetchMeetings();
+      fetchAgentOptions();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
@@ -358,7 +519,9 @@ export default function SchedulePage() {
           <p className="text-xs mt-0.5" style={{ color: "var(--color-muted)" }}>
             {activeTab === "calendar"
               ? "Monthly task calendar across all agent teams"
-              : "Recurring cron-based tasks across all agent teams"}
+              : activeTab === "recurring"
+              ? "Recurring cron-based tasks across all agent teams"
+              : "Scheduled meetings with humans and agents"}
           </p>
         </div>
         {activeTab === "calendar" ? (
@@ -369,13 +532,21 @@ export default function SchedulePage() {
             <Plus size={15} />
             Add Job
           </button>
-        ) : (
+        ) : activeTab === "recurring" ? (
           <button
             onClick={() => setShowRecurringModal(true)}
             className="btn-primary flex items-center gap-2 px-4 py-2.5"
           >
             <Plus size={15} />
             New Recurring Task
+          </button>
+        ) : (
+          <button
+            onClick={() => setShowMeetingModal(true)}
+            className="btn-primary flex items-center gap-2 px-4 py-2.5"
+          >
+            <Plus size={15} />
+            Schedule Meeting
           </button>
         )}
       </div>
@@ -417,6 +588,29 @@ export default function SchedulePage() {
               style={{ background: "rgba(129,140,248,0.15)", color: "#818cf8" }}
             >
               {recurringTasks.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab("meetings")}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors"
+          style={{
+            color: activeTab === "meetings" ? "var(--color-text)" : "var(--color-muted)",
+            borderBottom: activeTab === "meetings" ? "2px solid #818cf8" : "2px solid transparent",
+            marginBottom: "-1px",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          <Users size={13} />
+          Meetings
+          {meetings.filter((m) => m.status === "upcoming").length > 0 && (
+            <span
+              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+              style={{ background: "rgba(129,140,248,0.15)", color: "#818cf8" }}
+            >
+              {meetings.filter((m) => m.status === "upcoming").length}
             </span>
           )}
         </button>
@@ -838,6 +1032,318 @@ export default function SchedulePage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── MEETINGS TAB ── */}
+      {activeTab === "meetings" && (
+        <div className="flex flex-col gap-4">
+          {meetingsError && (
+            <div
+              className="flex items-center gap-3 px-4 py-3 rounded-xl"
+              style={{ background: "var(--color-red-dim)", border: "1px solid rgba(248,113,113,0.2)" }}
+            >
+              <AlertCircle size={15} style={{ color: "var(--color-red, #f87171)" }} />
+              <p className="text-sm flex-1" style={{ color: "var(--color-red, #f87171)" }}>{meetingsError}</p>
+              <button onClick={fetchMeetings} className="flex items-center gap-1 text-[11px]" style={{ color: "var(--color-red, #f87171)" }}>
+                <RefreshCw size={11} /> Retry
+              </button>
+            </div>
+          )}
+
+          {meetingsLoading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 size={22} className="animate-spin" style={{ color: "#818cf8" }} />
+            </div>
+          )}
+
+          {!meetingsLoading && !meetingsError && meetings.length === 0 && (
+            <div className="glass-card px-4 py-12 flex flex-col items-center gap-3" style={{ textAlign: "center" }}>
+              <Users size={28} style={{ color: "var(--color-muted)" }} />
+              <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>No meetings scheduled</p>
+              <p className="text-xs" style={{ color: "var(--color-muted)" }}>
+                Schedule meetings manually or ask the Coordinator agent to set one up for you.
+              </p>
+              <button
+                onClick={() => setShowMeetingModal(true)}
+                className="btn-primary flex items-center gap-2 px-4 py-2 mt-1"
+              >
+                <Plus size={13} />
+                Schedule Meeting
+              </button>
+            </div>
+          )}
+
+          {!meetingsLoading && meetings.length > 0 && (
+            <div className="flex flex-col gap-3">
+              {meetings.map((meeting) => {
+                const scheduledDate = new Date(meeting.scheduledFor);
+                const isPast = scheduledDate < new Date();
+                const minutesUntil = Math.round((scheduledDate.getTime() - Date.now()) / 60000);
+                const isReminding = minutesUntil > 0 && minutesUntil <= meeting.reminderMins;
+
+                return (
+                  <div
+                    key={meeting.id}
+                    className="glass-card px-4 py-3 flex items-start gap-4"
+                    style={{
+                      borderLeft: `3px solid ${
+                        meeting.status === "done" ? "var(--color-muted)"
+                        : isReminding ? "var(--color-yellow)"
+                        : "#818cf8"
+                      }`,
+                      opacity: meeting.status === "done" ? 0.65 : 1,
+                    }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
+                          {meeting.title}
+                        </span>
+                        {meeting.status === "done" && (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(100,116,139,0.1)", color: "var(--color-muted)" }}>done</span>
+                        )}
+                        {isReminding && (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-1" style={{ background: "rgba(251,191,36,0.15)", color: "var(--color-yellow)" }}>
+                            <Bell size={9} /> {minutesUntil} min
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-3 mt-1 flex-wrap">
+                        <div className="flex items-center gap-1">
+                          <Clock size={11} style={{ color: "var(--color-muted)" }} />
+                          <span className="text-[11px]" style={{ color: isPast && meeting.status !== "done" ? "var(--color-red, #f87171)" : "var(--color-muted)" }}>
+                            {scheduledDate.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Bell size={10} style={{ color: "var(--color-muted)" }} />
+                          <span className="text-[10px]" style={{ color: "var(--color-muted)" }}>{meeting.reminderMins}m before</span>
+                        </div>
+                      </div>
+
+                      {meeting.description && (
+                        <p className="text-xs mt-1 truncate" style={{ color: "var(--color-muted)" }}>{meeting.description}</p>
+                      )}
+
+                      {meeting.participants && meeting.participants.length > 0 && (
+                        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                          {meeting.participants.map((p, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full"
+                              style={{
+                                background: p.type === "agent" ? "rgba(99,102,241,0.1)" : "rgba(52,211,153,0.1)",
+                                color: p.type === "agent" ? "#818cf8" : "var(--color-green)",
+                                border: `1px solid ${p.type === "agent" ? "rgba(129,140,248,0.2)" : "rgba(52,211,153,0.2)"}`,
+                              }}
+                            >
+                              {p.type === "agent" ? <Bot size={9} /> : <UserPlus size={9} />}
+                              {p.name}
+                              {p.teamName && <span style={{ opacity: 0.7 }}> · {p.teamName}</span>}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 flex-shrink-0 pt-0.5">
+                      {meeting.status === "upcoming" && (
+                        <button
+                          onClick={() => markMeetingDone(meeting.id)}
+                          title="Mark as done"
+                          style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-muted)", padding: "4px" }}
+                          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-green)"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-muted)"; }}
+                        >
+                          <CheckCircle2 size={14} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => deleteMeeting(meeting.id)}
+                        disabled={deletingMeetingId === meeting.id}
+                        title="Delete meeting"
+                        style={{ background: "transparent", border: "none", cursor: deletingMeetingId === meeting.id ? "wait" : "pointer", color: "var(--color-muted)", padding: "4px" }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--color-red, #f87171)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = "var(--color-muted)"; }}
+                      >
+                        {deletingMeetingId === meeting.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Schedule Meeting Modal ── */}
+      {showMeetingModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+          onClick={() => setShowMeetingModal(false)}
+        >
+          <form
+            onSubmit={submitMeeting}
+            className="glass-card p-6 animate-fade-in flex flex-col gap-4 overflow-y-auto"
+            style={{ width: "min(480px, calc(100vw - 32px))", maxHeight: "90vh" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-base" style={{ color: "var(--color-text)" }}>Schedule a Meeting</h2>
+              <button type="button" onClick={() => setShowMeetingModal(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-muted)", padding: "4px" }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Title */}
+            <div>
+              <label className="text-[11px] font-medium block mb-1" style={{ color: "var(--color-muted)" }}>Title *</label>
+              <input
+                type="text"
+                value={meetingForm.title}
+                onChange={(e) => setMeetingForm((f) => ({ ...f, title: e.target.value }))}
+                placeholder="e.g. Weekly team sync"
+                required
+                className="glass-input w-full px-3 py-2 text-sm"
+                style={{ color: "var(--color-text)" }}
+              />
+            </div>
+
+            {/* Date & Time */}
+            <div>
+              <label className="text-[11px] font-medium block mb-1" style={{ color: "var(--color-muted)" }}>Date &amp; Time *</label>
+              <input
+                type="datetime-local"
+                value={meetingForm.scheduledFor}
+                onChange={(e) => setMeetingForm((f) => ({ ...f, scheduledFor: e.target.value }))}
+                required
+                className="glass-input w-full px-3 py-2 text-sm"
+                style={{ color: "var(--color-text)", colorScheme: "dark" }}
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="text-[11px] font-medium block mb-1" style={{ color: "var(--color-muted)" }}>Agenda <span style={{ fontWeight: 400 }}>(optional)</span></label>
+              <input
+                type="text"
+                value={meetingForm.description}
+                onChange={(e) => setMeetingForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="What's this meeting about?"
+                className="glass-input w-full px-3 py-2 text-sm"
+                style={{ color: "var(--color-text)" }}
+              />
+            </div>
+
+            {/* Reminder */}
+            <div>
+              <label className="text-[11px] font-medium block mb-1" style={{ color: "var(--color-muted)" }}>Remind me</label>
+              <select
+                value={meetingForm.reminderMins}
+                onChange={(e) => setMeetingForm((f) => ({ ...f, reminderMins: Number(e.target.value) }))}
+                className="glass-input w-full px-3 py-2 text-sm"
+                style={{ color: "var(--color-text)", colorScheme: "dark", background: "var(--color-surface-2)" }}
+              >
+                <option value={5}>5 minutes before</option>
+                <option value={10}>10 minutes before</option>
+                <option value={15}>15 minutes before</option>
+                <option value={30}>30 minutes before</option>
+                <option value={60}>1 hour before</option>
+                <option value={120}>2 hours before</option>
+                <option value={1440}>1 day before</option>
+              </select>
+            </div>
+
+            {/* Participants */}
+            <div>
+              <label className="text-[11px] font-medium block mb-2" style={{ color: "var(--color-muted)" }}>Participants</label>
+
+              {/* Human participant input */}
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  value={humanInput}
+                  onChange={(e) => setHumanInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addHumanParticipant(); } }}
+                  placeholder="Add a person by name…"
+                  className="glass-input flex-1 px-3 py-1.5 text-sm"
+                  style={{ color: "var(--color-text)" }}
+                />
+                <button
+                  type="button"
+                  onClick={addHumanParticipant}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg"
+                  style={{ background: "rgba(52,211,153,0.1)", color: "var(--color-green)", border: "1px solid rgba(52,211,153,0.2)" }}
+                >
+                  <UserPlus size={12} /> Add
+                </button>
+              </div>
+
+              {/* Agent participant picker */}
+              {agentOptions.length > 0 && (
+                <div className="flex gap-2 mb-3">
+                  <select
+                    value={selectedAgent}
+                    onChange={(e) => setSelectedAgent(e.target.value)}
+                    className="glass-input flex-1 px-3 py-1.5 text-sm"
+                    style={{ color: "var(--color-text)", colorScheme: "dark", background: "var(--color-surface-2)" }}
+                  >
+                    {agentOptions.map((a) => (
+                      <option key={a.id} value={a.id}>{a.name} · {a.teamName}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={addAgentParticipant}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg"
+                    style={{ background: "rgba(99,102,241,0.1)", color: "#818cf8", border: "1px solid rgba(129,140,248,0.2)" }}
+                  >
+                    <Bot size={12} /> Add Agent
+                  </button>
+                </div>
+              )}
+
+              {/* Participant chips */}
+              {meetingParticipants.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {meetingParticipants.map((p, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full"
+                      style={{
+                        background: p.type === "agent" ? "rgba(99,102,241,0.12)" : "rgba(52,211,153,0.12)",
+                        color: p.type === "agent" ? "#818cf8" : "var(--color-green)",
+                        border: `1px solid ${p.type === "agent" ? "rgba(129,140,248,0.25)" : "rgba(52,211,153,0.25)"}`,
+                      }}
+                    >
+                      {p.type === "agent" ? <Bot size={10} /> : <UserPlus size={10} />}
+                      {p.name}
+                      <button
+                        type="button"
+                        onClick={() => removeParticipant(p.name)}
+                        style={{ background: "transparent", border: "none", cursor: "pointer", lineHeight: 1, padding: 0, marginLeft: "2px", opacity: 0.7 }}
+                      >
+                        <X size={9} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={meetingSubmitting || !meetingForm.title || !meetingForm.scheduledFor}
+              className="btn-primary flex items-center justify-center gap-2 py-2.5 mt-1"
+            >
+              {meetingSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Users size={14} />}
+              {meetingSubmitting ? "Scheduling…" : "Schedule Meeting"}
+            </button>
+          </form>
         </div>
       )}
 

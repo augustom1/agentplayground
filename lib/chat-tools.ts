@@ -597,6 +597,37 @@ export const CHAT_TOOLS: ToolDefinition[] = [
       required: ["taskId"],
     },
   },
+  {
+    name: "schedule_meeting",
+    description:
+      "Schedule a meeting with human participants and/or agents. Creates an entry visible in the Schedule (Meetings tab) and Projects pages. Use when: the user mentions a meeting, call, or sync; when coordinating between multiple parties on a task; or when setting up recurring check-ins (e.g. 'weekly sync with Dev Core team'). The system will show a reminder in chat before the meeting time.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Meeting title" },
+        scheduledFor: { type: "string", description: "ISO 8601 date-time string (e.g. '2026-06-01T14:00:00Z')" },
+        description: { type: "string", description: "Meeting agenda or purpose (optional)" },
+        reminderMins: {
+          type: "number",
+          description: "Minutes before the meeting to show a reminder banner in chat (default: 15)",
+        },
+        participants: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              type: { type: "string", enum: ["user", "agent"], description: "Participant type" },
+              name: { type: "string", description: "Person or agent name" },
+              teamName: { type: "string", description: "Team name (for agent participants)" },
+            },
+            required: ["type", "name"],
+          },
+          description: "Participants: add humans by name, agents by name + teamName",
+        },
+      },
+      required: ["title", "scheduledFor"],
+    },
+  },
 ];
 
 /**
@@ -675,6 +706,8 @@ export async function executeTool(
         return await toolVaultWrite(input);
       case "plan_task":
         return await toolPlanTask(input);
+      case "schedule_meeting":
+        return await toolScheduleMeeting(input);
       default:
         return JSON.stringify({ error: `Unknown tool: ${toolName}` });
     }
@@ -1607,4 +1640,38 @@ async function toolPlanTask(input: Record<string, unknown>): Promise<string> {
   } catch (err) {
     return JSON.stringify({ error: String(err) });
   }
+}
+
+async function toolScheduleMeeting(input: Record<string, unknown>): Promise<string> {
+  if (!input.title) return JSON.stringify({ error: "title is required" });
+  if (!input.scheduledFor) return JSON.stringify({ error: "scheduledFor is required" });
+
+  const meeting = await prisma.meeting.create({
+    data: {
+      title: input.title as string,
+      description: (input.description as string) ?? null,
+      scheduledFor: new Date(input.scheduledFor as string),
+      reminderMins: (input.reminderMins as number) ?? 15,
+      participants: (input.participants as unknown[]) ?? [],
+      createdBy: "agent",
+    },
+  });
+
+  const when = new Date(meeting.scheduledFor).toLocaleString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const participantList = Array.isArray(input.participants) && input.participants.length > 0
+    ? (input.participants as Array<{ name: string }>).map((p) => p.name).join(", ")
+    : "no specific participants";
+
+  return JSON.stringify({
+    success: true,
+    meeting: { id: meeting.id, title: meeting.title, scheduledFor: meeting.scheduledFor },
+    message: `✓ Meeting "${meeting.title}" scheduled for ${when}. Participants: ${participantList}. A reminder will appear in chat ${meeting.reminderMins} minutes before. Visible in Schedule → Meetings tab.`,
+  });
 }
