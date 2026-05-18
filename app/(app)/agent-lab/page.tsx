@@ -288,9 +288,9 @@ function TeamBuilderModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* ── Left: Live Preview ── */}
+        {/* ── Left: Live Preview — hidden on mobile ── */}
         <div
-          className="w-64 shrink-0 flex flex-col min-h-0"
+          className="hidden md:flex w-64 shrink-0 flex-col min-h-0"
           style={{ borderRight: "1px solid var(--color-border)" }}
         >
           <div
@@ -812,7 +812,7 @@ function AgentEditModal({
       >
         {/* Header */}
         <div
-          className="px-6 py-4 flex items-center justify-between shrink-0"
+          className="px-4 md:px-6 py-4 flex items-center justify-between shrink-0"
           style={{ borderBottom: "1px solid var(--color-border)" }}
         >
           <div className="flex items-center gap-3">
@@ -836,7 +836,7 @@ function AgentEditModal({
         </div>
 
         {/* Form */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5 min-h-0">
+        <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5 flex flex-col gap-5 min-h-0">
           <div>
             <label className="text-[11px] font-semibold uppercase tracking-wider mb-1.5 block" style={{ color: "var(--color-text-secondary)" }}>Name</label>
             <input
@@ -1449,7 +1449,7 @@ export default function AgentLabPage() {
 
   return (
     <>
-    <div className="flex flex-col gap-5 p-6 max-w-6xl mx-auto w-full animate-fade-in">
+    <div className="flex flex-col gap-5 p-4 md:p-6 max-w-6xl mx-auto w-full animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

@@ -327,7 +327,7 @@ export default function OptimizePage() {
   const filtered = filterCat === "all" ? protocols : protocols.filter((p) => p.category === filterCat);
 
   return (
-    <div className="flex-1 overflow-auto p-6 space-y-6">
+    <div className="flex-1 overflow-auto p-4 md:p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

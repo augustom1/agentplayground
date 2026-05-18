@@ -872,14 +872,14 @@ export default function ChatPage() {
   const showSuggestions = messages.length <= 1 && !streaming;
 
   return (
-    <div className="flex flex-col h-screen max-h-screen">
+    <div className="flex flex-col h-full max-h-full">
       {/* Header */}
       <div
         className="shrink-0"
         style={{ borderBottom: "1px solid var(--color-border)", background: "var(--color-background)" }}
       >
         {/* Top row */}
-        <div className="flex items-center justify-between px-6 py-3">
+        <div className="flex items-center justify-between px-4 md:px-6 py-3">
           <div className="flex items-center gap-3">
             <div
               className="flex items-center justify-center w-8 h-8"
@@ -916,7 +916,7 @@ export default function ChatPage() {
 
         {/* Config row — team, provider, model selectors */}
         <div
-          className="flex items-center gap-2 px-6 pb-3"
+          className="flex items-center gap-2 px-4 md:px-6 pb-3"
           style={{ flexWrap: "wrap" }}
         >
           {/* Team selector */}

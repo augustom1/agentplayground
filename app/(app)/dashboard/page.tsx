@@ -485,7 +485,7 @@ export default function DashboardPage() {
   const isEmpty = widgets.length === 0;
 
   return (
-    <div className="flex flex-col gap-5 p-6 max-w-5xl mx-auto w-full animate-fade-in">
+    <div className="flex flex-col gap-5 p-4 md:p-6 max-w-5xl mx-auto w-full animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -606,8 +606,8 @@ export default function DashboardPage() {
           onClick={() => setShowPicker(false)}
         >
           <div
-            className="glass-card p-6 animate-fade-in"
-            style={{ width: "480px", maxHeight: "80vh", overflow: "auto" }}
+            className="glass-card p-4 md:p-6 animate-fade-in w-full max-w-[480px] mx-4 md:mx-0"
+            style={{ maxHeight: "80vh", overflow: "auto" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-5">

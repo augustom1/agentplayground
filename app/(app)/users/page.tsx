@@ -114,7 +114,7 @@ export default function UsersPage() {
 
   return (
     <>
-    <div className="flex flex-col gap-5 p-6 max-w-4xl animate-fade-in">
+    <div className="flex flex-col gap-5 p-4 md:p-6 max-w-4xl animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>

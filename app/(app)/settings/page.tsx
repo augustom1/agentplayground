@@ -159,7 +159,7 @@ export default function SettingsPage() {
   const allRequiredSet = hasDatabaseUrl && (hasAnthropicKey || hasOllamaUrl);
 
   return (
-    <div className="flex flex-col gap-5 p-6 max-w-3xl animate-fade-in">
+    <div className="flex flex-col gap-5 p-4 md:p-6 max-w-3xl animate-fade-in">
       <div>
         <h1 className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>
           Settings
