@@ -15,9 +15,31 @@
 
 ---
 
-## Current Session — 2026-05-16
+## Current Session — 2026-05-18
 
 ### Done this session
+- **PWA / iOS "Add to Home Screen"**
+  - `app/manifest.ts` — Next.js manifest route (name, icons, display:standalone, theme #06060e)
+  - `app/layout.tsx` — added `appleWebApp` metadata + apple-touch-icon link
+  - `public/icons/icon.svg` — placeholder SVG icon (lightning bolt on dark bg)
+  - ⚠️ **Action needed**: add PNG icons to `public/icons/` — 180x180 (`apple-touch-icon.png`), 192x192 (`icon-192.png`), 512x512 (`icon-512.png`). Export from the SVG or use a tool like [realfavicongenerator.net](https://realfavicongenerator.net).
+- **Direct Agent Editor (game-like)**
+  - `app/api/agents/[id]/route.ts` — NEW: `PATCH` (update fields) + `DELETE` (remove agent)
+  - `app/(app)/agent-lab/page.tsx` — added `AgentEditModal` component with form fields: name, description, model (dropdown), capabilities (tag chips), system prompt
+  - Pencil icon button on each agent card in `TeamInfoModal` opens the editor
+  - Saves via `PATCH /api/agents/:id`, updates card in-place without closing the info modal
+- **Marketplace Plan**
+  - Full spec written at `docs/MARKETPLACE-PLAN.md` — **awaiting approval before building**
+  - 8 starter packages defined, JSON format spec'd, API routes planned, no DB changes needed
+
+### Immediate next steps (priority order)
+1. **Add PNG icons** — generate from `public/icons/icon.svg` at 180, 192, 512px
+2. **Marketplace** — review `docs/MARKETPLACE-PLAN.md`, approve, then build (~4-6h)
+3. **Credit gate** — build `lib/credits.ts` + add check in `app/api/chat/route.ts` (see Billing Plan below)
+4. **Admin credits panel** — manual grant UI at `/settings` or `/admin` so you can onboard first customers
+5. **Landing page Block G** — Brain section + updated pricing + blog link
+
+### Done last session (2026-05-16)
 - **Marketing Team** added to `scripts/seed-teams.ts`
   - Agents: Nova (Strategist), Spark (Copywriter), Pixel (Visual Director)
   - Skills: Weekly Content Plan, Twitter Thread, LinkedIn Post

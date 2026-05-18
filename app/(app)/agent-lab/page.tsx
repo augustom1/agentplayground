@@ -31,6 +31,7 @@ import {
   Code2,
   ChevronRight,
   Info,
+  Pencil,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -732,6 +733,215 @@ function ImportModal({
   );
 }
 
+// ─── AgentEditModal ───────────────────────────────────────────────────────────
+
+const AGENT_MODELS = [
+  { value: "claude-haiku-4-5-20251001", label: "Haiku — Fast" },
+  { value: "claude-sonnet-4-6", label: "Sonnet — Balanced" },
+  { value: "claude-opus-4-7", label: "Opus — Powerful" },
+  { value: "gpt-4o", label: "GPT-4o" },
+  { value: "gpt-4o-mini", label: "GPT-4o Mini" },
+  { value: "llama3", label: "Llama 3 (Local)" },
+  { value: "mistral", label: "Mistral (Local)" },
+];
+
+function AgentEditModal({
+  agent,
+  onClose,
+  onSaved,
+}: {
+  agent: Agent;
+  onClose: () => void;
+  onSaved: (updated: Agent) => void;
+}) {
+  const { addToast } = useToast();
+  const [name, setName] = useState(agent.name);
+  const [description, setDescription] = useState(agent.description ?? "");
+  const [model, setModel] = useState(agent.model);
+  const [systemPrompt, setSystemPrompt] = useState(agent.systemPrompt ?? "");
+  const [capabilities, setCapabilities] = useState<string[]>(agent.capabilities);
+  const [capInput, setCapInput] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const knownModels = AGENT_MODELS.map((m) => m.value);
+  const allModels = knownModels.includes(agent.model)
+    ? AGENT_MODELS
+    : [...AGENT_MODELS, { value: agent.model, label: agent.model }];
+
+  function addCap() {
+    const v = capInput.trim().replace(/,$/, "");
+    if (v && !capabilities.includes(v)) setCapabilities((prev) => [...prev, v]);
+    setCapInput("");
+  }
+
+  async function save() {
+    if (!name.trim()) { addToast("Name is required", "error"); return; }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/agents/${agent.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, description, model, systemPrompt, capabilities }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      addToast("Agent updated!", "success");
+      onSaved(await res.json());
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : "Save failed", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(10px)" }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-xl animate-fade-in flex flex-col"
+        style={{
+          maxHeight: "90vh",
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "20px",
+          overflow: "hidden",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          className="px-6 py-4 flex items-center justify-between shrink-0"
+          style={{ borderBottom: "1px solid var(--color-border)" }}
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className="w-8 h-8 flex items-center justify-center rounded-xl"
+              style={{ background: "rgba(99,102,241,0.18)" }}
+            >
+              <Pencil size={14} style={{ color: "rgba(165,180,252,1)" }} />
+            </div>
+            <div>
+              <p className="font-semibold text-sm" style={{ color: "var(--color-text)" }}>Edit Agent</p>
+              <p className="text-[11px]" style={{ color: "var(--color-muted)" }}>{agent.name}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ color: "var(--color-muted)", background: "none", border: "none", cursor: "pointer", padding: "4px" }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Form */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5 min-h-0">
+          <div>
+            <label className="text-[11px] font-semibold uppercase tracking-wider mb-1.5 block" style={{ color: "var(--color-text-secondary)" }}>Name</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="glass-input w-full px-3 py-2.5 text-sm"
+              placeholder="Agent name"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-semibold uppercase tracking-wider mb-1.5 block" style={{ color: "var(--color-text-secondary)" }}>Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              className="glass-input w-full px-3 py-2.5 text-sm resize-none"
+              placeholder="What this agent does"
+              style={{ fontFamily: "inherit", lineHeight: "1.55" }}
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-semibold uppercase tracking-wider mb-1.5 block" style={{ color: "var(--color-text-secondary)" }}>Model</label>
+            <select
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              className="glass-input w-full px-3 py-2.5 text-sm"
+              style={{ cursor: "pointer", background: "var(--color-surface-2)", color: "var(--color-text)" }}
+            >
+              {allModels.map((m) => (
+                <option key={m.value} value={m.value} style={{ background: "#1a1a2e" }}>
+                  {m.label} · {m.value}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-semibold uppercase tracking-wider mb-1.5 block" style={{ color: "var(--color-text-secondary)" }}>Capabilities</label>
+            <div className="flex flex-wrap gap-1.5 mb-2 min-h-[24px]">
+              {capabilities.map((cap) => (
+                <span
+                  key={cap}
+                  className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full"
+                  style={{ background: "rgba(99,102,241,0.12)", color: "rgba(165,180,252,0.9)", border: "1px solid rgba(99,102,241,0.2)" }}
+                >
+                  {cap}
+                  <button
+                    onClick={() => setCapabilities((prev) => prev.filter((c) => c !== cap))}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", padding: 0, lineHeight: 1, display: "flex" }}
+                  >
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={capInput}
+                onChange={(e) => setCapInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addCap(); } }}
+                className="glass-input flex-1 px-3 py-2 text-sm"
+                placeholder="Type and press Enter to add"
+              />
+              <button onClick={addCap} className="btn-ghost px-3 py-2 flex items-center" style={{ fontSize: "12px" }}>
+                <Plus size={13} />
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] font-semibold uppercase tracking-wider mb-1.5 block" style={{ color: "var(--color-text-secondary)" }}>System Prompt</label>
+            <textarea
+              value={systemPrompt}
+              onChange={(e) => setSystemPrompt(e.target.value)}
+              rows={9}
+              className="glass-input w-full px-3 py-2.5 text-sm resize-none"
+              placeholder="You are an expert..."
+              style={{ fontFamily: "inherit", lineHeight: "1.6" }}
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div
+          className="px-6 py-4 flex items-center justify-end gap-3 shrink-0"
+          style={{ borderTop: "1px solid var(--color-border)", background: "var(--color-surface-2)" }}
+        >
+          <button onClick={onClose} className="btn-ghost px-4 py-2" style={{ fontSize: "13px" }}>Cancel</button>
+          <button
+            onClick={save}
+            disabled={saving || !name.trim()}
+            className="btn-primary flex items-center gap-2 px-4 py-2"
+            style={{ fontSize: "13px" }}
+          >
+            {saving && <Loader2 size={13} className="animate-spin" />}
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── TeamInfoModal ────────────────────────────────────────────────────────────
 
 function TeamInfoModal({
@@ -751,6 +961,7 @@ function TeamInfoModal({
 }) {
   const [detail, setDetail] = useState<TeamDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -884,12 +1095,24 @@ function TeamInfoModal({
                               <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--color-muted)" }}>{a.description}</p>
                             )}
                           </div>
-                          <span
-                            className="text-[10px] px-2 py-0.5 rounded font-mono shrink-0"
-                            style={{ background: "var(--color-surface-3)", color: "var(--color-text-secondary)" }}
-                          >
-                            {a.model}
-                          </span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span
+                              className="text-[10px] px-2 py-0.5 rounded font-mono"
+                              style={{ background: "var(--color-surface-3)", color: "var(--color-text-secondary)" }}
+                            >
+                              {a.model}
+                            </span>
+                            <button
+                              onClick={() => setEditingAgent(a)}
+                              title="Edit agent"
+                              className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors"
+                              style={{ color: "var(--color-muted)", background: "transparent", border: "none", cursor: "pointer" }}
+                              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.15)")}
+                              onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "transparent")}
+                            >
+                              <Pencil size={12} />
+                            </button>
+                          </div>
                         </div>
                         {a.capabilities.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mt-2.5">
@@ -1031,6 +1254,18 @@ function TeamInfoModal({
           </button>
         </div>
       </div>
+      {editingAgent && (
+        <AgentEditModal
+          agent={editingAgent}
+          onClose={() => setEditingAgent(null)}
+          onSaved={(updated) => {
+            setDetail((prev) =>
+              prev ? { ...prev, agents: prev.agents.map((a) => a.id === updated.id ? updated : a) } : prev
+            );
+            setEditingAgent(null);
+          }}
+        />
+      )}
     </div>
   );
 }
