@@ -19,6 +19,9 @@
 
 ### Done this session
 - **UX Redesign Phase 1 — Navigation restructure** (completed)
+- **Credit gate** — `lib/credits.ts` + gate in chat route (Anthropic-only, admin-exempt, deducts after stream)
+- **Admin credits panel** — `/api/admin/credits` GET/POST + `CreditsAdminPanel` in Settings page
+- **Deployed to VPS** — all files SCP'd, container rebuilt, DB schema confirmed in sync
   - `components/Sidebar.tsx` — Full rewrite: grouped sections (WORK / KNOWLEDGE / STACK), Playground expandable sub-items (Projects, Schedule, Work Queue), STACK collapsible chevron (starts collapsed, saves to localStorage), Chat dropdown kept, removed customize modal complexity
   - `components/MobileNav.tsx` — 5 primary tabs: Home, Chat, Teams, Playground, More. More drawer now has grouped sections with labels (WORK / KNOWLEDGE / STACK / SETTINGS), not a flat grid.
   - `app/(app)/playground/page.tsx` — NEW hub page: 3 feature cards (Projects, Schedule, Work Queue) + live upcoming meetings + active projects. Empty states with CTAs.
