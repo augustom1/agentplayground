@@ -52,6 +52,7 @@ model AgentTeam {
   isSystemTeam Boolean @default(false) // true for DB Agent, File Manager
   isImported  Boolean  @default(false)
   sourceUrl   String?  // URL if downloaded from registry
+  category    String   @default("General") // workspace/group label
 
   tasksCompleted Int    @default(0)
   lastActivity   String @default("Never")

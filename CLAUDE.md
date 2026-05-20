@@ -46,6 +46,8 @@
 | **Other** | |
 | Landing page Brain section + pricing | ❌ Block G |
 | Admin monitoring panel | ❌ not built |
+| **Agent Teams** | |
+| Workspace tabs (category grouping) | ✅ Built — needs db push + deploy |
 
 ---
 
@@ -204,14 +206,13 @@ VPS IP: 95.217.163.247 · App: `/root/opt/vps/` · Secrets: `.env.local`
 > Session notes moved to `HANDOFF.md` (current) and `docs/SESSION-HISTORY.md` (archive).
 > **Read `HANDOFF.md` first** — it has what was done, what's next, and the billing plan.
 
-### Last session summary — 2026-05-16
-- Marketing Team + Blog Team added to `scripts/seed-teams.ts` and seeded on VPS
-- `/api/blog/public` public blog endpoint created
-- `/app/(app)/blog/page.tsx` blog pipeline management page created
-- Blog link added to Sidebar
-- HANDOFF.md + SESSION-HISTORY.md created; CLAUDE.md trimmed
+### Last session summary — 2026-05-20
+- Workspace tabs added to Agent Teams (`/agent-lab`)
+- `category` field added to `AgentTeam` schema (default: "General")
+- `create_team` tool updated to accept `category` parameter
+- Workspace tab bar, inline category assignment dropdown, workspace-aware builder modal
 
 ### Action items still open
+- Deploy: `scp` 4 files + `prisma db push` on VPS (see HANDOFF.md deploy steps)
 - Update wallet addresses in `app/(app)/billing/page.tsx` (WALLETS constant)
-- Update `CONTACT_INFO.telegram` in the same file
-- Build credit gate (`lib/credits.ts` + chat route gate) — see `HANDOFF.md` Billing Plan
+- Build LLM Provider Settings UI (next priority — see HANDOFF.md)

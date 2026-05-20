@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
         description: body.description ?? "",
         port: body.port ?? 8000,
         language: body.language ?? "Python / FastAPI",
+        category: body.category ?? "General",
         config: body.config ?? null,
         isImported: body.isImported ?? false,
         sourceUrl: body.sourceUrl ?? null,

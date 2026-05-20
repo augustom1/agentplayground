@@ -45,6 +45,7 @@ type Team = {
   language: string;
   tasksCompleted: number;
   lastActivity: string;
+  category: string;
   _count: { agents: number; tasks: number; skills: number };
 };
 
@@ -148,10 +149,12 @@ function TeamBuilderModal({
   editTeam,
   onClose,
   onRefresh,
+  workspace,
 }: {
   editTeam?: Team;
   onClose: () => void;
   onRefresh: () => void;
+  workspace?: string;
 }) {
   const { addToast } = useToast();
   const { t } = useLanguage();
@@ -206,8 +209,13 @@ function TeamBuilderModal({
     abortRef.current = new AbortController();
 
     try {
+      const workspaceCtx = workspace && workspace !== "All"
+        ? ` Assign any new teams to category/workspace: "${workspace}".`
+        : "";
       const systemContext = editTeam
-        ? `The user is modifying an existing team. Team ID: "${editTeam.id}", Team Name: "${editTeam.name}". Use this team ID when calling create_agent, add_skill, add_cli_function, update_team, or list_team_details.`
+        ? `The user is modifying an existing team. Team ID: "${editTeam.id}", Team Name: "${editTeam.name}". Use this team ID when calling create_agent, add_skill, add_cli_function, update_team, or list_team_details.${workspaceCtx}`
+        : workspaceCtx
+        ? workspaceCtx.trim()
         : undefined;
 
       const res = await fetch("/api/chat", {
@@ -479,9 +487,19 @@ function TeamBuilderModal({
                 <Sparkles size={14} style={{ color: "rgba(165,180,252,1)" }} />
               </div>
               <div>
-                <p className="font-semibold text-sm" style={{ color: "var(--color-text)" }}>
-                  {editTeam ? `Editing: ${editTeam.name}` : t("buildWithAI")}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-sm" style={{ color: "var(--color-text)" }}>
+                    {editTeam ? `Editing: ${editTeam.name}` : t("buildWithAI")}
+                  </p>
+                  {workspace && workspace !== "All" && (
+                    <span
+                      className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                      style={{ background: "rgba(99,102,241,0.15)", color: "rgba(165,180,252,0.9)", border: "1px solid rgba(99,102,241,0.25)" }}
+                    >
+                      {workspace}
+                    </span>
+                  )}
+                </div>
                 <p className="text-[11px]" style={{ color: "var(--color-muted)" }}>
                   {t("chatChanges")}
                 </p>
@@ -1291,6 +1309,12 @@ export default function AgentLabPage() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Workspace tabs
+  const [activeWorkspace, setActiveWorkspace] = useState("All");
+  const [newWorkspaceInput, setNewWorkspaceInput] = useState("");
+  const [showNewWorkspaceInput, setShowNewWorkspaceInput] = useState(false);
+  const [editingCategoryTeam, setEditingCategoryTeam] = useState<string | null>(null);
+
   // Modals
   const [showBuilder, setShowBuilder] = useState(false);
   const [builderEditTeam, setBuilderEditTeam] = useState<Team | undefined>(undefined);
@@ -1299,6 +1323,8 @@ export default function AgentLabPage() {
   const [deleting, setDeleting] = useState(false);
   const [infoTeam, setInfoTeam] = useState<Team | null>(null);
 
+  const workspaces = ["All", ...Array.from(new Set(teams.map((t) => t.category || "General")))];
+  const filteredTeams = activeWorkspace === "All" ? teams : teams.filter((t) => (t.category || "General") === activeWorkspace);
   const targets = ["All Teams", ...teams.map((t) => t.name)];
 
   async function fetchTeams() {
@@ -1331,6 +1357,17 @@ export default function AgentLabPage() {
     fetchTeams();
     fetchHistory();
   }, []);
+
+  // ── Workspace ──
+  async function moveTeamToWorkspace(teamId: string, category: string) {
+    await fetch(`/api/teams/${teamId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category }),
+    });
+    setTeams((prev) => prev.map((t) => t.id === teamId ? { ...t, category } : t));
+    setEditingCategoryTeam(null);
+  }
 
   // ── Export ──
   async function exportTeam(teamId: string, teamName: string) {
@@ -1497,6 +1534,66 @@ export default function AgentLabPage() {
             )}
           </div>
 
+          {/* Workspace tabs */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {workspaces.map((ws) => (
+              <button
+                key={ws}
+                onClick={() => setActiveWorkspace(ws)}
+                className="px-3 py-1 rounded-full text-[12px] font-medium transition-all"
+                style={{
+                  background: activeWorkspace === ws ? "rgba(99,102,241,0.2)" : "var(--color-surface-2)",
+                  color: activeWorkspace === ws ? "rgba(165,180,252,1)" : "var(--color-muted)",
+                  border: activeWorkspace === ws ? "1px solid rgba(99,102,241,0.35)" : "1px solid var(--color-border)",
+                  cursor: "pointer",
+                }}
+              >
+                {ws}
+                {ws !== "All" && (
+                  <span className="ml-1.5 opacity-60" style={{ fontSize: "10px" }}>
+                    {teams.filter((t) => (t.category || "General") === ws).length}
+                  </span>
+                )}
+              </button>
+            ))}
+            {showNewWorkspaceInput ? (
+              <div className="flex items-center gap-1">
+                <input
+                  autoFocus
+                  value={newWorkspaceInput}
+                  onChange={(e) => setNewWorkspaceInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newWorkspaceInput.trim()) {
+                      setActiveWorkspace(newWorkspaceInput.trim());
+                      setNewWorkspaceInput("");
+                      setShowNewWorkspaceInput(false);
+                    } else if (e.key === "Escape") {
+                      setShowNewWorkspaceInput(false);
+                      setNewWorkspaceInput("");
+                    }
+                  }}
+                  onBlur={() => {
+                    if (newWorkspaceInput.trim()) setActiveWorkspace(newWorkspaceInput.trim());
+                    setShowNewWorkspaceInput(false);
+                    setNewWorkspaceInput("");
+                  }}
+                  placeholder="Workspace name"
+                  className="glass-input px-2 py-1 text-[12px]"
+                  style={{ width: "120px" }}
+                />
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowNewWorkspaceInput(true)}
+                className="w-6 h-6 flex items-center justify-center rounded-full transition-colors"
+                style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-muted)", cursor: "pointer" }}
+                title="New workspace"
+              >
+                <Plus size={11} />
+              </button>
+            )}
+          </div>
+
           {teamsError && (
             <div
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
@@ -1524,7 +1621,7 @@ export default function AgentLabPage() {
               />
             ))}
 
-          {teams.map((team) => {
+          {filteredTeams.map((team) => {
             const statusColor =
               team.status === "healthy" ? "var(--color-green)"
               : team.status === "error" ? "var(--color-red)"
@@ -1558,6 +1655,66 @@ export default function AgentLabPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    <div className="relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingCategoryTeam(editingCategoryTeam === team.id ? null : team.id);
+                        }}
+                        className="text-[10px] px-2 py-0.5 rounded-full transition-colors"
+                        style={{
+                          background: "rgba(99,102,241,0.1)",
+                          color: "rgba(165,180,252,0.7)",
+                          border: "1px solid rgba(99,102,241,0.2)",
+                          cursor: "pointer",
+                          maxWidth: "80px",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                        title={`Workspace: ${team.category || "General"}`}
+                      >
+                        {team.category || "General"}
+                      </button>
+                      {editingCategoryTeam === team.id && (
+                        <div
+                          className="absolute right-0 top-full mt-1 glass-panel z-20 animate-fade-in"
+                          style={{ minWidth: "160px", overflow: "hidden" }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <p className="px-3 py-2 text-[10px] uppercase tracking-wider" style={{ color: "var(--color-muted)", borderBottom: "1px solid var(--color-border)" }}>
+                            Move to workspace
+                          </p>
+                          {workspaces.filter((ws) => ws !== "All").map((ws) => (
+                            <button
+                              key={ws}
+                              onClick={() => moveTeamToWorkspace(team.id, ws)}
+                              className="w-full text-left px-3 py-2 text-[12px] transition-colors"
+                              style={{
+                                color: (team.category || "General") === ws ? "rgba(165,180,252,1)" : "var(--color-text)",
+                                background: (team.category || "General") === ws ? "rgba(99,102,241,0.12)" : "transparent",
+                                border: "none",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {ws}
+                            </button>
+                          ))}
+                          <div style={{ borderTop: "1px solid var(--color-border)" }}>
+                            <input
+                              placeholder="New workspace..."
+                              className="w-full px-3 py-2 text-[12px] bg-transparent border-none outline-none"
+                              style={{ color: "var(--color-text)" }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && (e.target as HTMLInputElement).value.trim()) {
+                                  moveTeamToWorkspace(team.id, (e.target as HTMLInputElement).value.trim());
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                     <StatusBadge status={team.status} />
                     <ChevronRight size={14} style={{ color: "var(--color-muted)", opacity: 0.5 }} />
                   </div>
@@ -1582,6 +1739,23 @@ export default function AgentLabPage() {
               </button>
             );
           })}
+
+          {/* Empty state for workspace */}
+          {!teamsLoading && filteredTeams.length === 0 && activeWorkspace !== "All" && (
+            <div
+              className="flex flex-col items-center justify-center gap-2 p-6 rounded-[14px]"
+              style={{ border: "1px dashed var(--color-border)", color: "var(--color-muted)" }}
+            >
+              <Sparkles size={22} style={{ opacity: 0.3 }} />
+              <p className="text-sm text-center">No teams in <strong>{activeWorkspace}</strong> yet</p>
+              <button
+                onClick={() => { setBuilderEditTeam(undefined); setShowBuilder(true); }}
+                className="btn-primary px-4 py-1.5 text-xs mt-1"
+              >
+                Build a team here
+              </button>
+            </div>
+          )}
 
           {/* Create new team card */}
           <button
@@ -1869,6 +2043,7 @@ export default function AgentLabPage() {
           editTeam={builderEditTeam}
           onClose={() => setShowBuilder(false)}
           onRefresh={fetchTeams}
+          workspace={activeWorkspace}
         />
       )}
       {showImport && (

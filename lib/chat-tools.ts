@@ -42,6 +42,7 @@ export const CHAT_TOOLS: ToolDefinition[] = [
         description: { type: "string", description: "What this team does" },
         port: { type: "number", description: "Port number (default: auto-assigned)" },
         language: { type: "string", description: "Runtime language (default: Python / FastAPI)" },
+        category: { type: "string", description: "Workspace or group for this team (e.g. Personal, Business A, General). Defaults to General." },
         permissionPreset: {
           type: "string",
           enum: ["admin", "standard", "builder", "readonly"],
@@ -743,6 +744,7 @@ async function toolCreateTeam(input: Record<string, unknown>): Promise<string> {
       description: input.description as string,
       port: (input.port as number) || 8000 + Math.floor(Math.random() * 1000),
       language: (input.language as string) || "Python / FastAPI",
+      category: (input.category as string) || "General",
       config: { permissions },
     },
   });

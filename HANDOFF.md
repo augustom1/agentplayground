@@ -15,9 +15,41 @@
 
 ---
 
-## Current Session — 2026-05-20 (session 5) ✅ COMPLETE + DEPLOYED
+## Current Session — 2026-05-20 (session 6) ✅ COMPLETE — needs db push + scp
 
-### What was built and is now live on VPS
+### What was built (session 6) — workspace tabs for Agent Teams
+
+**Schema:** `category String @default("General")` added to `AgentTeam`. Run `npx prisma db push` on VPS before deploying.
+
+**Files changed:**
+- `prisma/schema.prisma` — `category` field on `AgentTeam`
+- `lib/chat-tools.ts` — `create_team` tool: added `category` parameter; `toolCreateTeam` stores it
+- `app/api/teams/route.ts` — POST accepts `category`
+- `app/(app)/agent-lab/page.tsx` — workspace tab bar, inline category assignment, workspace context in builder modal
+
+**How it works:**
+- Every team has a `category` (defaults to "General")
+- Workspace tab bar appears above team list: "All" + one tab per unique category + "+" to create new workspace
+- Clicking a workspace tab filters the team list
+- Each team card has a clickable category pill — clicking it opens a dropdown to move the team to a different workspace or type a new one
+- When "New Team" is clicked from a specific workspace tab (not "All"), the AI builder modal shows the workspace name and passes it as system context so Claude assigns the team to that workspace automatically
+
+**Deploy steps:**
+```
+# 1. scp changed files to VPS
+scp -i ~/.ssh/id_ed25519 prisma/schema.prisma root@95.217.163.247:/root/opt/vps/prisma/
+scp -i ~/.ssh/id_ed25519 lib/chat-tools.ts root@95.217.163.247:/root/opt/vps/lib/
+scp -i ~/.ssh/id_ed25519 app/api/teams/route.ts root@95.217.163.247:/root/opt/vps/app/api/teams/
+scp -i ~/.ssh/id_ed25519 "app/(app)/agent-lab/page.tsx" root@95.217.163.247:"/root/opt/vps/app/(app)/agent-lab/"
+
+# 2. SSH and run db push + rebuild
+ssh -i ~/.ssh/id_ed25519 root@95.217.163.247 \
+  "cd /root/opt/vps && npx prisma db push && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build dashboard"
+```
+
+---
+
+### Previous session (5) — Plans system
 
 Full implementation of `agent-playground-spec.md`:
 
@@ -63,6 +95,9 @@ Full implementation of `agent-playground-spec.md`:
 ---
 
 ## Next Session — Priority Order
+
+### 0. Deploy session 6 (workspace tabs)
+See deploy steps above in "Current Session". Run `prisma db push` on VPS before rebuilding.
 
 ### 1. LLM Provider Settings UI (1-2h) ← START HERE
 Build the settings UI to configure which LLM is used for each role (keeper/agent/embed/council).
@@ -167,6 +202,9 @@ queryBrain({query, topK, filter})
 - SSE notification stream
 - Self-registration, credit gate, admin credits panel
 - Mobile-first UI (bottom nav, responsive pages)
+
+### Built locally — pending deploy ⏳
+- Workspace tabs in Agent Teams (`category` field on teams, tab bar UI, inline category assignment)
 
 ### Built but needs UI ⚠️
 - LLM Provider config (`/api/llm-providers` live, no UI yet) — **next priority**
