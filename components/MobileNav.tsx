@@ -7,7 +7,7 @@ import {
   LayoutDashboard, MessageSquare, Users, Layers,
   MoreHorizontal, X, Calendar, Workflow, CreditCard,
   Link2, Settings, Wrench, BookOpen, FolderOpen, Brain,
-  Sparkles, Server, Globe,
+  Sparkles, Server, Globe, ClipboardList,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 
@@ -35,6 +35,7 @@ export function MobileNav() {
     {
       label: "Work",
       items: [
+        { href: "/plans",     label: "Plans",       icon: ClipboardList },
         { href: "/projects",  label: "Projects",    icon: FolderOpen },
         { href: "/schedule",  label: "Schedule",    icon: Calendar },
         { href: "/pipeline",  label: "Work Queue",  icon: Workflow },

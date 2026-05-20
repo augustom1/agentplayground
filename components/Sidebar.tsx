@@ -8,6 +8,7 @@ import {
   Bot, PanelLeftClose, PanelLeft, Users, Wrench, Layers,
   Sparkles, Server, ChevronRight, Clock, Globe, Brain,
   Workflow, Link2, CreditCard, Languages, Sun, Moon, FolderOpen, BookOpen,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
@@ -271,6 +272,7 @@ export function Sidebar() {
         {/* ── WORK ── */}
         <SectionDivider label="Work" collapsed={collapsed} />
 
+        {renderNavLink("/plans", "Plans", ClipboardList)}
         {renderNavLink("/agent-lab", "Teams", Users)}
 
         {/* Playground with sub-items */}

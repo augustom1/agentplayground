@@ -1,5 +1,5 @@
 # Session Handoff
-> Last updated: 2026-05-18
+> Last updated: 2026-05-20
 > Read this at the start of every session BEFORE reading CLAUDE.md.
 > Update the "Current Session" block when ending a session.
 
@@ -15,143 +15,148 @@
 
 ---
 
-## Current Session — 2026-05-18 (session 4)
+## Current Session — 2026-05-20 (session 5)
 
-### Done this session
-- **UX Redesign Phase 1 — Navigation restructure** (completed)
-- **Credit gate** — `lib/credits.ts` + gate in chat route (Anthropic-only, admin-exempt, deducts after stream)
-- **Admin credits panel** — `/api/admin/credits` GET/POST + `CreditsAdminPanel` in Settings page
-- **Deployed to VPS** — all files SCP'd, container rebuilt, DB schema confirmed in sync
-  - `components/Sidebar.tsx` — Full rewrite: grouped sections (WORK / KNOWLEDGE / STACK), Playground expandable sub-items (Projects, Schedule, Work Queue), STACK collapsible chevron (starts collapsed, saves to localStorage), Chat dropdown kept, removed customize modal complexity
-  - `components/MobileNav.tsx` — 5 primary tabs: Home, Chat, Teams, Playground, More. More drawer now has grouped sections with labels (WORK / KNOWLEDGE / STACK / SETTINGS), not a flat grid.
-  - `app/(app)/playground/page.tsx` — NEW hub page: 3 feature cards (Projects, Schedule, Work Queue) + live upcoming meetings + active projects. Empty states with CTAs.
-  - `app/(app)/stack/page.tsx` — NEW hub page: 6 stack tool cards (AI Efficiency, Server, Websites, Apps & Tools, Integrations, Blog)
-  - `app/(app)/pipeline/page.tsx` — Renamed "Pipeline Queue" → "Work Queue" and "New Pipeline Job" → "New Work Queue Job"
+### Done this session — Agent Playground Spec implementation
 
-### Done previous session (session 3)
-- **Meeting / Event scheduling feature** — full end-to-end:
-  - `prisma/schema.prisma` — Added `Meeting` model (title, scheduledFor, reminderMins, participants JSON, status)
-  - `app/api/meetings/route.ts` — GET (all/upcoming) + POST
-  - `app/api/meetings/[id]/route.ts` — PATCH (update status/participants) + DELETE
-  - `lib/chat-tools.ts` — Added `schedule_meeting` tool (tool #34). Agents can now schedule meetings from chat. The coordinator knows to use this when users mention meetings/syncs.
-  - `app/(app)/schedule/page.tsx` — Added **Meetings tab**: list of meetings with participant chips (user/agent), reminder badge, mark-done + delete. **Schedule Meeting modal**: title, date/time, agenda, reminder picker (5m–1d), participant builder (add humans by name + agents from team dropdown).
-  - `app/(app)/projects/page.tsx` — Added **Upcoming Meetings section** at top of Projects page showing next 5 meetings with reminder indicators. Links to Schedule page.
-  - `app/api/chat/route.ts` — Coordinator context now injects upcoming meetings (next 24h) into system prompt. Highlights meetings in the reminder window with ⚠️.
-  - `app/(app)/chat/page.tsx` — Added **meeting reminder banner** between header and messages. Checks `/api/meetings?upcoming=true` on load + every 60s. Shows amber banner "📅 Meeting in X min: Title" that can be dismissed.
-- **Phone UI/UX audit file** — `docs/PHONE-UX-TODO.md` created with specific issues to fix and implementation approach for next phone-focused session.
-- **UX Redesign Plan** — `docs/UX-REDESIGN-PLAN.md` created. New navigation: Home / Chat / Teams / Playground (Projects+Schedule+Meetings+Work Queue) / Stack (Optimize+Server+Websites+Tools+Connect+Blog) / Settings (Billing+Users+Language). "Grandpa UX" principles documented. 4-phase implementation checklist ready.
+Read `agent-playground-spec.md` and implemented the full spec:
 
-### ⚠️ Required deploy step (DB schema changed)
+**Schema additions (prisma/schema.prisma):**
+- `Plan` + `PlanStatus` enum — primary work unit (replaces Projects for AI-driven work)
+- `PlanTask` + `PlanTaskStatus` enum — tasks within a plan, assigned to teams
+- `BrainDocument` + `BrainChunk` — proper chunked RAG store with 768-dim pgvector embeddings
+- `LlmProvider` — DB-stored LLM provider configs with encrypted API keys
+- `AppNotification` — in-app notification records for SSE streaming
+
+**LLM Provider system (lib/providers/):**
+- `types.ts` — LLMProvider interface, CompletionParams, CompletionResult
+- `anthropic.ts` — AnthropicProvider (wraps SDK)
+- `openai.ts` — OpenAIProvider (wraps SDK, also covers OpenAI-compatible APIs)
+- `ollama.ts` — OllamaProvider (direct HTTP, zero external latency)
+- `index.ts` — provider registry, `getProvider(role)`, AES-256-GCM key encryption
+
+**Brain improvements:**
+- `lib/brain/ingest.ts` — chunking pipeline (recursive splitter, 400-600 tokens, 10% overlap), content hash deduplication, BrainChunk upsert
+- `lib/brain/query.ts` — `queryBrain()` with cosine similarity + recency boost + metadata filters
+- `lib/brain/index.ts` — `indexVaultNote()` now also feeds BrainChunks (bridge)
+
+**Intelligence layer:**
+- `lib/council/index.ts` — 2-round Council debate, Amendment extraction, CouncilOutput JSON
+- `lib/planner/builder.ts` — Keeper system prompt, plan builder (goal → Plan + PlanTasks), Council integration
+- `lib/planner/dispatch.ts` — topological sort, parallel task batching, fire-and-forget dispatch
+- `lib/agents/events.ts` — BlockedEvent + TaskResult interfaces
+- `lib/agents/runner.ts` — RAG-injected task runner, TaskProtocol local routing, provider-aware
+
+**Notifications:**
+- `lib/notify/sse.ts` — in-memory EventEmitter + SSE ReadableStream, heartbeat
+
+**API routes:**
+- `app/api/plans/route.ts` — GET list, POST (triggers planner + council)
+- `app/api/plans/[id]/route.ts` — GET detail, PATCH, DELETE
+- `app/api/plans/[id]/approve/route.ts` — POST (approve/reject/request_changes)
+- `app/api/notify/stream/route.ts` — SSE event stream
+- `app/api/llm-providers/route.ts` — GET/POST/DELETE provider configs
+
+**UI:**
+- `app/(app)/plans/page.tsx` — plan list with status badges, grouped sections, inline create
+- `app/(app)/plans/[id]/page.tsx` — plan detail + approval gate (Approve/Request changes/Reject), task accordion with results, Council notes, progress bar
+- `components/Sidebar.tsx` — Plans link added (ClipboardList icon, in WORK section)
+- `components/MobileNav.tsx` — Plans added to Work section in More drawer
+
+**Chat integration:**
+- `lib/chat-tools.ts` — `create_plan` tool added; coordinator calls it for multi-team goals
+- The full flow: user types goal in chat → Keeper drafts plan → Council reviews → user approves at /plans/[id] → tasks dispatch with RAG context
+
+### ⚠️ Required deploy step (DB schema changed!)
 ```bash
 # On VPS after deploying files:
-docker exec vps-dashboard npx prisma db push
 docker exec vps-dashboard npx prisma generate
-# Or on your local machine: npx prisma generate && npx prisma db push
+docker exec vps-dashboard npx prisma db push
 ```
 
+### New files to SCP to VPS
+```bash
+# New files (all need to go to VPS)
+scp -r lib/providers/ root@95.217.163.247:/root/opt/vps/lib/
+scp lib/brain/ingest.ts root@95.217.163.247:/root/opt/vps/lib/brain/
+scp lib/brain/query.ts root@95.217.163.247:/root/opt/vps/lib/brain/
+scp lib/brain/index.ts root@95.217.163.247:/root/opt/vps/lib/brain/
+scp -r lib/council/ root@95.217.163.247:/root/opt/vps/lib/
+scp -r lib/planner/ root@95.217.163.247:/root/opt/vps/lib/
+scp -r lib/agents/ root@95.217.163.247:/root/opt/vps/lib/
+scp -r lib/notify/ root@95.217.163.247:/root/opt/vps/lib/
+scp app/api/plans/route.ts root@95.217.163.247:/root/opt/vps/app/api/plans/
+scp "app/api/plans/[id]/route.ts" root@95.217.163.247:/root/opt/vps/app/api/plans/[id]/
+scp "app/api/plans/[id]/approve/route.ts" root@95.217.163.247:/root/opt/vps/app/api/plans/[id]/approve/
+scp app/api/notify/stream/route.ts root@95.217.163.247:/root/opt/vps/app/api/notify/stream/
+scp app/api/llm-providers/route.ts root@95.217.163.247:/root/opt/vps/app/api/llm-providers/
+scp "app/(app)/plans/page.tsx" root@95.217.163.247:/root/opt/vps/app/(app)/plans/
+scp "app/(app)/plans/[id]/page.tsx" root@95.217.163.247:/root/opt/vps/app/(app)/plans/[id]/
+scp prisma/schema.prisma root@95.217.163.247:/root/opt/vps/prisma/
+scp lib/chat-tools.ts root@95.217.163.247:/root/opt/vps/lib/
+scp components/Sidebar.tsx root@95.217.163.247:/root/opt/vps/components/
+scp components/MobileNav.tsx root@95.217.163.247:/root/opt/vps/components/
+```
+
+### How Plans work (end-to-end)
+
+1. User types a multi-team goal in Chat (coordinator mode) or goes to /plans directly
+2. Chat calls `create_plan` tool → `lib/planner/builder.ts` → Keeper drafts Plan + PlanTasks
+3. Council runs 2-round debate → amendments + risk flags folded in
+4. Plan saved to DB with status `PENDING_APPROVAL`
+5. User sees link in chat → clicks to `/plans/{id}`
+6. User reviews: task list, risk flags, Council notes
+7. Clicks "Approve & dispatch" → `POST /api/plans/{id}/approve`
+8. `lib/planner/dispatch.ts` fires tasks in topological order (parallel where no dependency)
+9. Each task: `lib/agents/runner.ts` → checks TaskProtocol for local Ollama match → falls back to Claude API
+10. Results saved per task. Plan shows progress bar + task results.
+11. SSE stream (`/api/notify/stream`) pushes TASK_DONE + PLAN_DONE events to frontend
+
 ### Immediate next steps (priority order)
-1. **Credit gate + admin credits panel** — path to charging customers (2-3h total). See Billing Plan below.
-2. **UX Redesign Phase 2** — empty states + plain English audit (1-2h). Phase 1 done.
-3. **UX Redesign Phase 3** — mobile-specific fixes from `docs/PHONE-UX-TODO.md`
-4. **Build Marketplace**  — `docs/MARKETPLACE-PLAN.md` is approved. ~4-6h. Files to create:
-   - `data/packages/*.json` — 8 package JSON files
-   - `app/(app)/marketplace/page.tsx` — browse UI
-   - `app/api/marketplace/route.ts` — GET list
-   - `app/api/marketplace/install/route.ts` — POST install
-   - `components/Sidebar.tsx` — add Marketplace nav link (ShoppingBag icon)
-3. **Phone UI/UX fixes** — See `docs/PHONE-UX-TODO.md`. Test on real device first, audit each screen.
-4. **Add PNG icons** for PWA — generate from `public/icons/icon.svg` at 180×180, 192×192, 512×512 and add to `public/icons/`
-5. **Credit gate** — `lib/credits.ts` + gate in `app/api/chat/route.ts` (see Billing Plan)
-6. **Admin credits panel** — manual grant UI so you can onboard first customers
-7. **Landing page Block G** — Brain section + updated pricing + blog link
+1. **Connect Plans to brain index** — add HNSW index migration for brain_chunks (run after db push)
+2. **LLM Provider settings UI** — add Providers tab to `/settings` page to configure per-role providers
+3. **Marketplace** — still approved from `docs/MARKETPLACE-PLAN.md`
+4. **UX Redesign Phase 2** — empty states + plain English audit
+5. **PNG icons for PWA** — 180×180, 192×192, 512×512
+6. **Landing page Block G** — Brain section + updated pricing
 
-### Files touched this session
-- `prisma/schema.prisma` — Meeting model added
-- `app/api/meetings/route.ts` — NEW
-- `app/api/meetings/[id]/route.ts` — NEW
-- `lib/chat-tools.ts` — schedule_meeting tool added
-- `app/(app)/schedule/page.tsx` — Meetings tab added
-- `app/(app)/projects/page.tsx` — Upcoming meetings section added
-- `app/api/chat/route.ts` — Coordinator meeting context injection
-- `app/(app)/chat/page.tsx` — Meeting reminder banners
-- `docs/PHONE-UX-TODO.md` — NEW
-- `HANDOFF.md`
+### Brain HNSW index (run after db push)
+```sql
+-- Run inside postgres container after schema push:
+CREATE INDEX IF NOT EXISTS brain_chunk_embedding_idx
+ON "brain_chunks" USING hnsw (embedding vector_cosine_ops)
+WITH (m = 16, ef_construction = 64);
+```
 
 ---
 
-## Previous Session — 2026-05-18 (session 2)
+## Previous Session — 2026-05-18 (session 4)
 
 ### Done
-- Mobile-first responsive overhaul: MobileNav bottom tab bar, `hidden md:flex` sidebar, all pages `p-4 md:p-6`, chat `h-full` fix, all modal widths responsive
-- Marketplace plan reviewed + approved (`docs/MARKETPLACE-PLAN.md`)
-
----
-
-## Previous Session — 2026-05-18 (session 1)
-
-### Done
-- **PWA / iOS "Add to Home Screen"** — manifest, apple meta, icon.svg
-  - ⚠️ **Still needed**: PNG icons at 180×180, 192×192, 512×512
-- **Direct Agent Editor** — `AgentEditModal` in agent-lab with PATCH/DELETE API
-- **Marketplace Plan** — written at `docs/MARKETPLACE-PLAN.md`, reviewed this session, approved
+- UX Redesign Phase 1 — Navigation restructure (Sidebar, MobileNav, hub pages)
+- Credit gate (`lib/credits.ts`) — Anthropic-only, admin-exempt, deducts after stream
+- Admin credits panel (`/api/admin/credits` GET/POST, `CreditsAdminPanel` component)
+- Deployed to VPS with DB schema sync
 
 ---
 
 ## Billing Plan — Path to Charging Customers
 
-### Phase 1 — Credit Gate (2–3 hours, build next session)
+### Phase 1 — Credit Gate ✅ DONE
+- `lib/credits.ts` ✅
+- Chat route gate ✅
+- Rates: Sonnet 3 in/15 out, Haiku 0.25 in/1.25 out per 1k tokens ✅
 
-**Goal:** Stop users from using unlimited Claude API for free.
+### Phase 2 — Admin Credits Panel ✅ DONE
+- `/api/admin/credits` GET/POST ✅
+- `CreditsAdminPanel` component ✅
 
-**Files to create/edit:**
-```
-lib/credits.ts          — getUserCredits(userId), deductCredits(userId, amount)
-app/api/chat/route.ts   — add gate before Claude call (lines ~80-100)
-```
+### Phase 3 — Payment Flow (half day) — NOT STARTED
+- Option A: Stripe (fastest) — keys needed
+- Option B: Crypto manual (current) — UI done, verification manual
 
-**Credit gate logic (add to chat route):**
-```typescript
-if (provider === 'anthropic') {
-  const credits = await getUserCredits(session.user.id);
-  if (credits.balance <= 0) {
-    return Response.json({ error: 'No credits. Top up at /billing.' }, { status: 402 });
-  }
-}
-// After streaming: deduct credits based on token usage
-```
-
-**Credit rates (already in CLAUDE.md):**
-- Sonnet: 3 input + 15 output per 1k tokens
-- Haiku: 0.25 input + 1.25 output per 1k tokens
-- Ollama: free (no gate)
-
-### Phase 2 — Admin Credits Panel (1 hour)
-
-Add to `/settings` (admin only):
-- List users with current credit balance
-- "Grant credits" form → `POST /api/admin/credits { userId, amount }`
-- This lets you manually top up first customers while payment automation is being built
-
-**New route:** `app/api/admin/credits/route.ts`
-
-### Phase 3 — Payment Flow (half day)
-
-**Option A — Stripe (fastest automated path):**
-- Get keys from dashboard.stripe.com
-- Existing files already written: `app/api/billing/stripe/create-checkout/route.ts`
-- Add `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` to VPS `.env.local`
-- Webhook credits user on `checkout.session.completed` event
-
-**Option B — Crypto manual (current UI, manual verification):**
-- Add "I've paid" button on billing page → creates support notification
-- Admin verifies on-chain → manually grants credits via Phase 2 panel
-
-**Recommendation:** Build Phase 1 + 2 immediately. Add Stripe when you have 3+ paying customers.
-
-### Phase 4 — Monthly Credit Reset
-
-File: `app/api/cron/route.ts`  
-Add: on 1st of month → `resetMonthlyCredits()` for all active plan users.
+### Phase 4 — Monthly Credit Reset — NOT STARTED
+- Add to `/api/cron` on 1st of month
 
 ---
 
@@ -159,47 +164,32 @@ Add: on 1st of month → `resetMonthlyCredits()` for all active plan users.
 
 ### Live on VPS ✅
 - Core platform: Teams, Agents, Skills, Chat, Tools
-- 2nd Brain: vault, MCP, graph, search, knowledge page
-- Self-registration (`REQUIRE_INVITE_CODE=false`)
-- Connect page (Claude Mobile/Desktop, ChatGPT, n8n)
-- Brain push API (`/api/brain/push`)
-- Agent team ↔ Brain config sync
-- **Mobile-first UI (bottom nav, responsive pages)** ← new this session
+- 2nd Brain: vault, MCP, graph, search
+- Self-registration
+- Connect page
+- Mobile-first UI
+- Credit gate + admin panel
+
+### Built but needs deploy ⚠️
+- **Plans system** (this session) — SCP files + db push + HNSW index
+- Provider adapter system
+- Brain chunking pipeline
+- Council + Planner + Agent runner
+- SSE notifications
 
 ### Built but needs env vars ⚠️
 - Telegram bot (needs `TELEGRAM_BOT_TOKEN`)
-- Email/WhatsApp channels (needs creds)
-- MCP endpoint — live but needs API key distributed
-- Crypto billing UI (needs wallet addresses updated in `billing/page.tsx`)
+- Email/WhatsApp channels
+- MCP endpoint
 
 ### Not built yet ❌
-- Marketplace (`docs/MARKETPLACE-PLAN.md` approved — build next)
-- Credit gate + credit deduction
-- Admin credits panel
+- Marketplace (`docs/MARKETPLACE-PLAN.md` approved)
+- LLM Provider settings UI (UI for `/api/llm-providers`)
 - Stripe payment automation
 - Landing page Brain section (Block G)
 - Admin monitoring panel
-- PNG icons for PWA (180/192/512px)
-- `agentplayground.net/blog` static page wired to `/api/blog/public`
-
----
-
-## Agent Teams on VPS
-
-Teams seeded by `scripts/seed-teams.ts`. Run inside Docker:
-```bash
-ssh -i ~/.ssh/id_ed25519 root@95.217.163.247
-docker exec vps-dashboard npx tsx scripts/seed-teams.ts
-```
-
-Current teams:
-1. Dev Core
-2. DevOps & Infrastructure
-3. Product & Design
-4. Business & Growth
-5. Command Center (Coordinator)
-6. Marketing Team
-7. Blog Team
+- PNG icons for PWA
+- HNSW index for brain_chunks (SQL command above)
 
 ---
 
@@ -212,6 +202,7 @@ Current teams:
 | Deploy command | `scp file → restart container` (never git pull) |
 | Wallet addresses | `app/(app)/billing/page.tsx` WALLETS constant |
 | Marketplace plan | `docs/MARKETPLACE-PLAN.md` |
-| Blog post briefs | `docs/BLOGPOSTS.md` |
 | Full task queue | `docs/MASTER-TODO.md` |
 | Session history | `docs/SESSION-HISTORY.md` |
+| Plans flow | /plans → create → council review → approve → dispatch |
+| Provider config | /api/llm-providers (DB-stored, encrypted keys) |

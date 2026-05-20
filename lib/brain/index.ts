@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import fs from "fs/promises";
 import path from "path";
 
@@ -299,7 +300,7 @@ export async function syncTeamFromConfig(
         name: f.name as string,
         command: f.command as string,
         description: (f.description as string) ?? null,
-        args: (f.args as Record<string, unknown>) ?? null,
+        args: (f.args as Prisma.InputJsonValue) ?? null,
         dangerous: (f.dangerous as boolean) ?? false,
         teamId,
       },
@@ -330,10 +331,11 @@ export async function indexVaultNote(params: {
 }): Promise<void> {
   const { path: notePath, title, content, tags = [], frontmatter } = params;
 
+  const fm = frontmatter as Prisma.InputJsonValue | undefined;
   await prisma.vaultNote.upsert({
     where: { path: notePath },
-    create: { path: notePath, title, content, tags, ...(frontmatter ? { frontmatter } : {}) },
-    update: { title, content, tags, ...(frontmatter ? { frontmatter } : {}) },
+    create: { path: notePath, title, content, tags, ...(fm ? { frontmatter: fm } : {}) },
+    update: { title, content, tags, ...(fm ? { frontmatter: fm } : {}) },
   });
 
   try {
@@ -346,5 +348,17 @@ export async function indexVaultNote(params: {
     );
   } catch {
     // Embedding failure is non-fatal — note remains indexed without vector
+  }
+
+  // Also feed into Brain chunks for agent RAG — async, non-blocking
+  if (content.trim().length > 100) {
+    const { ingestToBrain } = await import("@/lib/brain/ingest");
+    ingestToBrain({
+      content,
+      title,
+      source: notePath,
+      sourceType: "vault",
+      metadata: { tags, ...(frontmatter ?? {}) },
+    }).catch(() => {});
   }
 }

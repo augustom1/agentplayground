@@ -598,6 +598,21 @@ export const CHAT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "create_plan",
+    description:
+      "Create a multi-step execution Plan for a complex goal that requires multiple agent teams. The Keeper will draft tasks for content/research/ops/dev teams, run a Council review, and save the plan for your approval. Use this when the user has a goal that requires coordinating multiple teams or steps. Do NOT use for simple single-step tasks. Returns a plan ID and link.",
+    input_schema: {
+      type: "object",
+      properties: {
+        goal: {
+          type: "string",
+          description: "The goal or outcome to achieve — be specific and concrete",
+        },
+      },
+      required: ["goal"],
+    },
+  },
+  {
     name: "schedule_meeting",
     description:
       "Schedule a meeting with human participants and/or agents. Creates an entry visible in the Schedule (Meetings tab) and Projects pages. Use when: the user mentions a meeting, call, or sync; when coordinating between multiple parties on a task; or when setting up recurring check-ins (e.g. 'weekly sync with Dev Core team'). The system will show a reminder in chat before the meeting time.",
@@ -706,6 +721,8 @@ export async function executeTool(
         return await toolVaultWrite(input);
       case "plan_task":
         return await toolPlanTask(input);
+      case "create_plan":
+        return await toolCreatePlan(input);
       case "schedule_meeting":
         return await toolScheduleMeeting(input);
       default:
@@ -1636,6 +1653,24 @@ async function toolPlanTask(input: Record<string, unknown>): Promise<string> {
       success: true,
       planPath: result.planPath,
       message: `✓ Execution plan generated and saved to Brain at ${result.planPath}. Agent teams can now read this plan before starting work.`,
+    });
+  } catch (err) {
+    return JSON.stringify({ error: String(err) });
+  }
+}
+
+async function toolCreatePlan(input: Record<string, unknown>): Promise<string> {
+  const goal = input.goal as string;
+  if (!goal) return JSON.stringify({ error: "goal is required" });
+
+  try {
+    const { buildPlan } = await import("@/lib/planner/builder");
+    const planId = await buildPlan(goal);
+    return JSON.stringify({
+      success: true,
+      planId,
+      planUrl: `/plans/${planId}`,
+      message: `✓ Plan created and reviewed by the Council. It's ready for your approval at /plans/${planId}. The plan includes tasks assigned to specialist teams.`,
     });
   } catch (err) {
     return JSON.stringify({ error: String(err) });

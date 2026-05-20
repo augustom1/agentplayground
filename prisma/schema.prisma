@@ -62,6 +62,7 @@ model AgentTeam {
   // Relations
   agents        Agent[]
   tasks         Task[]
+  planTasks     PlanTask[]
   recurringTasks RecurringTask[]
   scheduledJobs ScheduledJob[]
   skills        Skill[]
@@ -622,6 +623,148 @@ model Meeting {
   @@index([scheduledFor])
   @@index([status])
   @@map("meetings")
+}
+
+// ─── Plans (Agent Playground Spec) ────────────────────
+// Plans are the primary work unit created by the Playground Keeper.
+// User sends a goal → Keeper drafts Plan → Council reviews → User approves → Tasks dispatch.
+
+model Plan {
+  id              String     @id @default(cuid())
+  title           String
+  description     String     @db.Text
+  status          PlanStatus @default(DRAFT)
+  councilNotes    String?    @db.Text
+  riskFlags       String[]
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?    @db.Text
+  userId          String?    // optional — who created this plan
+
+  tasks           PlanTask[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@map("plans")
+}
+
+enum PlanStatus {
+  DRAFT
+  COUNCIL_REVIEW
+  PENDING_APPROVAL
+  APPROVED
+  RUNNING
+  BLOCKED
+  DONE
+  REJECTED
+}
+
+model PlanTask {
+  id                String         @id @default(cuid())
+  planId            String
+  plan              Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  title             String
+  description       String         @db.Text
+  teamId            String
+  team              AgentTeam      @relation(fields: [teamId], references: [id])
+  status            PlanTaskStatus @default(PENDING)
+  dependencies      String[]       // PlanTask IDs this task depends on
+  result            String?        @db.Text
+  blockedBy         String?        @db.Text
+  estimatedDuration String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([planId])
+  @@index([status])
+  @@map("plan_tasks")
+}
+
+enum PlanTaskStatus {
+  PENDING
+  RUNNING
+  BLOCKED
+  DONE
+  FAILED
+}
+
+// ─── Brain Documents & Chunks ─────────────────────────
+// The Agent Brain: chunked documents with pgvector embeddings for agent RAG.
+// VaultNote sync feeds here too; deduplication via contentHash prevents redundant storage.
+
+model BrainDocument {
+  id          String       @id @default(cuid())
+  title       String
+  source      String       // file path, URL, vault note path, or "manual"
+  sourceType  String       @default("manual") // vault | file | web | plan | report | manual
+  contentHash String?      // SHA-256 of raw content — for deduplication
+  metadata    Json         @default("{}")
+  chunks      BrainChunk[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([source])
+  @@index([contentHash])
+  @@map("brain_documents")
+}
+
+// 768-dim vectors — nomic-embed-text via Ollama (free, local, zero external latency)
+model BrainChunk {
+  id         String        @id @default(cuid())
+  documentId String
+  document   BrainDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunkIndex Int           @default(0)
+  content    String        @db.Text
+  embedding  Unsupported("vector(768)")?
+  metadata   Json          @default("{}")
+
+  createdAt DateTime @default(now())
+
+  @@index([documentId])
+  @@map("brain_chunks")
+}
+
+// ─── LLM Providers ────────────────────────────────────
+// Stored provider configs — API keys encrypted at rest.
+// Role: keeper | agent | embed | council
+
+model LlmProvider {
+  id        String   @id @default(cuid())
+  name      String
+  type      String   // anthropic | openai | ollama | custom
+  baseUrl   String?
+  apiKeyEnc String?  // AES-256-GCM encrypted — use lib/providers/crypto.ts
+  models    String[]
+  isDefault Boolean  @default(false)
+  role      String?  // keeper | agent | embed | council
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("llm_providers")
+}
+
+// ─── App Notifications ────────────────────────────────
+// In-app notification records. SSE streams these to the frontend in real time.
+
+model AppNotification {
+  id         String    @id @default(cuid())
+  planId     String?
+  taskId     String?
+  type       String    // MISSING_INFO | AGENT_BLOCKED | PLAN_READY | COUNCIL_COMPLETE | TASK_DONE | ERROR
+  message    String    @db.Text
+  data       Json      @default("{}")
+  status     String    @default("PENDING") // PENDING | SENT | RESOLVED | DISMISSED
+  resolvedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([status])
+  @@map("app_notifications")
 }
 
 // ─── Self-Optimization System ─────────────────────────
