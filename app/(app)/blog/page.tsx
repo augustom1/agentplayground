@@ -87,17 +87,18 @@ export default function BlogPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-100 flex items-center gap-2">
-            <BookOpen className="w-6 h-6 text-indigo-400" />
+            <BookOpen className="w-6 h-6" style={{ color: "var(--color-text-secondary)" }} />
             Blog Pipeline
           </h1>
-          <p className="text-sm text-gray-400 mt-1">
-            Managed by the <span className="text-indigo-400">Blog Team</span> — posts saved to vault under{" "}
-            <code className="bg-gray-800 px-1 rounded text-xs">Blog/</code>, served at{" "}
+          <p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>
+            Managed by the <span style={{ color: "var(--color-brand)" }}>Blog Team</span> — posts saved to vault under{" "}
+            <code style={{ background: "var(--color-surface-3)", padding: "0 4px", borderRadius: 4 }} className="text-xs">Blog/</code>, served at{" "}
             <a
               href="https://agentplayground.net/blog"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-indigo-400 hover:underline inline-flex items-center gap-1"
+              className="hover:underline inline-flex items-center gap-1"
+              style={{ color: "var(--color-brand)" }}
             >
               agentplayground.net/blog <ExternalLink className="w-3 h-3" />
             </a>
@@ -202,7 +203,7 @@ export default function BlogPage() {
         <p className="font-medium text-gray-300">How the pipeline works</p>
         <ol className="list-decimal list-inside space-y-1 text-xs">
           <li>Pick a post brief from the queue above</li>
-          <li>Chat with the <span className="text-indigo-400">Blog Team</span> → ask Quill to draft post #N</li>
+          <li>Chat with the <span style={{ color: "var(--color-brand)" }}>Blog Team</span> → ask Quill to draft post #N</li>
           <li>Quill writes full post → Reed edits → Press publishes to vault</li>
           <li>Post appears at <code className="bg-gray-800 px-1 rounded">Blog/&lt;slug&gt;.md</code> with status: published</li>
           <li>Social snippet saved at <code className="bg-gray-800 px-1 rounded">Blog/&lt;slug&gt;-social.md</code> for Marketing Team</li>

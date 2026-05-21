@@ -37,7 +37,7 @@ const STACK_ITEMS = [
     label: "Integrations",
     desc: "Connect Telegram, n8n, Claude Desktop, ChatGPT, and other services.",
     icon: Link2,
-    color: "#8b5cf6",
+    color: "var(--color-text-secondary)",
   },
   {
     href: "/blog",

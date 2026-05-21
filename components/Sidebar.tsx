@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import {
-  LayoutDashboard, MessageSquare, Calendar, Settings,
-  Bot, PanelLeftClose, PanelLeft, Users, Wrench, Layers,
-  Sparkles, Server, ChevronRight, Clock, Globe, Brain,
-  Workflow, Link2, CreditCard, Sun, Moon, FolderOpen, BookOpen,
-  ClipboardList,
+  Settings, Users, Wrench, Sparkles, Server, Clock,
+  Globe, Brain, Workflow, Link2, CreditCard, Sun, Moon,
+  FolderOpen, BookOpen, ClipboardList, Plus, Layers,
+  MessageSquare, Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
@@ -18,399 +17,233 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { useTheme } from "@/components/ThemeProvider";
 
 type Conversation = { id: string; title: string; updatedAt: string };
+type Tab = "chat" | "teams" | "brain";
 
-function SectionDivider({ label, collapsed, action, actionOpen }: {
-  label: string;
-  collapsed: boolean;
-  action?: () => void;
-  actionOpen?: boolean;
-}) {
-  if (collapsed) {
-    return (
-      <div
-        style={{
-          height: "1px",
-          background: "var(--color-border)",
-          margin: "6px 8px",
-        }}
-      />
-    );
-  }
-  if (action) {
-    return (
-      <button
-        onClick={action}
-        className="w-full flex items-center justify-between px-3 pt-3 pb-1 group"
-        style={{ background: "none", border: "none", cursor: "pointer" }}
-      >
-        <span
-          style={{
-            fontSize: "10px",
-            fontWeight: 600,
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-            color: "var(--color-muted)",
-          }}
-        >
-          {label}
-        </span>
-        <ChevronRight
-          size={10}
-          style={{
-            color: "var(--color-muted)",
-            transform: actionOpen ? "rotate(90deg)" : "rotate(0deg)",
-            transition: "transform 0.18s ease",
-          }}
-        />
-      </button>
-    );
-  }
-  return (
-    <div className="px-3 pt-3 pb-1">
-      <span
-        style={{
-          fontSize: "10px",
-          fontWeight: 600,
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          color: "var(--color-muted)",
-        }}
-      >
-        {label}
-      </span>
-    </div>
-  );
-}
+const TAB_NAV: Record<Tab, Array<{ href: string; label: string; icon: React.ComponentType<{ size?: number }> }>> = {
+  chat: [
+    { href: "/plans",      label: "Plans",       icon: ClipboardList },
+    { href: "/playground", label: "Playground",  icon: Layers },
+    { href: "/projects",   label: "Projects",    icon: FolderOpen },
+    { href: "/schedule",   label: "Schedule",    icon: Calendar },
+    { href: "/pipeline",   label: "Work Queue",  icon: Workflow },
+  ],
+  teams: [
+    { href: "/agent-lab",  label: "Agent Lab",   icon: Users },
+    { href: "/plans",      label: "Plans",       icon: ClipboardList },
+    { href: "/optimize",   label: "AI Efficiency",icon: Sparkles },
+    { href: "/tools",      label: "Apps & Tools", icon: Wrench },
+    { href: "/connect",    label: "Integrations", icon: Link2 },
+  ],
+  brain: [
+    { href: "/files",      label: "Brain & Files",icon: Brain },
+    { href: "/projects",   label: "Projects",    icon: FolderOpen },
+    { href: "/schedule",   label: "Schedule",    icon: Calendar },
+    { href: "/server",     label: "Server",      icon: Server },
+    { href: "/websites",   label: "Websites",    icon: Globe },
+    { href: "/blog",       label: "Blog",        icon: BookOpen },
+  ],
+};
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const router = useRouter();
   const { data: session } = useSession();
   const isAdmin = (session?.user as { role?: string })?.role === "admin";
   const { locale, toggle: toggleLocale } = useLanguage();
   const { theme, toggle: toggleTheme } = useTheme();
 
-  const playgroundSubPaths = ["/projects", "/schedule", "/pipeline"];
-  const isOnPlaygroundSub = playgroundSubPaths.some(p => pathname === p || pathname.startsWith(p + "/"));
-  const [playgroundOpen, setPlaygroundOpen] = useState(false);
-  useEffect(() => { if (isOnPlaygroundSub) setPlaygroundOpen(true); }, [pathname]);
+  const [activeTab, setActiveTab] = useState<Tab>("chat");
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loadingConvs, setLoadingConvs] = useState(false);
 
-  const [stackOpen, setStackOpen] = useState(false);
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("sidebarStackOpen");
-      if (saved !== null) setStackOpen(JSON.parse(saved));
-    } catch {}
-  }, []);
-  function toggleStack() {
-    const next = !stackOpen;
-    setStackOpen(next);
-    try { localStorage.setItem("sidebarStackOpen", JSON.stringify(next)); } catch {}
-  }
-
-  const stackPaths = ["/optimize", "/server", "/websites", "/tools", "/connect", "/blog"];
-  useEffect(() => {
-    if (stackPaths.some(p => pathname === p || pathname.startsWith(p + "/"))) {
-      setStackOpen(true);
+    if (pathname.startsWith("/agent-lab") || pathname.startsWith("/optimize") || pathname.startsWith("/tools") || pathname.startsWith("/connect")) {
+      setActiveTab("teams");
+    } else if (pathname.startsWith("/files") || pathname.startsWith("/brain") || pathname.startsWith("/server") || pathname.startsWith("/websites") || pathname.startsWith("/blog")) {
+      setActiveTab("brain");
+    } else {
+      setActiveTab("chat");
     }
   }, [pathname]);
 
-  const [chatOpen, setChatOpen] = useState(false);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const chatRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (chatRef.current && !chatRef.current.contains(e.target as Node)) setChatOpen(false);
+    async function load() {
+      setLoadingConvs(true);
+      try {
+        const res = await fetch("/api/conversations");
+        if (res.ok) setConversations((await res.json() as Conversation[]).slice(0, 8));
+      } catch {} finally { setLoadingConvs(false); }
     }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    load();
   }, []);
 
-  async function loadConversations() {
-    try {
-      const res = await fetch("/api/conversations");
-      if (res.ok) setConversations((await res.json() as Conversation[]).slice(0, 6));
-    } catch {}
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(href + "/");
   }
 
-  const isChatActive = pathname.startsWith("/chat");
+  const navItemBase: React.CSSProperties = {
+    display: "flex", alignItems: "center", gap: "10px",
+    padding: "7px 10px", borderRadius: "8px",
+    fontSize: "13px", textDecoration: "none",
+    transition: "background 0.12s, color 0.12s",
+    cursor: "pointer", border: "none", width: "100%", textAlign: "left",
+  };
 
-  function navItemCls(active: boolean) {
-    return cn(
-      "nav-hover relative flex items-center gap-2.5 text-[13px] font-medium transition-all duration-[160ms] rounded-lg",
-      collapsed ? "px-0 py-2 justify-center" : "px-3 py-[7px]"
-    );
-  }
-
-  function navItemStyle(active: boolean): React.CSSProperties {
+  function navStyle(active: boolean): React.CSSProperties {
     return {
-      color: active ? "var(--color-brand-hover)" : "var(--color-muted)",
-      background: active ? "var(--color-brand-dim)" : "transparent",
-      textDecoration: "none",
+      ...navItemBase,
+      background: active ? "var(--color-surface-3)" : "transparent",
+      color: active ? "var(--color-text)" : "var(--color-text-secondary)",
+      fontWeight: active ? 500 : 400,
     };
   }
 
-  const activeBar = (
-    <span
-      className="absolute left-0 gradient-bar"
-      style={{ width: "3px", height: "16px", top: "50%", transform: "translateY(-50%)" }}
-    />
-  );
-
-  const quickBtnStyle: React.CSSProperties = {
-    width: 28, height: 28,
-    display: "flex", alignItems: "center", justifyContent: "center",
-    borderRadius: 7, border: "none", background: "transparent", cursor: "pointer",
-    color: "var(--color-muted)", flexShrink: 0, transition: "background 0.15s, color 0.15s",
-  };
-
-  function renderNavLink(
-    href: string,
-    label: string,
-    Icon: React.ComponentType<{ size?: number; className?: string }>
-  ) {
-    const active = pathname === href || pathname.startsWith(href + "/");
-    return (
-      <Link
-        key={href}
-        href={href}
-        title={collapsed ? label : undefined}
-        className={navItemCls(active)}
-        style={navItemStyle(active)}
-      >
-        {active && activeBar}
-        <Icon size={14} className="shrink-0" />
-        {!collapsed && <span className="animate-fade-in">{label}</span>}
-      </Link>
-    );
-  }
-
-  const playgroundSubItems = [
-    { href: "/projects",  label: "Projects",   icon: FolderOpen },
-    { href: "/schedule",  label: "Schedule",   icon: Calendar },
-    { href: "/pipeline",  label: "Work Queue", icon: Workflow },
-  ];
-
-  const stackItems = [
-    { href: "/optimize", label: "AI Efficiency", icon: Sparkles },
-    { href: "/server",   label: "Server",        icon: Server },
-    { href: "/websites", label: "Websites",      icon: Globe },
-    { href: "/tools",    label: "Apps & Tools",  icon: Wrench },
-    { href: "/connect",  label: "Integrations",  icon: Link2 },
-    { href: "/blog",     label: "Blog",          icon: BookOpen },
+  const tabs: { id: Tab; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
+    { id: "chat",  label: "Chat",  icon: MessageSquare },
+    { id: "teams", label: "Teams", icon: Users },
+    { id: "brain", label: "Brain", icon: Brain },
   ];
 
   return (
     <aside
-      className={cn(
-        "glass-sidebar flex flex-col min-h-screen shrink-0 transition-all duration-[240ms] ease-in-out",
-        collapsed ? "w-[52px]" : "w-[216px]"
-      )}
+      className="glass-sidebar flex flex-col h-full"
+      style={{ width: "260px", minWidth: "260px" }}
     >
-      {/* Logo + collapse */}
+      {/* ── Top tab bar ─────────────────────────────── */}
       <div
-        className="flex items-center justify-between px-2.5 py-3"
+        className="flex items-center gap-1 px-3 py-2.5"
         style={{ borderBottom: "1px solid var(--color-border)" }}
       >
-        <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0">
-          <LogoMark size={28} />
-          {!collapsed && (
-            <div className="animate-fade-in flex flex-col leading-none">
-              <span
-                className="font-semibold text-[13px] tracking-tight"
-                style={{ color: "var(--color-text)", letterSpacing: "-0.01em" }}
-              >
-                agent playground
-              </span>
-            </div>
-          )}
+        <Link href="/dashboard" className="mr-1 shrink-0" title="Home">
+          <LogoMark size={20} />
         </Link>
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="nav-hover flex items-center justify-center rounded-lg shrink-0"
-          style={{
-            color: "var(--color-muted)", background: "transparent", border: "none",
-            cursor: "pointer", width: "24px", height: "24px",
-          }}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {collapsed ? <PanelLeft size={13} /> : <PanelLeftClose size={13} />}
-        </button>
+        {tabs.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => { setActiveTab(id); if (id === "chat") router.push("/chat"); else if (id === "teams") router.push("/agent-lab"); else router.push("/files"); }}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors"
+            style={{
+              background: activeTab === id ? "var(--color-surface-3)" : "transparent",
+              border: "none", cursor: "pointer",
+              color: activeTab === id ? "var(--color-text)" : "var(--color-muted)",
+              fontSize: "13px", fontWeight: activeTab === id ? 500 : 400,
+            }}
+          >
+            <Icon size={13} />
+            {label}
+          </button>
+        ))}
       </div>
 
-      {/* Scrollable nav */}
-      <nav className="flex flex-col gap-px p-1.5 flex-1 mt-1 overflow-y-auto">
+      {/* ── New chat button ──────────────────────────── */}
+      <div className="px-2 pt-2.5 pb-1">
+        <Link
+          href="/chat"
+          className="flex items-center gap-2.5 px-3 py-2 rounded-lg w-full transition-colors"
+          style={{
+            background: pathname === "/chat" ? "var(--color-surface-3)" : "transparent",
+            color: pathname === "/chat" ? "var(--color-text)" : "var(--color-text-secondary)",
+            fontSize: "13px", fontWeight: 500, textDecoration: "none",
+          }}
+          onMouseEnter={e => { if (pathname !== "/chat") (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; }}
+          onMouseLeave={e => { if (pathname !== "/chat") (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+        >
+          <Plus size={14} style={{ opacity: 0.8 }} />
+          New chat
+        </Link>
+      </div>
 
-        {renderNavLink("/dashboard", "Home", LayoutDashboard)}
+      {/* ── Main nav (tab-specific) ──────────────────── */}
+      <nav className="flex flex-col gap-px px-2 flex-1 overflow-y-auto pb-2">
+        {TAB_NAV[activeTab].map(({ href, label, icon: Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            style={navStyle(isActive(href))}
+            onMouseEnter={e => { if (!isActive(href)) (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; }}
+            onMouseLeave={e => { if (!isActive(href)) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+          >
+            <Icon size={14} style={{ opacity: 0.75, flexShrink: 0 }} />
+            <span>{label}</span>
+          </Link>
+        ))}
 
-        {/* Chat with recent conversations */}
-        <div ref={chatRef} className="relative">
-          <div className="flex items-center">
-            <Link
-              href="/chat"
-              onClick={(e) => {
-                if (pathname.startsWith("/chat")) {
-                  e.preventDefault();
-                  setChatOpen(v => !v);
-                  if (!chatOpen) loadConversations();
-                }
-              }}
-              className={cn(navItemCls(isChatActive), "flex-1")}
-              style={navItemStyle(isChatActive)}
-            >
-              {isChatActive && activeBar}
-              <MessageSquare size={14} className="shrink-0" />
-              {!collapsed && <span className="animate-fade-in flex-1">Chat</span>}
-            </Link>
-            {!collapsed && (
-              <button
-                onClick={() => { setChatOpen(v => !v); if (!chatOpen) loadConversations(); }}
-                className="nav-hover flex items-center justify-center rounded mr-0.5"
-                style={{ width: "20px", height: "20px", border: "none", background: "transparent", cursor: "pointer", color: "var(--color-muted)", flexShrink: 0 }}
-              >
-                <ChevronRight size={11} style={{ transform: chatOpen ? "rotate(90deg)" : "none", transition: "transform 0.18s" }} />
-              </button>
+        {/* Recents — show in chat tab */}
+        {activeTab === "chat" && (
+          <div className="mt-3">
+            <p className="px-2 pb-1 pt-1 text-[10px] font-semibold tracking-[0.08em] uppercase" style={{ color: "var(--color-muted)" }}>
+              Recents
+            </p>
+            {loadingConvs ? (
+              <p className="px-2 py-1 text-[12px]" style={{ color: "var(--color-muted)" }}>Loading…</p>
+            ) : conversations.length === 0 ? (
+              <p className="px-2 py-1 text-[12px]" style={{ color: "var(--color-muted)" }}>No recent chats</p>
+            ) : (
+              conversations.map(c => (
+                <Link
+                  key={c.id}
+                  href={`/chat?conversation=${c.id}`}
+                  style={{ ...navItemBase, color: isActive(`/chat?conversation=${c.id}`) ? "var(--color-text)" : "var(--color-text-secondary)", fontSize: "12px" }}
+                  onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)")}
+                  onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "transparent")}
+                >
+                  <Clock size={12} style={{ opacity: 0.6, flexShrink: 0 }} />
+                  <span className="truncate">{c.title || "Untitled"}</span>
+                </Link>
+              ))
             )}
           </div>
-          {chatOpen && !collapsed && (
-            <div className="animate-fade-in ml-3 mt-px mb-0.5 flex flex-col gap-px">
-              <Link href="/chat" className="nav-hover flex items-center gap-2 px-2 py-1.5 rounded-lg" onClick={() => setChatOpen(false)}>
-                <Bot size={11} style={{ color: "var(--color-muted)", flexShrink: 0 }} />
-                <span className="text-[11px]" style={{ color: "var(--color-text-secondary)" }}>New Chat</span>
-              </Link>
-              {conversations.length === 0 ? (
-                <p className="px-2 py-1 text-[11px]" style={{ color: "var(--color-muted)" }}>No chats yet</p>
-              ) : (
-                conversations.map(c => (
-                  <Link
-                    key={c.id}
-                    href={`/chat?conversation=${c.id}`}
-                    className="nav-hover flex items-center gap-2 px-2 py-1.5 rounded-lg min-w-0"
-                    onClick={() => setChatOpen(false)}
-                  >
-                    <Clock size={11} style={{ color: "var(--color-muted)", flexShrink: 0 }} />
-                    <span className="text-[11px] truncate" style={{ color: "var(--color-text-secondary)" }}>{c.title || "Untitled"}</span>
-                  </Link>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* ── WORK ── */}
-        <SectionDivider label="Work" collapsed={collapsed} />
-
-        {renderNavLink("/plans", "Plans", ClipboardList)}
-        {renderNavLink("/agent-lab", "Teams", Users)}
-
-        {/* Playground with sub-items */}
-        <div>
-          <div className="flex items-center">
-            <Link
-              href="/playground"
-              className={cn(navItemCls(pathname === "/playground" || isOnPlaygroundSub), "flex-1")}
-              style={navItemStyle(pathname === "/playground" || isOnPlaygroundSub)}
-            >
-              {(pathname === "/playground" || isOnPlaygroundSub) && activeBar}
-              <Layers size={14} className="shrink-0" />
-              {!collapsed && <span className="animate-fade-in flex-1">Playground</span>}
-            </Link>
-            {!collapsed && (
-              <button
-                onClick={() => setPlaygroundOpen(v => !v)}
-                className="nav-hover flex items-center justify-center rounded mr-0.5"
-                style={{ width: "20px", height: "20px", border: "none", background: "transparent", cursor: "pointer", color: "var(--color-muted)", flexShrink: 0 }}
-              >
-                <ChevronRight size={11} style={{ transform: playgroundOpen ? "rotate(90deg)" : "none", transition: "transform 0.18s" }} />
-              </button>
-            )}
-          </div>
-          {playgroundOpen && !collapsed && (
-            <div className="animate-fade-in ml-3 mt-px mb-0.5 flex flex-col gap-px">
-              {playgroundSubItems.map(({ href, label, icon: Icon }) => {
-                const active = pathname === href || pathname.startsWith(href + "/");
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="nav-hover flex items-center gap-2 px-2 py-1.5 rounded-lg"
-                    style={{
-                      color: active ? "var(--color-brand-hover)" : "var(--color-text-secondary)",
-                      background: active ? "var(--color-brand-dim)" : "transparent",
-                      textDecoration: "none",
-                    }}
-                  >
-                    <Icon size={11} style={{ flexShrink: 0 }} />
-                    <span className="text-[11px]">{label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* ── KNOWLEDGE ── */}
-        <SectionDivider label="Knowledge" collapsed={collapsed} />
-        {renderNavLink("/files", "Brain & Files", Brain)}
-
-        {/* ── STACK ── */}
-        <SectionDivider label="Stack" collapsed={collapsed} action={toggleStack} actionOpen={stackOpen} />
-        {(stackOpen || collapsed) && stackItems.map(({ href, label, icon }) => renderNavLink(href, label, icon))}
-
+        )}
       </nav>
 
-      {/* Bottom: Billing, Settings, user */}
-      <div className="flex flex-col" style={{ borderTop: "1px solid var(--color-border)" }}>
-        <div className="px-1.5 pt-1.5 pb-0.5 flex flex-col gap-px">
-          {renderNavLink("/billing", "Billing", CreditCard)}
-          {isAdmin && renderNavLink("/users", "Users", Users)}
-          {renderNavLink("/settings", "App Settings", Settings)}
+      {/* ── Bottom ──────────────────────────────────── */}
+      <div style={{ borderTop: "1px solid var(--color-border)" }}>
+        {/* Utility row */}
+        <div className="px-2 pt-1.5 pb-0.5 flex flex-col gap-px">
+          <Link key="/billing" href="/billing" style={navStyle(isActive("/billing"))}
+            onMouseEnter={e => { if (!isActive("/billing")) (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; }}
+            onMouseLeave={e => { if (!isActive("/billing")) (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+            <CreditCard size={14} style={{ opacity: 0.75 }} /><span>Billing</span>
+          </Link>
+          {isAdmin && (
+            <Link href="/users" style={navStyle(isActive("/users"))}
+              onMouseEnter={e => { if (!isActive("/users")) (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; }}
+              onMouseLeave={e => { if (!isActive("/users")) (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+              <Users size={14} style={{ opacity: 0.75 }} /><span>Users</span>
+            </Link>
+          )}
+          <Link href="/settings" style={navStyle(isActive("/settings"))}
+            onMouseEnter={e => { if (!isActive("/settings")) (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; }}
+            onMouseLeave={e => { if (!isActive("/settings")) (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+            <Settings size={14} style={{ opacity: 0.75 }} /><span>Settings</span>
+          </Link>
         </div>
 
-        {/* Quick: language + theme */}
-        <div
-          className={cn("px-1.5 pb-1", collapsed ? "flex flex-col items-center gap-0.5" : "flex items-center gap-0.5")}
-        >
+        {/* Language + theme toggles */}
+        <div className="px-2 pb-1 flex items-center gap-0.5">
           <button
             onClick={toggleLocale}
             title={locale === "en" ? "Español" : "English"}
-            className="nav-hover"
-            style={quickBtnStyle}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)";
-              (e.currentTarget as HTMLElement).style.color = "var(--color-text-secondary)";
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLElement).style.background = "transparent";
-              (e.currentTarget as HTMLElement).style.color = "var(--color-muted)";
-            }}
+            style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 7, border: "none", background: "transparent", cursor: "pointer", color: "var(--color-muted)" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text-secondary)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--color-muted)"; }}
           >
-            <span style={{ fontSize: "10px", fontWeight: 700, lineHeight: 1, letterSpacing: "0.04em" }}>
-              {locale === "en" ? "ES" : "EN"}
-            </span>
+            <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em" }}>{locale === "en" ? "ES" : "EN"}</span>
           </button>
           <button
             onClick={toggleTheme}
             title={theme === "dark" ? "Light mode" : "Dark mode"}
-            className="nav-hover"
-            style={quickBtnStyle}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)";
-              (e.currentTarget as HTMLElement).style.color = "var(--color-text-secondary)";
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLElement).style.background = "transparent";
-              (e.currentTarget as HTMLElement).style.color = "var(--color-muted)";
-            }}
+            style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 7, border: "none", background: "transparent", cursor: "pointer", color: "var(--color-muted)" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text-secondary)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--color-muted)"; }}
           >
             {theme === "dark" ? <Sun size={13} /> : <Moon size={13} />}
           </button>
         </div>
 
-        {/* User menu */}
-        <div className="px-1.5 pb-2" style={{ borderTop: "1px solid var(--color-border)", paddingTop: "6px" }}>
-          <UserMenu collapsed={collapsed} />
+        {/* User profile chip */}
+        <div className="px-2 pb-2.5" style={{ borderTop: "1px solid var(--color-border)", paddingTop: "6px" }}>
+          <UserMenu collapsed={false} />
         </div>
       </div>
     </aside>

@@ -44,7 +44,7 @@ const TEMPLATES = {
     folders: ["Education/Certifications", "Education/Courses", "Education/Notes", "Education/Resources"],
   },
   complete: {
-    label: "Complete (recommended)", icon: Sparkles, color: "text-violet-400",
+    label: "Complete (recommended)", icon: Sparkles, color: "text-[var(--color-brand)]",
     folders: [
       "Personal/Ideas", "Personal/Future Projects", "Personal/Journal", "Personal/Goals",
       "Business/Business Plans", "Business/Clients", "Business/Research", "Business/Finances",
@@ -89,7 +89,7 @@ function TreeNode({
     <div>
       <div
         className={`flex items-center gap-1.5 px-2 py-1 rounded-lg cursor-pointer group transition-colors text-xs select-none
-          ${isSelected ? "bg-violet-500/20 text-violet-300" : isAncestor ? "text-[var(--color-text)]" : "text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"}`}
+          ${isSelected ? "bg-[var(--color-brand-dim)] text-[var(--color-brand)]" : isAncestor ? "text-[var(--color-text)]" : "text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"}`}
         style={{ paddingLeft: `${8 + depth * 14}px` }}
         onClick={() => { onSelect(node.path); if (hasChildren) setOpen((v) => !v); }}
       >
@@ -148,7 +148,7 @@ function SetupWizard({ onComplete }: { onComplete: () => void }) {
       <div className="w-full max-w-2xl rounded-2xl p-8" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
         <div className="flex items-center gap-3 mb-6">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--color-brand-dim)" }}>
-            <Brain size={18} className="text-violet-400" />
+            <Brain size={18} className="text-[var(--color-brand)]" />
           </div>
           <div>
             <h2 className="text-base font-semibold" style={{ color: "var(--color-text)" }}>Set up your Knowledge Base</h2>
@@ -161,12 +161,12 @@ function SetupWizard({ onComplete }: { onComplete: () => void }) {
             const Icon = tpl.icon;
             return (
               <button key={key} onClick={() => setSelected(key)}
-                className={`p-4 rounded-xl text-left border transition-all ${selected === key ? "border-violet-500 bg-violet-500/10" : "hover:bg-[var(--color-surface-hover)]"}`}
+                className={`p-4 rounded-xl text-left border transition-all ${selected === key ? "border-[var(--color-brand)] bg-[var(--color-brand-dim)]" : "hover:bg-[var(--color-surface-hover)]"}`}
                 style={{ borderColor: selected === key ? undefined : "var(--color-border)" }}>
                 <div className="flex items-center gap-2 mb-2">
                   <Icon size={15} className={tpl.color} />
                   <span className="text-sm font-medium" style={{ color: "var(--color-text)" }}>{tpl.label}</span>
-                  {selected === key && <Check size={12} className="ml-auto text-violet-400" />}
+                  {selected === key && <Check size={12} className="ml-auto text-[var(--color-brand)]" />}
                 </div>
                 <p className="text-[11px] leading-relaxed" style={{ color: "var(--color-muted)" }}>
                   {tpl.folders.slice(0, 4).join(" · ")}
@@ -247,7 +247,7 @@ function CapturePanel({ folder, onSaved }: { folder: string; onSaved: () => void
         <Sparkles size={14} style={{ color: "var(--color-brand)" }} />
         <span className="text-sm font-semibold" style={{ color: "var(--color-text)" }}>Capture to Brain</span>
         <span className="text-xs ml-1" style={{ color: "var(--color-muted)" }}>
-          → <strong className="text-violet-400">{folder || "inbox"}</strong>
+          → <strong className="text-[var(--color-brand)]">{folder || "inbox"}</strong>
         </span>
       </div>
 
@@ -728,8 +728,8 @@ export default function KnowledgePage() {
           <button
             onClick={() => setSelectedFolder("")}
             className={`flex items-center gap-2 mx-2 px-2 py-1.5 rounded-lg text-xs transition-colors mb-0.5
-              ${selectedFolder === "" ? "bg-violet-500/20 text-violet-300" : "text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"}`}>
-            <Home size={13} className="text-violet-400/70 shrink-0" /> All notes
+              ${selectedFolder === "" ? "bg-[var(--color-brand-dim)] text-[var(--color-brand)]" : "text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"}`}>
+            <Home size={13} className="text-[var(--color-brand)]/70 shrink-0" /> All notes
           </button>
 
           <div className="flex-1 overflow-y-auto px-1">
@@ -880,11 +880,11 @@ export default function KnowledgePage() {
                       ? openNote(item)
                       : window.open(`/api/files/download?path=${encodeURIComponent(item.path)}`, "_blank")}
                     className={`flex items-start gap-2.5 px-3 py-2.5 rounded-xl mb-0.5 cursor-pointer transition-colors group
-                      ${openItem?.path === item.path ? "bg-violet-500/15" : "hover:bg-[var(--color-surface-hover)]"}`}
+                      ${openItem?.path === item.path ? "bg-[var(--color-brand-dim)]" : "hover:bg-[var(--color-surface-hover)]"}`}
                   >
                     <div className="mt-0.5 shrink-0">
                       {item.type === "note"
-                        ? <FileText size={14} className="text-violet-400/70" />
+                        ? <FileText size={14} className="text-[var(--color-brand)]/70" />
                         : <FileTypeIcon mimeType={item.mimeType} />}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -892,7 +892,7 @@ export default function KnowledgePage() {
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[10px]" style={{ color: "var(--color-muted)" }}>{fmtDate(item.date)}</span>
                         {item.tags?.slice(0, 2).map((t) => (
-                          <span key={t} className="inline-flex items-center gap-0.5 text-[9px] px-1 py-0.5 rounded bg-violet-500/10 text-violet-400">
+                          <span key={t} className="inline-flex items-center gap-0.5 text-[9px] px-1 py-0.5 rounded bg-[var(--color-brand-dim)] text-[var(--color-brand)]">
                             <Tag size={8} />{t.replace(/^#/, "")}
                           </span>
                         ))}

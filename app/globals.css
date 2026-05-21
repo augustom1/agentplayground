@@ -1,55 +1,55 @@
 @import "tailwindcss";
 
 /* ┌──────────────────────────────────────────────────────────────────────────┐
-   │  AGENT PLAYGROUND — Design System v2                                     │
-   │  Warm ops-grade aesthetic · Claude Desktop-inspired dark mode            │
-   │  Brand: Copper (#cf8c4a) · Stack: Next.js + Tailwind v4 + shadcn/ui     │
+   │  AGENT PLAYGROUND — Design System v3                                     │
+   │  Claude Desktop-inspired · Neutral dark charcoal · Rust accent           │
+   │  Brand: Rust (#D4715A) · Stack: Next.js + Tailwind v4                   │
    └──────────────────────────────────────────────────────────────────────────┘ */
 
 @theme inline {
 
   /* ── Surfaces ─────────────────────────────────────────────────────────────── */
-  --color-background:        #17150f;   /* warm near-black */
-  --color-surface:           #1d1b13;   /* sidebar / primary card */
-  --color-surface-2:         #242118;   /* elevated card */
-  --color-surface-3:         #2c291e;   /* hover / code block */
+  --color-background:        #1a1a1a;   /* main canvas — pure dark charcoal */
+  --color-surface:           #222222;   /* sidebar / panel */
+  --color-surface-2:         #2a2a2a;   /* card / input background */
+  --color-surface-3:         #323232;   /* hover / code block / elevated */
 
   /* ── Borders ──────────────────────────────────────────────────────────────── */
-  --color-border:            #353228;   /* default — warm subtle */
-  --color-border-light:      #484534;   /* hover / active */
+  --color-border:            #333333;   /* default subtle */
+  --color-border-light:      #444444;   /* hover / active */
 
   /* ── Text hierarchy ───────────────────────────────────────────────────────── */
-  --color-text:              #f0ece3;   /* primary — warm off-white */
-  --color-text-secondary:    #b3aa98;   /* secondary labels */
-  --color-muted:             #756d5e;   /* disabled / placeholder */
+  --color-text:              #efefef;   /* primary — near-white */
+  --color-text-secondary:    #aaaaaa;   /* secondary labels */
+  --color-muted:             #666666;   /* disabled / placeholder */
 
-  /* ── Brand — Copper ───────────────────────────────────────────────────────── */
-  --color-brand:             #cf8c4a;   /* primary accent */
-  --color-brand-hover:       #dba060;   /* lighter hover */
-  --color-brand-dim:         rgba(207, 140, 74, 0.12);   /* tinted bg */
-  --color-brand-muted:       rgba(207, 140, 74, 0.35);   /* logo / borders */
-  --color-brand-glow:        rgba(207, 140, 74, 0.14);   /* focus ring ambient */
+  /* ── Brand — Blue-Cyan ───────────────────────────────────────────────────── */
+  --color-brand:             #38BDF8;   /* sky-blue cyan */
+  --color-brand-hover:       #7DD3FC;   /* lighter hover */
+  --color-brand-dim:         rgba(56, 189, 248, 0.10);
+  --color-brand-muted:       rgba(56, 189, 248, 0.25);
+  --color-brand-glow:        rgba(56, 189, 248, 0.08);
 
-  /* ── Interactive (filled button bg = warm white) ──────────────────────────── */
-  --color-accent:            #f0ece3;
+  /* ── Interactive (filled button) ─────────────────────────────────────────── */
+  --color-accent:            #efefef;
   --color-accent-hover:      #ffffff;
-  --color-accent-dim:        #c8c0b0;
-  --color-accent-glow:       rgba(255, 248, 235, 0.06);
-  --color-btn-primary-text:  #17150f;   /* dark text on light button */
+  --color-accent-dim:        #bbbbbb;
+  --color-accent-glow:       rgba(255, 255, 255, 0.05);
+  --color-btn-primary-text:  #1a1a1a;
 
   /* ── Hover states ─────────────────────────────────────────────────────────── */
-  --color-hover-subtle:      rgba(255, 248, 235, 0.04);
-  --color-hover-medium:      rgba(255, 248, 235, 0.08);
+  --color-hover-subtle:      rgba(255, 255, 255, 0.04);
+  --color-hover-medium:      rgba(255, 255, 255, 0.08);
 
   /* ── Semantic ─────────────────────────────────────────────────────────────── */
-  --color-green:             #6fbe8e;
-  --color-green-dim:         rgba(111, 190, 142, 0.12);
-  --color-red:               #e07070;
-  --color-red-dim:           rgba(224, 112, 112, 0.12);
-  --color-yellow:            #e8a832;
-  --color-yellow-dim:        rgba(232, 168, 50, 0.12);
-  --color-blue:              #60a5d8;
-  --color-blue-dim:          rgba(96, 165, 216, 0.12);
+  --color-green:             #6bcb8b;
+  --color-green-dim:         rgba(107, 203, 139, 0.12);
+  --color-red:               #e06b6b;
+  --color-red-dim:           rgba(224, 107, 107, 0.12);
+  --color-yellow:            #e8b84a;
+  --color-yellow-dim:        rgba(232, 184, 74, 0.12);
+  --color-blue:              #5aaad8;
+  --color-blue-dim:          rgba(90, 170, 216, 0.12);
 
   /* ── Typography ───────────────────────────────────────────────────────────── */
   --font-sans: "Inter", var(--font-geist-sans), system-ui, -apple-system, sans-serif;
@@ -69,11 +69,11 @@
   --radius-2xl:  20px;
   --radius-full: 9999px;
 
-  /* ── Shadows (warm-tinted) ────────────────────────────────────────────────── */
-  --shadow-sm:    0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md:    0 4px 16px rgba(0, 0, 0, 0.45), 0 1px 4px rgba(0, 0, 0, 0.3);
-  --shadow-lg:    0 8px 40px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.35);
-  --shadow-xl:    0 20px 60px rgba(0, 0, 0, 0.6),  0 4px 16px rgba(0, 0, 0, 0.4);
+  /* ── Shadows ──────────────────────────────────────────────────────────────── */
+  --shadow-sm:    0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md:    0 4px 16px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg:    0 8px 40px rgba(0, 0, 0, 0.6), 0 2px 10px rgba(0, 0, 0, 0.35);
+  --shadow-xl:    0 20px 60px rgba(0, 0, 0, 0.65), 0 4px 16px rgba(0, 0, 0, 0.4);
   --shadow-brand: 0 0 0 2px var(--color-brand-dim);
 
   /* ── Transitions ──────────────────────────────────────────────────────────── */
@@ -86,39 +86,39 @@
 /* ── Light theme override ─────────────────────────────────────────────────── */
 
 [data-theme="light"] {
-  --color-background:        #f4f0e6;
-  --color-surface:           #faf7f0;
-  --color-surface-2:         #f0ebe0;
-  --color-surface-3:         #e8e2d4;
-  --color-border:            #ddd7c8;
-  --color-border-light:      #ccc4b0;
-  --color-text:              #1a1810;
-  --color-text-secondary:    #4a4438;
-  --color-muted:             #857868;
-  --color-brand:             #b8742c;
-  --color-brand-hover:       #a0621c;
-  --color-brand-dim:         rgba(184, 116, 44, 0.10);
-  --color-brand-muted:       rgba(184, 116, 44, 0.30);
-  --color-brand-glow:        rgba(184, 116, 44, 0.08);
-  --color-accent:            #1a1810;
-  --color-accent-hover:      #0a0804;
-  --color-accent-dim:        #3a3420;
+  --color-background:        #f5f5f5;
+  --color-surface:           #ffffff;
+  --color-surface-2:         #f0f0f0;
+  --color-surface-3:         #e8e8e8;
+  --color-border:            #e0e0e0;
+  --color-border-light:      #cccccc;
+  --color-text:              #1a1a1a;
+  --color-text-secondary:    #555555;
+  --color-muted:             #999999;
+  --color-brand:             #0EA5E9;
+  --color-brand-hover:       #38BDF8;
+  --color-brand-dim:         rgba(14, 165, 233, 0.10);
+  --color-brand-muted:       rgba(14, 165, 233, 0.25);
+  --color-brand-glow:        rgba(14, 165, 233, 0.08);
+  --color-accent:            #1a1a1a;
+  --color-accent-hover:      #000000;
+  --color-accent-dim:        #444444;
   --color-accent-glow:       rgba(0, 0, 0, 0.05);
-  --color-btn-primary-text:  #faf7f0;
+  --color-btn-primary-text:  #ffffff;
   --color-hover-subtle:      rgba(0, 0, 0, 0.04);
   --color-hover-medium:      rgba(0, 0, 0, 0.07);
-  --color-green:             #2a8c52;
-  --color-green-dim:         rgba(42, 140, 82, 0.10);
-  --color-red:               #c44040;
-  --color-red-dim:           rgba(196, 64, 64, 0.10);
-  --color-yellow:            #a06818;
-  --color-yellow-dim:        rgba(160, 104, 24, 0.10);
-  --color-blue:              #2870b0;
-  --color-blue-dim:          rgba(40, 112, 176, 0.10);
-  --shadow-sm:    0 1px 2px rgba(0, 0, 0, 0.10);
-  --shadow-md:    0 4px 16px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
-  --shadow-lg:    0 8px 40px rgba(0, 0, 0, 0.16), 0 2px 10px rgba(0, 0, 0, 0.10);
-  --shadow-xl:    0 20px 60px rgba(0, 0, 0, 0.18), 0 4px 16px rgba(0, 0, 0, 0.10);
+  --color-green:             #2d9e5a;
+  --color-green-dim:         rgba(45, 158, 90, 0.10);
+  --color-red:               #c43c3c;
+  --color-red-dim:           rgba(196, 60, 60, 0.10);
+  --color-yellow:            #a07020;
+  --color-yellow-dim:        rgba(160, 112, 32, 0.10);
+  --color-blue:              #2878b8;
+  --color-blue-dim:          rgba(40, 120, 184, 0.10);
+  --shadow-sm:    0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-md:    0 4px 16px rgba(0, 0, 0, 0.10), 0 1px 4px rgba(0, 0, 0, 0.06);
+  --shadow-lg:    0 8px 40px rgba(0, 0, 0, 0.14), 0 2px 10px rgba(0, 0, 0, 0.08);
+  --shadow-xl:    0 20px 60px rgba(0, 0, 0, 0.16), 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 /* ── Reset ────────────────────────────────────────────────────────────────── */
@@ -202,8 +202,8 @@ body {
   outline: none;
 }
 .glass-input:focus-within {
-  border-color: var(--color-brand);
-  box-shadow: 0 0 0 3px var(--color-brand-glow);
+  border-color: var(--color-border-light);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04);
 }
 
 /* ── Buttons ──────────────────────────────────────────────────────────────── */
@@ -234,7 +234,7 @@ body {
 
 .btn-brand {
   background: var(--color-brand);
-  color: #17150f;
+  color: #ffffff;
   border: none;
   border-radius: var(--radius-md);
   font-weight: 500;
@@ -286,7 +286,7 @@ body {
   border-radius: 0 2px 2px 0;
 }
 
-/* ── Nav hover (theme-aware) ──────────────────────────────────────────────── */
+/* ── Nav hover ────────────────────────────────────────────────────────────── */
 
 .nav-hover:hover {
   background: var(--color-hover-subtle) !important;
@@ -368,10 +368,10 @@ body {
 .animate-fade-in  { animation: fade-in  0.2s  ease-out forwards; }
 .animate-slide-up { animation: slide-up 0.25s ease-out forwards; }
 
-/* ── Focus ring (accessibility) ───────────────────────────────────────────── */
+/* ── Focus ring ───────────────────────────────────────────────────────────── */
 
 :focus-visible {
-  outline: 2px solid var(--color-brand);
+  outline: 2px solid var(--color-border-light);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
@@ -390,7 +390,7 @@ body {
   border-color: var(--color-border-light);
 }
 
-/* ── Smooth scrolling (respects prefers-reduced-motion) ───────────────────── */
+/* ── Smooth scrolling ─────────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: no-preference) {
   html {
