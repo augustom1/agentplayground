@@ -113,6 +113,7 @@ function ModelDropdown({ provider, model, models, onChangeProvider, onChangeMode
   teams: Team[]; teamId: string; onChangeTeam: (id: string) => void; teamsLoading: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -121,8 +122,17 @@ function ModelDropdown({ provider, model, models, onChangeProvider, onChangeMode
     return () => document.removeEventListener("mousedown", handle);
   }, []);
 
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    function handle(e: KeyboardEvent) { if (e.key === "Escape") setOpen(false); }
+    document.addEventListener("keydown", handle);
+    return () => document.removeEventListener("keydown", handle);
+  }, [open]);
+
   const currentModel = models.find(m => m.value === model);
   const providerCfg = PROVIDERS[provider];
+  const currentTeamLabel = teamId === "all" ? "All Teams" : teamId === "coordinator" ? "Coordinator" : teams.find(t => t.id === teamId)?.name || teamId;
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
@@ -137,53 +147,94 @@ function ModelDropdown({ provider, model, models, onChangeProvider, onChangeMode
         {currentModel?.label || model}
         <ChevronDown size={10} style={{ color: "var(--color-muted)", transition: "transform 0.15s", transform: open ? "rotate(180deg)" : "none" }} />
       </button>
+
+      {/* Full-screen backdrop + centered panel */}
       {open && (
-        <div className="glass-panel animate-fade-in" style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, zIndex: 100, minWidth: 260, overflow: "hidden" }}>
-          {/* Provider tabs */}
-          <div className="flex gap-px p-1.5 pb-1" style={{ borderBottom: "1px solid var(--color-border)" }}>
-            {(["anthropic", "openai", "ollama"] as Provider[]).map(p => (
-              <button key={p} onClick={() => { onChangeProvider(p); onChangeModel(PROVIDERS[p].models[0].value); }}
-                style={{ fontSize: "11px", padding: "3px 8px", borderRadius: 6, border: "none", cursor: "pointer", background: p === provider ? "var(--color-surface-3)" : "transparent", color: p === provider ? "var(--color-text)" : "var(--color-muted)" }}>
-                {PROVIDERS[p].label}
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={() => setOpen(false)}
+            style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.45)" }}
+          />
+          {/* Centered modal */}
+          <div
+            className="glass-panel animate-fade-in"
+            style={{
+              position: "fixed",
+              top: "50%", left: "50%",
+              transform: "translate(-50%, -50%)",
+              zIndex: 201,
+              width: "min(320px, calc(100vw - 32px))",
+              overflow: "hidden",
+            }}
+          >
+            {/* Provider tabs */}
+            <div className="flex gap-px p-2 pb-1.5" style={{ borderBottom: "1px solid var(--color-border)" }}>
+              {(["anthropic", "openai", "ollama"] as Provider[]).map(p => (
+                <button key={p} onClick={() => { onChangeProvider(p); onChangeModel(PROVIDERS[p].models[0].value); }}
+                  style={{ flex: 1, fontSize: "11px", padding: "4px 0", borderRadius: 6, border: "none", cursor: "pointer", background: p === provider ? "var(--color-surface-3)" : "transparent", color: p === provider ? "var(--color-text)" : "var(--color-muted)", fontWeight: p === provider ? 500 : 400 }}>
+                  {PROVIDERS[p].label}
+                </button>
+              ))}
+            </div>
+
+            {/* Models */}
+            <div className="py-1">
+              {models.map(m => (
+                <button key={m.value} onClick={() => { onChangeModel(m.value); setOpen(false); }}
+                  className="w-full text-left flex items-center gap-2 px-3 py-2 transition-colors"
+                  style={{ background: m.value === model ? "var(--color-surface-3)" : "transparent", border: "none", cursor: "pointer", fontSize: "13px", color: "var(--color-text)" }}
+                  onMouseEnter={e => { if (m.value !== model) (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; }}
+                  onMouseLeave={e => { if (m.value !== model) (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: m.value === model ? providerCfg.color : "var(--color-muted)", display: "inline-block", flexShrink: 0 }} />
+                  {m.label}
+                  {m.value === model && <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--color-muted)" }}>active</span>}
+                </button>
+              ))}
+            </div>
+
+            {/* Context — collapsible */}
+            <div style={{ borderTop: "1px solid var(--color-border)" }}>
+              <button
+                onClick={() => setContextOpen(v => !v)}
+                className="w-full flex items-center justify-between px-3 py-2 transition-colors"
+                style={{ background: "transparent", border: "none", cursor: "pointer" }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+              >
+                <div className="flex items-center gap-2">
+                  <span style={{ fontSize: "10px", color: "var(--color-muted)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>Context</span>
+                  <span style={{ fontSize: "11px", color: "var(--color-text-secondary)" }}>{currentTeamLabel}</span>
+                </div>
+                <ChevronDown size={11} style={{ color: "var(--color-muted)", transition: "transform 0.15s", transform: contextOpen ? "rotate(180deg)" : "none" }} />
               </button>
-            ))}
+
+              {contextOpen && (
+                <div className="flex flex-col gap-px pb-1 px-1" style={{ maxHeight: 220, overflowY: "auto" }}>
+                  {teamsLoading ? (
+                    <div className="flex justify-center py-3"><Loader2 size={14} className="animate-spin" style={{ color: "var(--color-muted)" }} /></div>
+                  ) : (
+                    ["all", "coordinator", ...teams.map(t => t.id)].map(id => {
+                      const t = teams.find(t => t.id === id);
+                      const label = id === "all" ? "All Teams" : id === "coordinator" ? "Coordinator" : t?.name || id;
+                      return (
+                        <button key={id} onClick={() => { onChangeTeam(id); setContextOpen(false); setOpen(false); }}
+                          className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors"
+                          style={{ background: id === teamId ? "var(--color-surface-3)" : "transparent", border: "none", cursor: "pointer", fontSize: "12px", color: id === teamId ? "var(--color-text)" : "var(--color-text-secondary)" }}
+                          onMouseEnter={e => { if (id !== teamId) (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; }}
+                          onMouseLeave={e => { if (id !== teamId) (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+                          {id === "coordinator" ? <Network size={11} style={{ color: "var(--color-brand)" }} /> : <Globe size={11} style={{ opacity: 0.6 }} />}
+                          {label}
+                          {t && <span style={{ marginLeft: "auto", fontSize: "10px", color: "var(--color-muted)" }}>{t._count.agents}</span>}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-          {/* Models */}
-          <div className="py-1">
-            {models.map(m => (
-              <button key={m.value} onClick={() => { onChangeModel(m.value); setOpen(false); }}
-                className="w-full text-left flex items-center gap-2 px-3 py-1.5 transition-colors"
-                style={{ background: m.value === model ? "var(--color-surface-3)" : "transparent", border: "none", cursor: "pointer", fontSize: "12px", color: "var(--color-text)" }}
-                onMouseEnter={e => { if (m.value !== model) (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; }}
-                onMouseLeave={e => { if (m.value !== model) (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
-                {m.label}
-              </button>
-            ))}
-          </div>
-          {/* Context selector */}
-          <div style={{ borderTop: "1px solid var(--color-border)", padding: "8px 12px 8px" }}>
-            <p style={{ fontSize: "10px", color: "var(--color-muted)", marginBottom: 4, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>Context</p>
-            {teamsLoading ? <Loader2 size={12} className="animate-spin" style={{ color: "var(--color-muted)" }} /> : (
-              <div className="flex flex-col gap-px">
-                {["all", "coordinator", ...teams.map(t => t.id)].map(id => {
-                  const t = teams.find(t => t.id === id);
-                  const label = id === "all" ? "All Teams" : id === "coordinator" ? "Coordinator" : t?.name || id;
-                  return (
-                    <button key={id} onClick={() => { onChangeTeam(id); setOpen(false); }}
-                      className="w-full text-left flex items-center gap-2 px-2 py-1 rounded-md transition-colors"
-                      style={{ background: id === teamId ? "var(--color-surface-3)" : "transparent", border: "none", cursor: "pointer", fontSize: "12px", color: id === teamId ? "var(--color-text)" : "var(--color-text-secondary)" }}
-                      onMouseEnter={e => { if (id !== teamId) (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; }}
-                      onMouseLeave={e => { if (id !== teamId) (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
-                      {id === "coordinator" ? <Network size={11} style={{ color: "var(--color-brand)" }} /> : <Globe size={11} style={{ opacity: 0.6 }} />}
-                      {label}
-                      {t && <span style={{ marginLeft: "auto", fontSize: "10px", color: "var(--color-muted)" }}>{t._count.agents} agents</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
+        </>
       )}
     </div>
   );
@@ -221,7 +272,7 @@ function MessageBubble({ msg }: { msg: Message }) {
   if (msg.role === "user") {
     return (
       <div className="animate-fade-in" style={{ padding: "4px 0" }}>
-        <div style={{ maxWidth: "680px", margin: "0 auto", padding: "0 24px", display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ maxWidth: "680px", margin: "0 auto", padding: "0 12px", display: "flex", justifyContent: "flex-end" }}>
           <div style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", borderRadius: "18px 18px 4px 18px", padding: "10px 16px", maxWidth: "80%" }}>
             <p style={{ color: "var(--color-text)", fontSize: 15, lineHeight: 1.65, whiteSpace: "pre-wrap", margin: 0 }}>{msg.content}</p>
           </div>
@@ -515,11 +566,11 @@ export default function ChatPage() {
 
       {/* ── Empty state — Claude Desktop style centered ── */}
       {isEmptyState ? (
-        <div className="flex-1 flex flex-col items-center justify-center px-6 animate-fade-in" style={{ gap: 24 }}>
-          {/* Greeting row: asterisk inline with text */}
+        <div className="flex-1 flex flex-col items-center justify-center animate-fade-in" style={{ gap: 24, padding: "16px 16px 32px" }}>
+          {/* Greeting row */}
           <div className="flex items-center gap-3">
-            <LogoMark size={40} />
-            <h1 style={{ fontSize: 32, fontWeight: 400, color: "var(--color-text)", letterSpacing: "-0.025em", lineHeight: 1, margin: 0 }}>
+            <LogoMark size={36} />
+            <h1 style={{ fontSize: "clamp(22px, 5vw, 30px)", fontWeight: 400, color: "var(--color-text)", letterSpacing: "-0.025em", lineHeight: 1, margin: 0 }}>
               {getTimeGreeting()}, {firstName}
             </h1>
           </div>
@@ -537,7 +588,7 @@ export default function ChatPage() {
           </div>
 
           {/* Quick action chips */}
-          <div className="flex flex-wrap gap-2 justify-center" style={{ maxWidth: 680 }}>
+          <div className="flex flex-wrap gap-2 justify-center" style={{ maxWidth: 640, padding: "0 8px" }}>
             {suggestions.map(s => (
               <button
                 key={s.label} onClick={() => send(s.label)}
@@ -560,7 +611,7 @@ export default function ChatPage() {
               {messages.map(msg => <MessageBubble key={msg.id} msg={msg} />)}
               {streaming && (
                 <div className="animate-fade-in" style={{ padding: "12px 0" }}>
-                  <div style={{ maxWidth: 680, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "flex-start", gap: 12 }}>
+                  <div style={{ maxWidth: 680, margin: "0 auto", padding: "0 12px", display: "flex", alignItems: "flex-start", gap: 12 }}>
                     <div style={{ width: 26, height: 26, borderRadius: "50%", background: "var(--color-surface-2)", border: "1px solid var(--color-border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 3 }}>
                       <Bot size={13} style={{ color: "var(--color-text-secondary)" }} />
                     </div>
@@ -587,7 +638,7 @@ export default function ChatPage() {
 
           {/* Input at bottom when chatting */}
           <div className="shrink-0 py-4" style={{ background: "var(--color-background)" }}>
-            <div style={{ maxWidth: 680, margin: "0 auto", padding: "0 24px" }}>
+            <div style={{ maxWidth: 680, margin: "0 auto", padding: "0 12px" }}>
               <input ref={fileInputRef as React.RefObject<HTMLInputElement>} type="file" multiple className="hidden" accept="image/*,audio/*,.pdf,.txt,.md,.csv,.json,.py,.ts,.tsx,.js,.jsx,.sh,.yaml,.yml" onChange={handleFileSelect} />
               <InputBox
                 input={input} setInput={setInput} streaming={streaming} onSend={() => send()} onAttach={() => fileInputRef.current?.click()}

@@ -4,6 +4,17 @@
 
 ---
 
+### Session 2026-05-21 (session 9) — Brain logo, dropdown fix, mobile fixes
+
+- **New logo:** Brain outline + 3 connected nodes (minimalist, rust `#D4715A`). Replaces asterisk/play-button. `components/Logo.tsx` rewritten, `public/icons/icon.svg` updated.
+- **PWA icons:** All 4 PNG sizes regenerated via sharp from new SVG (192, 512, apple-touch, favicon-32).
+- **`manifest.webmanifest` created** — was missing entirely, PWA install was broken.
+- **Model dropdown rebuilt:** Centered fixed modal + dark backdrop instead of anchored popup. Context (agent) section is now collapsible with current team shown inline. Width clamped for mobile safety.
+- **Mobile fixes:** Horizontal padding reduced `24px → 12px` on messages + input. Greeting font uses `clamp()`. Empty state padding adjusted for notched phones.
+- Not yet deployed — scp + rebuild pending.
+
+---
+
 ### Session 2026-05-16 — Marketing Team, Blog Team, Blog infrastructure
 
 - Marketing Team + Blog Team added to seed-teams.ts (7 teams total)

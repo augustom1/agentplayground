@@ -15,109 +15,99 @@
 
 ---
 
-## Current Session — 2026-05-21 (session 8) — LOCAL ONLY, NEEDS DEPLOY
+## Current Session — 2026-05-21 (session 9) — LOCAL ONLY, NEEDS DEPLOY
 
-### What was built — Design System v3 (Claude Desktop-inspired redesign)
+### What was built
 
-Complete redesign replacing the "warm copper/sepia" v2 palette with a
-**neutral dark charcoal aesthetic** directly inspired by Claude Desktop's UI.
-
-**Design philosophy:** Near-neutral dark charcoal (not brown/sepia), clean
-neutral grays for all UI chrome, single rust accent `#D4715A` used ONLY for
-the logo asterisk and brand moments — everything else neutral.
+#### 1. New Logo — Brain Network
+Replaced the asterisk/play-button mark with a **brain + 3 nodes** minimalist SVG.
+Brain outline with center division, 3 satellite nodes connected via subtle lines, all in rust `#D4715A`.
 
 **Files changed:**
-- `app/globals.css` — complete token overhaul: charcoal surfaces, neutral text
-  hierarchy, rust brand accent used sparingly
-- `components/Logo.tsx` — replaced node-graph with Anthropic-style 8-pointed
-  asterisk in rust/coral (`var(--color-brand)`)
-- `components/Sidebar.tsx` — Claude Desktop-style: "New chat" button, clean
-  nav items with section labels, no active color bar
-- `app/(app)/chat/page.tsx` — Claude Desktop empty state: centered greeting
-  "Good [time], [Name]" + asterisk logo, suggestions chips, clean input box
-  at bottom, config row moved to slim top bar
-- `app/(app)/blog/page.tsx` — removed hardcoded indigo-400 classes
-- `app/(app)/files/page.tsx` — removed hardcoded violet classes → CSS vars
-- `app/(app)/stack/page.tsx` — removed hardcoded #8b5cf6 → CSS var
+- `components/Logo.tsx` — new `BrainNetwork` component (32×32 viewBox, all variants)
+- `public/icons/icon.svg` — 512×512 version on dark charcoal background (`#1a1a1a`)
+- `public/icons/icon-192.png` — regenerated via sharp
+- `public/icons/icon-512.png` — regenerated via sharp
+- `public/icons/apple-touch-icon.png` — regenerated (iPhone "Add to Home Screen")
+- `public/icons/favicon-32.png` — regenerated (browser tab)
+- `public/manifest.webmanifest` — **created** (was missing entirely — PWA install was broken)
 
-**Key design tokens (v3):**
-```css
---color-background:  #1a1a1a   (neutral dark charcoal)
---color-surface:     #222222   (sidebar/panel)
---color-surface-2:   #2a2a2a   (card/input bg)
---color-surface-3:   #323232   (hover/code block)
---color-brand:       #D4715A   (rust/coral — logo only)
---color-text:        #efefef   (near-white)
---color-text-secondary: #aaaaaa
---color-muted:       #666666
-```
+#### 2. Model Dropdown — Centered Modal + Collapsible Context
+Problem: popup anchored to button clipped off screen on mobile and was unusable with many agents.
 
-**Deploy:** ✅ DEPLOYED — git pushed + VPS rebuilt (session 8b)
+**Fix:** replaced anchored dropdown with a **centered fixed modal** + dark backdrop.
+- Opens centered on screen regardless of trigger position
+- Backdrop click + Escape key to close
+- **Context section is now collapsible** — shows current team name inline when collapsed; click to expand scrollable agent list (max 220px with overflow scroll)
+- Width: `min(320px, calc(100vw - 32px))` — safe on any screen
+
+**Files changed:**
+- `app/(app)/chat/page.tsx` — `ModelDropdown` component rewritten
+
+#### 3. Mobile Centering Fixes
+- Message bubble horizontal padding: `24px → 12px`
+- Bottom input bar padding: `24px → 12px`
+- Greeting heading: `32px fixed → clamp(22px, 5vw, 30px)`
+- Empty state padding adjusted for notched phones (`padding: "16px 16px 32px"`)
+
+**Deploy:** ❌ NOT YET deployed — git commit + scp pending
 
 ---
 
-### Also deployed in this push — session 6 files (workspace tabs)
+### Previous sessions (already deployed)
 
-Session 6 files were pending deploy. Bundled together with session 7:
-- `prisma/schema.prisma` — `category` field on `AgentTeam`
-- `lib/chat-tools.ts` — `create_team` accepts `category`
-- `app/api/teams/route.ts` — POST accepts `category`
-- `app/(app)/agent-lab/page.tsx` — workspace tab bar (also updated for copper)
-
-Schema was already in sync on VPS (auto-migrated on previous container start).
+**Session 8b/8c:** Design System v3 (charcoal tokens) + Sidebar v2 — ✅ DEPLOYED
+**Session 6:** Workspace tabs in Agent Teams — ✅ DEPLOYED
 
 ---
 
 ## Next Session — Priority Order
 
-### 1. ✅ DEPLOYED — Design System v3 (session 8b)
-
-### 2. UI/UX — Remaining Pages Audit ← START HERE
-- `app/globals.css`
-- `components/Logo.tsx`
-- `components/Sidebar.tsx`
-- `app/(app)/chat/page.tsx`
-- `app/(app)/blog/page.tsx`
-- `app/(app)/files/page.tsx`
-- `app/(app)/stack/page.tsx`
+### 0. DEPLOY SESSION 9 FIRST ← DO THIS BEFORE ANYTHING ELSE
 
 ```bash
-scp -i ~/.ssh/id_ed25519 app/globals.css components/Logo.tsx components/Sidebar.tsx \
-  root@95.217.163.247:/root/opt/vps/app/...
-ssh root@95.217.163.247 "cd /root/opt/vps && docker compose ... up -d --build dashboard"
+# From local machine:
+scp -i ~/.ssh/id_ed25519 \
+  components/Logo.tsx \
+  "app/(app)/chat/page.tsx" \
+  public/icons/icon.svg \
+  public/icons/icon-192.png \
+  public/icons/icon-512.png \
+  public/icons/apple-touch-icon.png \
+  public/icons/favicon-32.png \
+  public/manifest.webmanifest \
+  root@95.217.163.247:/root/opt/vps/...
+
+ssh -i ~/.ssh/id_ed25519 root@95.217.163.247 \
+  "cd /root/opt/vps && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build dashboard"
 ```
 
-### 2. UI/UX — Remaining Pages Audit (1-2h)
-Pages that still use hardcoded gray Tailwind classes (`text-gray-*`, `bg-gray-*`)
-and need to be migrated to CSS var tokens:
+No schema changes — no `prisma db push` needed.
+
+### 1. UI/UX — Remaining Pages Audit (1-2h)
+Pages still using hardcoded Tailwind gray classes (`text-gray-*`, `bg-gray-*`):
 - `app/(app)/blog/page.tsx` — still uses `text-gray-100`, `bg-gray-800` etc
-- Any other pages with old Tailwind color classes (run grep for `text-gray-`)
+- `app/(app)/dashboard/page.tsx` — has `bg-gray-*` widget cards
+- Run: `grep -r "text-gray-\|bg-gray-" app/` to find all remaining instances
 Goal: all pages use `var(--color-*)` tokens consistently
 
-### 3. Dashboard Page Cleanup (1h)
-The dashboard still uses some `bg-gray-*` classes. Migrate to CSS vars
-and review widget card visual quality against the new design system.
+### 2. Empty States (30min)
+Add proper empty states to: Plans, Teams, Brain, Schedule pages.
+Use `<LogoMark size={40} />` + helpful message + CTA button pattern.
 
-### 4. Empty States (30min)
-Add proper empty states to: Plans, Teams, Brain, Schedule pages
-Use the LogoMark asterisk + helpful message + CTA button pattern.
-
-### 5. PWA Icons
-Generate `public/icons/icon-192.png`, `icon-512.png`, `apple-touch-icon.png`
-from the new asterisk logo SVG.
-
-### 6. LLM Provider Settings UI (1-2h)
+### 3. LLM Provider Settings UI (1-2h)
 Build the settings UI to configure which LLM is used for each role.
 **File:** `app/(app)/settings/page.tsx` — add "Providers" tab
-**Existing API:** `GET/POST/DELETE /api/llm-providers` (fully wired)
+**Existing API:** `GET/POST/DELETE /api/llm-providers` (fully wired, no UI yet)
 
-### 7. Marketplace (4-6h)
+### 4. Frontend SSE listener (30min)
+Connect `/api/notify/stream` to a toast/banner in the chat page.
+Add `EventSource` in `chat/page.tsx` useEffect.
+
+### 5. Marketplace (4-6h)
 Approved plan at `docs/MARKETPLACE-PLAN.md`.
 
-### 8. Frontend SSE listener
-Connect `/api/notify/stream` to a toast/banner in the chat page.
-
-### 9. Landing page Block G
+### 6. Landing page Block G
 Brain section + updated pricing + blog link.
 
 ---
@@ -182,7 +172,14 @@ Logo auto-themes via `var(--color-surface)` / `var(--color-brand)` in SVG fills.
 - SSE notification stream (backend only, no frontend listener)
 - Self-registration, credit gate, admin credits panel
 - Mobile-first UI (bottom nav, responsive)
-- **Design System v2: warm copper palette, new Logo, all pages updated**
+- Design System v3: charcoal tokens, Sidebar v2
+
+### Built locally, NOT YET deployed ⏳
+- Brain network logo (replaces asterisk/play-button)
+- All PWA icons regenerated (192, 512, apple-touch, favicon-32)
+- `manifest.webmanifest` created (PWA install was broken without it)
+- Model dropdown: centered modal + collapsible context section
+- Mobile centering fixes (padding, clamp font size)
 
 ### Built but needs UI ⚠️
 - LLM Provider config (`/api/llm-providers` live, no UI) — **next priority**
@@ -194,8 +191,8 @@ Logo auto-themes via `var(--color-surface)` / `var(--color-brand)` in SVG fills.
 - Stripe payment automation
 - Landing page Brain section (Block G)
 - Admin monitoring panel
-- PNG icons for PWA
 - Frontend SSE listener
+- Empty states (Plans, Teams, Brain, Schedule)
 
 ---
 
