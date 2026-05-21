@@ -1,13 +1,35 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
-import { getProvider } from "@/lib/providers";
 import { queryBrain, formatBrainContext } from "@/lib/brain/query";
+import { executeTool, CHAT_TOOLS } from "@/lib/chat-tools";
 import type { TaskResult } from "./events";
 
+const MAX_TOOL_ITERATIONS = 10;
+
+// Tool subsets per team category
+const TEAM_TOOL_SUBSETS: Record<string, string[]> = {
+  dev:        ["vps_exec", "write_file", "read_file", "list_files", "vault_write", "vault_search", "web_search", "web_browse"],
+  research:   ["web_search", "web_browse", "vault_write", "vault_search", "read_file", "list_files"],
+  content:    ["write_file", "vault_write", "vault_search", "web_search", "web_browse"],
+  ops:        ["schedule_task", "delegate_to_team", "vault_write", "web_search", "query_data"],
+  default:    ["vault_search", "vault_write", "web_search", "web_browse", "write_file", "read_file"],
+};
+
+const COMMON_TOOLS = ["council_reason", "save_memory", "recall_memories", "create_plan"];
+
+function getTeamTools(teamName: string): string[] {
+  const name = teamName.toLowerCase();
+  let subset = TEAM_TOOL_SUBSETS.default;
+  if (name.includes("dev") || name.includes("code") || name.includes("engineer")) subset = TEAM_TOOL_SUBSETS.dev;
+  else if (name.includes("research") || name.includes("intel")) subset = TEAM_TOOL_SUBSETS.research;
+  else if (name.includes("content") || name.includes("market") || name.includes("social")) subset = TEAM_TOOL_SUBSETS.content;
+  else if (name.includes("ops") || name.includes("operat")) subset = TEAM_TOOL_SUBSETS.ops;
+  return [...new Set([...subset, ...COMMON_TOOLS])];
+}
+
 /**
- * Execute a single PlanTask.
- * 1. Checks TaskProtocol for a local Ollama match first (cost savings).
- * 2. Falls back to the configured agent provider (default: Anthropic).
- * 3. Injects relevant brain context into the system prompt.
+ * Execute a single PlanTask with a full Anthropic tool loop.
+ * Agents can now call tools just like the coordinator chat does.
  */
 export async function runAgentTask(taskId: string): Promise<TaskResult> {
   const task = await prisma.planTask.findUnique({
@@ -17,7 +39,7 @@ export async function runAgentTask(taskId: string): Promise<TaskResult> {
 
   if (!task) throw new Error(`Task ${taskId} not found`);
 
-  // 1. Pull relevant brain context
+  // Pull relevant brain context
   const brainChunks = await queryBrain({
     query: task.description,
     topK: 6,
@@ -25,79 +47,99 @@ export async function runAgentTask(taskId: string): Promise<TaskResult> {
   });
   const brainContext = formatBrainContext(brainChunks, 3000);
 
-  // 2. Try to match a local TaskProtocol (free, fast)
-  const protocol = await findMatchingProtocol(task.description);
+  const systemPrompt = buildSystemPrompt(task.team.name, task.team.permissions ?? [], brainContext);
+  const userMessage = buildTaskPrompt(task.title, task.description, task.plan.title);
 
-  let providerKey: "agent" | "keeper" = "agent";
-  let modelOverride: string | undefined;
-
-  if (protocol) {
-    // Use local Ollama protocol
-    modelOverride = protocol.localModel;
-    providerKey = "agent";
-    // Update protocol stats
-    prisma.taskProtocol.update({
-      where: { id: protocol.id },
-      data: { successCount: { increment: 1 } },
-    }).catch(() => {});
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    // Fallback to simple completion if no API key
+    return simpleFallback(taskId, task.team.name, userMessage);
   }
 
-  const provider = protocol
-    ? await import("@/lib/providers").then((m) => new m.OllamaProvider())
-    : await getProvider(providerKey);
+  const allowedToolNames = getTeamTools(task.team.name);
+  const tools = CHAT_TOOLS
+    .filter((t) => allowedToolNames.includes(t.name))
+    .map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema }));
 
-  const model = modelOverride || "claude-sonnet-4-6";
+  const client = new Anthropic({ apiKey });
+  let currentMessages: Anthropic.Messages.MessageParam[] = [
+    { role: "user", content: userMessage },
+  ];
 
-  // 3. Build system prompt
-  const systemPrompt = buildSystemPrompt(
-    task.team.name,
-    task.team.permissions ?? [],
-    brainContext,
-    protocol?.systemPrompt
-  );
+  let fullText = "";
+  let totalInput = 0;
+  let totalOutput = 0;
+  let iterations = 0;
 
-  // 4. Run completion
-  const result = await provider.complete({
-    model,
-    system: systemPrompt,
-    messages: [
-      {
-        role: "user",
-        content: buildTaskPrompt(task.title, task.description, task.plan.title),
-      },
-    ],
-    maxTokens: 4096,
-    temperature: 0.3,
-  });
+  while (iterations < MAX_TOOL_ITERATIONS) {
+    iterations++;
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 4096,
+      system: systemPrompt,
+      messages: currentMessages,
+      tools: tools as Anthropic.Messages.Tool[],
+    });
 
-  // 5. Extract a summary (first 200 chars of output)
-  const summary = result.content.slice(0, 200).replace(/\n+/g, " ");
+    totalInput += response.usage.input_tokens;
+    totalOutput += response.usage.output_tokens;
 
-  return {
-    taskId,
-    content: result.content,
-    summary,
-    inputTokens: result.inputTokens,
-    outputTokens: result.outputTokens,
-    provider: provider.type,
-    model,
-  };
+    // Collect text from this iteration
+    for (const block of response.content) {
+      if (block.type === "text") fullText += block.text + "\n";
+    }
+
+    if (response.stop_reason === "end_turn" || response.stop_reason === "max_tokens") break;
+
+    if (response.stop_reason === "tool_use") {
+      // Execute all tool calls and collect results
+      const toolResults: Anthropic.Messages.ToolResultBlockParam[] = [];
+
+      for (const block of response.content) {
+        if (block.type === "tool_use") {
+          const result = await executeTool(block.name, block.input as Record<string, unknown>);
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: block.id,
+            content: result,
+          });
+        }
+      }
+
+      currentMessages = [
+        ...currentMessages,
+        { role: "assistant", content: response.content },
+        { role: "user", content: toolResults },
+      ];
+
+      continue;
+    }
+
+    break;
+  }
+
+  const content = fullText.trim() || "Task completed.";
+  const summary = content.slice(0, 200).replace(/\n+/g, " ");
+
+  return { taskId, content, summary, inputTokens: totalInput, outputTokens: totalOutput, provider: "anthropic", model: "claude-sonnet-4-6" };
 }
 
-function buildSystemPrompt(
-  teamName: string,
-  capabilities: string[],
-  brainContext: string,
-  protocolPrompt?: string
-): string {
-  const base = protocolPrompt
-    ? protocolPrompt
-    : `You are an AI agent on the ${teamName} team.
-Your capabilities: ${capabilities.join(", ")}.
+// Simple fallback when no Anthropic API key
+async function simpleFallback(taskId: string, teamName: string, prompt: string): Promise<TaskResult> {
+  const content = `[${teamName}] Task acknowledged. No API key configured — task recorded but not executed.\n\nPrompt: ${prompt.slice(0, 200)}`;
+  return { taskId, content, summary: content.slice(0, 200), inputTokens: 0, outputTokens: 0, provider: "none", model: "none" };
+}
 
-Complete the assigned task thoroughly and concisely.
-Return your output as plain text — structured if helpful (markdown lists, code blocks).
-If you cannot complete the task, explain exactly what is missing.`;
+function buildSystemPrompt(teamName: string, capabilities: string[], brainContext: string): string {
+  const base = `You are an AI agent on the ${teamName} team.
+${capabilities.length ? `Capabilities: ${capabilities.join(", ")}.` : ""}
+
+Complete the assigned task thoroughly. Use your available tools to:
+1. Search the vault for relevant context first
+2. Execute the required steps
+3. Write your results to the vault when done
+
+Return your output as structured markdown. If you cannot complete the task, explain exactly what is missing.`;
 
   return brainContext ? `${base}\n\n${brainContext}` : base;
 }
@@ -109,27 +151,5 @@ function buildTaskPrompt(title: string, description: string, planTitle: string):
 
 ${description}
 
-Complete this task now. Be thorough and specific.`;
-}
-
-async function findMatchingProtocol(description: string) {
-  try {
-    const protocols = await prisma.taskProtocol.findMany({
-      where: { active: true, confidence: { gte: 0.7 } },
-      orderBy: { confidence: "desc" },
-      take: 20,
-    });
-
-    for (const p of protocols) {
-      try {
-        const pattern = new RegExp(p.taskPattern, "i");
-        if (pattern.test(description)) return p;
-      } catch {
-        // Invalid regex — skip
-      }
-    }
-  } catch {
-    // TaskProtocol table might not be populated yet
-  }
-  return null;
+Complete this task now. Be thorough and specific. Use your tools to do the work — don't just describe what you would do.`;
 }

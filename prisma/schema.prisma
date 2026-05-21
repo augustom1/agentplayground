@@ -91,6 +91,8 @@ model Agent {
   teamId String
   team   AgentTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
+  playgroundTeams PlaygroundMember[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -794,6 +796,140 @@ model TaskProtocol {
   @@index([active])
   @@index([category])
   @@map("task_protocols")
+}
+
+// ─── Admin Panel — Analytics (Phase B) ──────────────
+model PageView {
+  id         String   @id @default(cuid())
+  path       String
+  referrer   String?
+  userAgent  String?
+  ip         String?
+  country    String?
+  deviceType String?
+  browser    String?
+  os         String?
+  sessionId  String
+  userId     String?
+  durationMs Int?
+  createdAt  DateTime @default(now())
+
+  @@index([path])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@index([userId])
+  @@map("page_views")
+}
+
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  sessionId  String
+  userId     String?
+  type       String
+  path       String
+  properties Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@index([type])
+  @@index([path])
+  @@index([createdAt])
+  @@map("analytics_events")
+}
+
+// ─── Admin Panel — API Monitor (Phase B) ─────────────
+enum ApiClientType {
+  CLAUDE_MOBILE
+  EXTERNAL_APP
+  AGENT
+  WEBHOOK
+}
+
+model ApiClient {
+  id           String        @id @default(cuid())
+  name         String
+  type         ApiClientType
+  apiKey       String        @unique
+  apiKeyPrefix String
+  isActive     Boolean       @default(true)
+  rateLimit    Int           @default(100)
+  permissions  Json          @default("[]")
+  lastSeenAt   DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  requests ApiRequest[]
+
+  @@map("api_clients")
+}
+
+model ApiRequest {
+  id           String    @id @default(cuid())
+  clientId     String
+  client       ApiClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  method       String
+  path         String
+  statusCode   Int
+  durationMs   Int
+  requestSize  Int?
+  responseSize Int?
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+
+  @@index([clientId])
+  @@index([createdAt])
+  @@index([statusCode])
+  @@map("api_requests")
+}
+
+// ─── Playground Teams (Phase A) ──────────────────────
+// User-owned chat teams for the Playground tab.
+// Distinct from AgentTeam (workspace/lab concept).
+
+model PlaygroundTeam {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  emoji       String?
+  color       String?
+  userId      String
+  config      Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members  PlaygroundMember[]
+  threads  PlaygroundThread[]
+
+  @@index([userId])
+  @@map("playground_teams")
+}
+
+model PlaygroundMember {
+  id      String          @id @default(cuid())
+  teamId  String
+  team    PlaygroundTeam  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  agentId String
+  agent   Agent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  role    String?
+  addedAt DateTime        @default(now())
+
+  @@unique([teamId, agentId])
+  @@index([teamId])
+  @@map("playground_members")
+}
+
+model PlaygroundThread {
+  id        String          @id @default(cuid())
+  teamId    String
+  team      PlaygroundTeam  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId    String
+  title     String?
+  messages  Json            @default("[]")
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([teamId])
+  @@index([userId])
+  @@map("playground_threads")
 }
 
 // Weekly scan results — usage analysis + recommendations

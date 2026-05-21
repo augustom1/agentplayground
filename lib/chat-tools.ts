@@ -207,7 +207,7 @@ export const CHAT_TOOLS: ToolDefinition[] = [
   {
     name: "delegate_to_team",
     description:
-      "Delegate a task to a specific agent team. Use this as the Coordinator to assign work to the right team. Creates a tracked task record in the system.",
+      "Delegate a task to a specific agent team and EXECUTE it immediately. The team will run a full tool loop to complete the task. Returns the team's result when finished. Use this as the Coordinator to assign work to the right team.",
     input_schema: {
       type: "object",
       properties: {
@@ -644,6 +644,97 @@ export const CHAT_TOOLS: ToolDefinition[] = [
       required: ["title", "scheduledFor"],
     },
   },
+  // ─── LLM Council ─────────────────────────────────────────────────────────────
+  {
+    name: "council_reason",
+    description:
+      "Run a multi-LLM Council vote on any question, decision, or proposal. Each participating agent team reviews from its domain perspective, then a facilitator synthesizes consensus. Use this for important decisions, architectural choices, plan validation, or when you want multi-perspective analysis before acting. Returns amendments, risk flags, consensus score, and transcript.",
+    input_schema: {
+      type: "object",
+      properties: {
+        question: { type: "string", description: "The question, decision, or topic to put to the council" },
+        context: { type: "string", description: "Relevant background, data, options, or constraints for the council to consider" },
+        participantTeamIds: {
+          type: "array",
+          items: { type: "string" },
+          description: "Specific team IDs to include as council participants (up to 4). Omit to use all active teams.",
+        },
+        rounds: { type: "number", description: "Number of debate rounds (default: 2, max: 3)" },
+      },
+      required: ["question"],
+    },
+  },
+  // ─── VPS Exec ────────────────────────────────────────────────────────────────
+  {
+    name: "vps_exec",
+    description:
+      "Run a shell command on the production VPS via SSH. Use to update code (git pull/push), restart containers, install packages, edit files, run database migrations, or any server management task. Requires VPS_SSH_KEY to be set. Commands run as root in the VPS shell.",
+    input_schema: {
+      type: "object",
+      properties: {
+        command: {
+          type: "string",
+          description: "Shell command to execute on the VPS (e.g. 'cd /root/opt/vps && git pull', 'docker compose restart dashboard', 'pip3 install markitdown')",
+        },
+      },
+      required: ["command"],
+    },
+  },
+  // ─── MarkItDown / RAG Converter ──────────────────────────────────────────────
+  {
+    name: "convert_to_markdown",
+    description:
+      "Convert an uploaded Office document (Excel .xlsx, Word .docx, PowerPoint .pptx, PDF, CSV, images) to clean Markdown using Microsoft MarkItDown on the VPS, then optionally auto-embed the result into the Brain for RAG search. Use after a user uploads a non-text file so agents can read and search it. MarkItDown is installed automatically on first use.",
+    input_schema: {
+      type: "object",
+      properties: {
+        filePath: {
+          type: "string",
+          description: "Relative path to the file in shared storage as shown by list_files (e.g. 'reports/Q1.xlsx')",
+        },
+        saveToVault: {
+          type: "boolean",
+          description: "Auto-embed the converted Markdown into the Brain vault for RAG search (default: true)",
+        },
+        vaultTags: {
+          type: "array",
+          items: { type: "string" },
+          description: "Tags to apply when saving to vault (e.g. ['#finance', '#q1', '#excel'])",
+        },
+      },
+      required: ["filePath"],
+    },
+  },
+  // ─── Plan Execution ──────────────────────────────────────────────────────────
+  {
+    name: "run_plan",
+    description:
+      "Auto-approve and execute a Plan that was created with create_plan. Dispatches all tasks to their assigned teams in parallel batches. Returns when all tasks are complete with a summary of results. Use after create_plan to kick off execution without requiring the user to visit /plans.",
+    input_schema: {
+      type: "object",
+      properties: {
+        planId: { type: "string", description: "ID of the Plan to execute (returned by create_plan)" },
+      },
+      required: ["planId"],
+    },
+  },
+  {
+    name: "get_task_result",
+    description:
+      "Read the result of a delegated task or plan task by its ID. Use after delegate_to_team or run_plan to retrieve what the team produced. Returns status and full result content.",
+    input_schema: {
+      type: "object",
+      properties: {
+        taskId: { type: "string", description: "The Task or PlanTask ID to read results from" },
+        taskType: {
+          type: "string",
+          enum: ["task", "plan_task"],
+          description: "Whether this is a regular task or a plan task (default: task)",
+        },
+      },
+      required: ["taskId"],
+    },
+  },
 ];
 
 /**
@@ -726,6 +817,16 @@ export async function executeTool(
         return await toolCreatePlan(input);
       case "schedule_meeting":
         return await toolScheduleMeeting(input);
+      case "council_reason":
+        return await toolCouncilReason(input);
+      case "vps_exec":
+        return await toolVpsExec(input);
+      case "convert_to_markdown":
+        return await toolConvertToMarkdown(input);
+      case "run_plan":
+        return await toolRunPlan(input);
+      case "get_task_result":
+        return await toolGetTaskResult(input);
       default:
         return JSON.stringify({ error: `Unknown tool: ${toolName}` });
     }
@@ -1143,12 +1244,13 @@ async function toolGenerateTool(input: Record<string, unknown>): Promise<string>
 }
 
 async function toolDelegateToTeam(input: Record<string, unknown>): Promise<string> {
+  // Create a PlanTask-compatible record — wrap in a minimal plan if needed
   const task = await prisma.task.create({
     data: {
       title: input.title as string,
       description: input.description as string,
       priority: (input.priority as string) || "medium",
-      status: "pending",
+      status: "running",
       teamId: input.teamId as string,
     },
   });
@@ -1162,11 +1264,95 @@ async function toolDelegateToTeam(input: Record<string, unknown>): Promise<strin
     },
   });
 
-  return JSON.stringify({
-    success: true,
-    task: { id: task.id, title: task.title, status: task.status },
-    message: `Task "${task.title}" delegated to ${input.teamName as string} with ${task.priority} priority.`,
-  });
+  // Actually execute via the agent runner (tool loop)
+  try {
+    const { runDelegatedTask } = await import("@/lib/agents/delegated");
+    const result = await runDelegatedTask(task.id, {
+      title: task.title,
+      description: task.description ?? "",
+      teamId: task.teamId,
+    });
+
+    await prisma.task.update({
+      where: { id: task.id },
+      data: { status: "completed", result: result.content, completedAt: new Date() },
+    });
+
+    return JSON.stringify({
+      success: true,
+      taskId: task.id,
+      result: result.content.slice(0, 2000),
+      summary: result.summary,
+      message: `Task "${task.title}" completed by ${input.teamName as string}.`,
+    });
+  } catch (err) {
+    await prisma.task.update({
+      where: { id: task.id },
+      data: { status: "failed" },
+    });
+    return JSON.stringify({
+      success: false,
+      taskId: task.id,
+      error: String(err),
+      message: `Task delegation failed: ${String(err)}`,
+    });
+  }
+}
+
+async function toolRunPlan(input: Record<string, unknown>): Promise<string> {
+  const planId = input.planId as string;
+  try {
+    const plan = await prisma.plan.findUnique({
+      where: { id: planId },
+      include: { tasks: true },
+    });
+    if (!plan) return JSON.stringify({ error: `Plan ${planId} not found` });
+
+    // Approve and run
+    await prisma.plan.update({
+      where: { id: planId },
+      data: { status: "APPROVED", approvedAt: new Date() },
+    });
+
+    const { dispatchPlan } = await import("@/lib/planner/dispatch");
+    await dispatchPlan(planId);
+
+    const tasks = await prisma.planTask.findMany({
+      where: { planId },
+      select: { title: true, status: true, result: true },
+    });
+
+    const summary = tasks.map((t) => `- ${t.title}: ${t.status}${t.result ? ` — ${t.result.slice(0, 100)}` : ""}`).join("\n");
+
+    return JSON.stringify({
+      success: true,
+      planId,
+      tasksCompleted: tasks.filter((t) => t.status === "DONE").length,
+      total: tasks.length,
+      summary,
+    });
+  } catch (err) {
+    return JSON.stringify({ error: String(err) });
+  }
+}
+
+async function toolGetTaskResult(input: Record<string, unknown>): Promise<string> {
+  const taskId = input.taskId as string;
+  const taskType = (input.taskType as string) || "task";
+
+  try {
+    if (taskType === "plan_task") {
+      const t = await prisma.planTask.findUnique({ where: { id: taskId } });
+      if (!t) return JSON.stringify({ error: "PlanTask not found" });
+      return JSON.stringify({ taskId, status: t.status, result: t.result, title: t.title });
+    } else {
+      const t = await prisma.task.findUnique({ where: { id: taskId } });
+      if (!t) return JSON.stringify({ error: "Task not found" });
+      return JSON.stringify({ taskId, status: t.status, result: t.result, title: t.title });
+    }
+  } catch (err) {
+    return JSON.stringify({ error: String(err) });
+  }
 }
 
 // ─── File System Tool Handlers ────────────────────────────────────────────────
@@ -1710,5 +1896,119 @@ async function toolScheduleMeeting(input: Record<string, unknown>): Promise<stri
     success: true,
     meeting: { id: meeting.id, title: meeting.title, scheduledFor: meeting.scheduledFor },
     message: `✓ Meeting "${meeting.title}" scheduled for ${when}. Participants: ${participantList}. A reminder will appear in chat ${meeting.reminderMins} minutes before. Visible in Schedule → Meetings tab.`,
+  });
+}
+
+// ─── Council Reason ───────────────────────────────────────────────────────────
+
+async function toolCouncilReason(input: Record<string, unknown>): Promise<string> {
+  const { runCouncil } = await import("@/lib/council");
+
+  const question = input.question as string;
+  const context = input.context as string | undefined;
+  const rounds = Math.min((input.rounds as number) || 2, 3);
+
+  // Resolve participant teams
+  let teamIds = (input.participantTeamIds as string[]) ?? [];
+  if (!teamIds.length) {
+    const allTeams = await prisma.agentTeam.findMany({
+      where: { isSystemTeam: false },
+      select: { id: true },
+      take: 4,
+    });
+    teamIds = allTeams.map((t: { id: string }) => t.id);
+  }
+
+  if (!teamIds.length) {
+    return JSON.stringify({ error: "No agent teams found. Create at least one team before running council." });
+  }
+
+  const councilContext = context
+    ? `QUESTION: ${question}\n\nCONTEXT:\n${context}`
+    : `QUESTION: ${question}`;
+
+  const output = await runCouncil({
+    context: councilContext,
+    topic: question,
+    participants: teamIds.slice(0, 4),
+    rounds,
+  });
+
+  return JSON.stringify({
+    success: true,
+    consensusScore: output.consensusScore,
+    amendments: output.amendments,
+    riskFlags: output.riskFlags,
+    transcript: output.transcript.slice(0, 4000),
+  });
+}
+
+// ─── VPS Exec ────────────────────────────────────────────────────────────────
+
+async function toolVpsExec(input: Record<string, unknown>): Promise<string> {
+  const { runArbitraryCommand } = await import("@/lib/tool-installer/installer");
+  const command = input.command as string;
+
+  if (!command?.trim()) return JSON.stringify({ error: "command is required" });
+
+  const result = await runArbitraryCommand(command);
+
+  return JSON.stringify({
+    success: result.success,
+    output: result.output?.slice(0, 4000) ?? "",
+    error: result.error?.slice(0, 1000),
+  });
+}
+
+// ─── Convert to Markdown (MarkItDown) ────────────────────────────────────────
+
+async function toolConvertToMarkdown(input: Record<string, unknown>): Promise<string> {
+  const { runArbitraryCommand } = await import("@/lib/tool-installer/installer");
+  const { ingestToVault } = await import("@/lib/brain");
+
+  const filePath = (input.filePath as string).replace(/^\/+/, "");
+  const saveToVault = (input.saveToVault as boolean) ?? true;
+  const vaultTags = (input.vaultTags as string[]) ?? [];
+
+  // Determine VPS files root — same volume mount the app uses
+  const vpsFilesRoot = process.env.VPS_FILES_PATH ?? "/root/opt/vps/data/files";
+  const fullPath = `${vpsFilesRoot}/${filePath}`;
+
+  // Try markitdown; auto-install if missing
+  let markdownResult = await runArbitraryCommand(`markitdown "${fullPath}" 2>&1`);
+
+  if (!markdownResult.success && /not found|No module/i.test(markdownResult.error ?? markdownResult.output ?? "")) {
+    // Install markitdown on VPS
+    const installResult = await runArbitraryCommand("pip3 install markitdown 2>&1");
+    if (!installResult.success) {
+      return JSON.stringify({ error: `markitdown install failed: ${installResult.output}` });
+    }
+    // Retry conversion
+    markdownResult = await runArbitraryCommand(`markitdown "${fullPath}" 2>&1`);
+  }
+
+  if (!markdownResult.success || !markdownResult.output?.trim()) {
+    return JSON.stringify({
+      error: `Conversion failed. Make sure the file exists at ${fullPath}. Error: ${markdownResult.error ?? markdownResult.output}`,
+    });
+  }
+
+  const markdown = markdownResult.output.trim();
+  const title = path.basename(filePath, path.extname(filePath));
+  const ext = path.extname(filePath).toLowerCase().slice(1);
+  const tags = ["#converted", `#${ext}`, ...vaultTags];
+
+  if (saveToVault) {
+    await ingestToVault(markdown, `Converted: ${title}`, tags);
+  }
+
+  return JSON.stringify({
+    success: true,
+    title,
+    markdownLength: markdown.length,
+    preview: markdown.slice(0, 600),
+    savedToVault: saveToVault,
+    tags,
+    message: `✓ Converted "${filePath}" to Markdown (${markdown.length} chars).${saveToVault ? " Saved to Brain vault and indexed for RAG search." : ""}`,
   });
 }

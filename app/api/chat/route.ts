@@ -242,7 +242,7 @@ async function streamAnthropic(
   let currentMessages = [...messages];
   let continueLoop = true;
   let iterations = 0;
-  const MAX_TOOL_ITERATIONS = 10;
+  const MAX_TOOL_ITERATIONS = 25; // coordinator needs depth for plan+delegate+synthesize
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
   let totalWebSearchCalls = 0;
@@ -431,50 +431,100 @@ async function streamOllama(
 ) {
   const baseUrl = process.env.OLLAMA_BASE_URL || "http://ollama:11434";
 
+  // Tools in OpenAI/Ollama function-calling format
+  const tools = CHAT_TOOLS.map((t) => ({
+    type: "function" as const,
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: t.input_schema,
+    },
+  }));
+
+  type OllamaMessage = { role: string; content: string | null; tool_calls?: unknown[] };
+  let currentMessages: OllamaMessage[] = [
+    { role: "system", content: systemPrompt },
+    ...messages,
+  ];
+
+  let continueLoop = true;
+  let iterations = 0;
+  const MAX_TOOL_ITERATIONS = 10;
+
   try {
-    const res = await fetch(`${baseUrl}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "system", content: systemPrompt }, ...messages],
-        stream: true,
-      }),
-      signal: AbortSignal.timeout(60000),
-    });
+    while (continueLoop && iterations < MAX_TOOL_ITERATIONS) {
+      iterations++;
+      continueLoop = false;
 
-    if (!res.ok) {
-      controller.enqueue(
-        encoder.encode(
-          `Ollama error (${res.status}). Make sure Ollama is running at ${baseUrl} and the model "${model}" is pulled.`
-        )
-      );
-      return;
-    }
+      const res = await fetch(`${baseUrl}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model, messages: currentMessages, tools, stream: false }),
+        signal: AbortSignal.timeout(120000),
+      });
 
-    const reader = res.body!.getReader();
-    const decoder = new TextDecoder();
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const chunk = decoder.decode(value);
-      for (const line of chunk.split("\n")) {
-        if (!line.trim()) continue;
-        try {
-          const parsed = JSON.parse(line);
-          if (parsed.message?.content) {
-            controller.enqueue(encoder.encode(parsed.message.content));
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        // If tools param caused an error (model doesn't support tools), retry without tools
+        if (res.status === 400 && errText.includes("tool")) {
+          const fallback = await fetch(`${baseUrl}/api/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ model, messages: currentMessages, stream: true }),
+            signal: AbortSignal.timeout(60000),
+          });
+          if (!fallback.ok) {
+            controller.enqueue(encoder.encode(`Ollama error (${fallback.status}). Make sure Ollama is running at ${baseUrl} and the model "${model}" is pulled.`));
+            return;
           }
-        } catch {}
+          const reader = fallback.body!.getReader();
+          const decoder = new TextDecoder();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            for (const line of decoder.decode(value).split("\n")) {
+              if (!line.trim()) continue;
+              try { const p = JSON.parse(line); if (p.message?.content) controller.enqueue(encoder.encode(p.message.content)); } catch {}
+            }
+          }
+          return;
+        }
+        controller.enqueue(encoder.encode(`Ollama error (${res.status}). Make sure Ollama is running at ${baseUrl} and the model "${model}" is pulled.`));
+        return;
+      }
+
+      type OllamaResponse = { message: { role: string; content: string | null; tool_calls?: Array<{ function: { name: string; arguments: unknown } }> }; done: boolean };
+      const data = await res.json() as OllamaResponse;
+      const assistantMessage = data.message;
+
+      if (assistantMessage.content) {
+        controller.enqueue(encoder.encode(assistantMessage.content));
+      }
+
+      if (assistantMessage.tool_calls?.length) {
+        currentMessages = [...currentMessages, assistantMessage as OllamaMessage];
+
+        for (const toolCall of assistantMessage.tool_calls) {
+          const toolName = toolCall.function.name;
+          const toolInput = typeof toolCall.function.arguments === "string"
+            ? JSON.parse(toolCall.function.arguments) as Record<string, unknown>
+            : toolCall.function.arguments as Record<string, unknown>;
+
+          const result = await executeTool(toolName, toolInput);
+          controller.enqueue(encoder.encode(`\n\n⚡ *Used tool: ${toolName}*\n\n`));
+
+          currentMessages = [...currentMessages, { role: "tool", content: result }];
+        }
+
+        continueLoop = true;
       }
     }
+
+    if (iterations >= MAX_TOOL_ITERATIONS) {
+      controller.enqueue(encoder.encode("\n\n⚠️ *Max tool iterations reached.*"));
+    }
   } catch (err) {
-    controller.enqueue(
-      encoder.encode(
-        `Cannot reach Ollama at ${baseUrl}. Make sure the service is running.\n\nError: ${String(err)}`
-      )
-    );
+    controller.enqueue(encoder.encode(`Cannot reach Ollama at ${baseUrl}. Make sure the service is running.\n\nError: ${String(err)}`));
   }
 }
 

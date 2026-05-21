@@ -1,5 +1,5 @@
 # Session Handoff
-> Last updated: 2026-05-21
+> Last updated: 2026-05-21 (Session 11 — deployed)
 > Read this at the start of every session BEFORE reading CLAUDE.md.
 > Update the "Current Session" block when ending a session.
 
@@ -7,187 +7,161 @@
 
 ## How to use this file
 
-1. Read **Current Session** — what was just done and what's next
-2. Read **Billing Plan** — the priority path to charging customers
-3. Skim **State Snapshot** — what's live vs. not built
-4. Then open CLAUDE.md for architecture/env/command reference
-5. Full session history → `docs/SESSION-HISTORY.md`
+1. Read **Next Session** — what to build and any new concepts to explore
+2. Read **State Snapshot** — what's live vs. not built
+3. Read **Architecture Quick Reference** — where things live
+4. Then open CLAUDE.md for env/command reference and NEXT-STEPS.md for the full roadmap
 
 ---
 
-## Current Session — 2026-05-21 (session 9) — LOCAL ONLY, NEEDS DEPLOY
+## Next Session Priority
 
-### What was built
+### 1. New Concept (user to fill in)
+> **[Describe your new concept here before next session starts.]**
+> This should be the first thing tackled — it's the user's new idea from the end of Session 11.
 
-#### 1. New Logo — Brain Network
-Replaced the asterisk/play-button mark with a **brain + 3 nodes** minimalist SVG.
-Brain outline with center division, 3 satellite nodes connected via subtle lines, all in rust `#D4715A`.
+### 2. Phase C2 — Skill Pack + Auto-Convert
+- Add 8 small business skills to `lib/default-skills.ts` (invoicing, CRM, proposals, etc.)
+- Add **UI/UX Pro Max** skill as a system prompt + tool config
+- Wire **MarkItDown auto-convert** on file upload: `app/api/files/upload/route.ts` → when `.xlsx/.docx/.pptx/.pdf` uploaded, call `convert_to_markdown` + index in Brain automatically. No manual step.
 
-**Files changed:**
-- `components/Logo.tsx` — new `BrainNetwork` component (32×32 viewBox, all variants)
-- `public/icons/icon.svg` — 512×512 version on dark charcoal background (`#1a1a1a`)
-- `public/icons/icon-192.png` — regenerated via sharp
-- `public/icons/icon-512.png` — regenerated via sharp
-- `public/icons/apple-touch-icon.png` — regenerated (iPhone "Add to Home Screen")
-- `public/icons/favicon-32.png` — regenerated (browser tab)
-- `public/manifest.webmanifest` — **created** (was missing entirely — PWA install was broken)
+### 3. Phase C3 — Google & Microsoft as Chat Tools
+- `lib/integrations/google/` — Gmail search/send, Calendar list/create, Drive search/read
+- `lib/integrations/microsoft/` — Outlook send, OneDrive search/read, Teams webhook
+- Wire as tools in `lib/chat-tools.ts` + add OAuth token storage (encrypted, `OAuthToken` table or in `ApiClient`)
+- Needs OAuth setup on Google Cloud Console and Azure Portal first
 
-#### 2. Model Dropdown — Centered Modal + Collapsible Context
-Problem: popup anchored to button clipped off screen on mobile and was unusable with many agents.
+### 4. Phase C4 — Claude Desktop via MCP
+- Add all 26+ chat tools to `/api/mcp/route.ts` (currently only vault tools)
+- Wire `ask_team`, `run_agent`, `search_brain`, `create_task` as MCP-callable tools
+- Update Claude Desktop config (`%APPDATA%\Claude\claude_desktop_config.json`) to point at `https://app.agentplayground.net/api/mcp`
+- Auth: use `ApiClient` of type `CLAUDE_MOBILE` (tracked in API Monitor)
 
-**Fix:** replaced anchored dropdown with a **centered fixed modal** + dark backdrop.
-- Opens centered on screen regardless of trigger position
-- Backdrop click + Escape key to close
-- **Context section is now collapsible** — shows current team name inline when collapsed; click to expand scrollable agent list (max 220px with overflow scroll)
-- Width: `min(320px, calc(100vw - 32px))` — safe on any screen
-
-**Files changed:**
-- `app/(app)/chat/page.tsx` — `ModelDropdown` component rewritten
-
-#### 3. Mobile Centering Fixes
-- Message bubble horizontal padding: `24px → 12px`
-- Bottom input bar padding: `24px → 12px`
-- Greeting heading: `32px fixed → clamp(22px, 5vw, 30px)`
-- Empty state padding adjusted for notched phones (`padding: "16px 16px 32px"`)
-
-**Deploy:** ✅ DEPLOYED — git pushed (d4102b8) + scp + docker rebuild 2026-05-21
+### 5. Phase C5 — Expand Coordinator System Prompt
+- Update `COORDINATOR_INTRO` in `app/api/chat/route.ts` to document all new capabilities
+- Document skill catalog, Google/MS tools, MarkItDown behavior, MCP external callers, VPS exec policy
 
 ---
 
-### Previous sessions (already deployed)
+## What's Deployed (as of Session 11)
 
-**Session 8b/8c:** Design System v3 (charcoal tokens) + Sidebar v2 — ✅ DEPLOYED
-**Session 6:** Workspace tabs in Agent Teams — ✅ DEPLOYED
+### Live on VPS ✅
+- Core platform: Teams (workspace tabs), Agents, Skills, Chat (streaming, 25-iteration tool loop), Tools
+- 2nd Brain: vault, MCP endpoint, graph, search, brain chunks + HNSW index
+- Plans system: create → council → approve at /plans → dispatch → execute
+- LLM Provider adapter system
+- Self-registration, credit gate UI, admin credits panel
+- Mobile-first UI, Design System v3 (charcoal + blue-cyan)
+- Brain network logo, PWA icons, manifest.webmanifest
+- **Playground Teams Hub** (`/playground`) — create teams, chat with agent groups, LLM-powered configure panel
+- **Admin Panel** (`/admin`) — analytics (self-hosted, recharts), API monitor (client CRUD, key rotation, per-client stats), admin guard
+- **Delegation fully wired** — `delegate_to_team` executes, `run_plan` + `get_task_result` tools live, coordinator limit = 25
+- **Analytics beacon** — fires pageview + duration on every page load
+- Ollama tool loop, `council_reason`, `vps_exec`, `convert_to_markdown` tools
 
----
-
-## Next Session — Priority Order
-
-### 1. UI/UX — Remaining Pages Audit (1-2h)
-Pages still using hardcoded Tailwind gray classes (`text-gray-*`, `bg-gray-*`):
-- `app/(app)/blog/page.tsx` — still uses `text-gray-100`, `bg-gray-800` etc
-- `app/(app)/dashboard/page.tsx` — has `bg-gray-*` widget cards
-- Run: `grep -r "text-gray-\|bg-gray-" app/` to find all remaining instances
-Goal: all pages use `var(--color-*)` tokens consistently
-
-### 2. Empty States (30min)
-Add proper empty states to: Plans, Teams, Brain, Schedule pages.
-Use `<LogoMark size={40} />` + helpful message + CTA button pattern.
-
-### 3. LLM Provider Settings UI (1-2h)
-Build the settings UI to configure which LLM is used for each role.
-**File:** `app/(app)/settings/page.tsx` — add "Providers" tab
-**Existing API:** `GET/POST/DELETE /api/llm-providers` (fully wired, no UI yet)
-
-### 4. Frontend SSE listener (30min)
-Connect `/api/notify/stream` to a toast/banner in the chat page.
-Add `EventSource` in `chat/page.tsx` useEffect.
-
-### 5. Marketplace (4-6h)
-Approved plan at `docs/MARKETPLACE-PLAN.md`.
-
-### 6. Landing page Block G
-Brain section + updated pricing + blog link.
-
----
-
-## Billing Plan — Path to Charging Customers
-
-### Phase 1 — Credit Gate ✅ DONE
-### Phase 2 — Admin Credits Panel ✅ DONE
-### Phase 3 — Payment Flow (half day) — NOT STARTED
-- Option A: Stripe — get keys → add `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`
-- Option B: Crypto manual (current) — UI done, manual verification
-### Phase 4 — Monthly Credit Reset — NOT STARTED
-Add to `/api/cron` on 1st of month.
+### Not Built Yet ❌
+- Google/Microsoft integrations (C3)
+- MCP endpoint full tool exposure (C4)
+- Small business skill pack in default-skills.ts (C2)
+- UI/UX Pro Max skill (C2)
+- Auto-convert on file upload (C2)
+- OAuthToken storage table
+- Frontend SSE listener for plan/task events (real-time progress)
+- LLM Provider Settings UI
+- Marketplace (docs/MARKETPLACE-PLAN.md)
+- Stripe payment automation
+- Landing page Brain section (Block G)
+- Empty states (Plans, Teams, Brain, Schedule)
 
 ---
 
 ## Architecture Quick Reference
 
-### Plans System
-```
-User goal → POST /api/plans
-  → lib/planner/builder.ts (Keeper + Council)
-  → Plan{status: PENDING_APPROVAL} + PlanTasks in DB
-  → User reviews at /plans/[id]
-  → POST /api/plans/[id]/approve {action: "approve"}
-  → lib/planner/dispatch.ts (topological batching)
-  → lib/agents/runner.ts per task (RAG + provider routing)
-  → Task results saved, SSE events streamed
-```
-
-### Provider Routing
-```
-getProvider("agent") → DB lookup (llm_providers where role=agent AND isDefault=true)
-  → if found: build AnthropicProvider/OpenAIProvider/OllamaProvider from DB row
-  → if not: fall back to env var ANTHROPIC_API_KEY
-runAgentTask() checks TaskProtocol (Ollama local) first → if match: use OllamaProvider (free)
-```
-
-### Brain Pipeline
-```
-ingestToBrain({content, title, source, sourceType})
-  → SHA-256 dedup → splitIntoChunks() (400-600 tokens)
-  → embed via nomic-embed-text → upsert brain_chunks
-queryBrain({query, topK}) → pgvector cosine + recency boost
-```
-
-### Design System
-All tokens in `app/globals.css` under `@theme inline`. Light mode via `[data-theme="light"]`.
-Brand accent = copper. Never hardcode rgba(99,102,241,*) or #a78bfa anywhere.
-Logo auto-themes via `var(--color-surface)` / `var(--color-brand)` in SVG fills.
-
----
-
-## State Snapshot
-
-### Live on VPS ✅
-- Core platform: Teams (with workspace tabs), Agents, Skills, Chat, Tools
-- 2nd Brain: vault, MCP, graph, search
-- Plans system: create → council → approve → dispatch → execute
-- Brain chunking pipeline + HNSW index
-- LLM Provider adapter system (API only, no UI)
-- SSE notification stream (backend only, no frontend listener)
-- Self-registration, credit gate, admin credits panel
-- Mobile-first UI (bottom nav, responsive)
-- Design System v3: charcoal tokens, Sidebar v2
-
-### Deployed this session ✅ (2026-05-21 session 9)
-- Brain network logo (replaces asterisk/play-button)
-- All PWA icons regenerated (192, 512, apple-touch, favicon-32)
-- `manifest.webmanifest` created (PWA install was broken without it)
-- Model dropdown: centered modal + collapsible context section
-- Mobile centering fixes (padding, clamp font size)
-
-### Built but needs UI ⚠️
-- LLM Provider config (`/api/llm-providers` live, no UI) — **next priority**
-- SSE notifications received by backend, no frontend EventSource listener
-
-### Not built yet ❌
-- LLM Provider Settings UI (Providers tab in Settings)
-- Marketplace (`docs/MARKETPLACE-PLAN.md` approved)
-- Stripe payment automation
-- Landing page Brain section (Block G)
-- Admin monitoring panel
-- Frontend SSE listener
-- Empty states (Plans, Teams, Brain, Schedule)
-
----
-
-## Quick Reference
-
 | Thing | Where |
 |---|---|
 | VPS IP | 95.217.163.247 |
 | App path on VPS | `/root/opt/vps/` |
-| Deploy | scp files → `docker exec vps-dashboard npx prisma db push` → rebuild |
+| Deploy | `scp` files → `docker compose ... up -d --build dashboard` |
 | Git remote | github.com/augustom1/agentplayground-vpsinstall |
-| Wallet addresses | `app/(app)/billing/page.tsx` WALLETS constant |
-| Marketplace plan | `docs/MARKETPLACE-PLAN.md` |
-| Full task queue | `docs/MASTER-TODO.md` |
-| Session history | `docs/SESSION-HISTORY.md` |
-| Plans UI | `/plans` → `/plans/[id]` |
-| Provider config API | `GET/POST/DELETE /api/llm-providers` |
-| SSE stream | `GET /api/notify/stream` (text/event-stream) |
+| Admin panel | `/admin` → requires `role = "admin"` in DB |
+| Playground Teams | `/playground` + `/playground/[teamId]` |
+| Playground API | `/api/playground/teams/...` |
+| Admin API | `/api/admin/analytics/...` + `/api/admin/api-monitor/...` |
+| Agent runner | `lib/agents/runner.ts` (full tool loop, 10 iter) |
+| Delegated runner | `lib/agents/delegated.ts` (haiku, team-scoped tools) |
+| Plan dispatcher | `lib/planner/dispatch.ts` |
+| Chat tools | `lib/chat-tools.ts` (27 tools incl. run_plan, get_task_result) |
+| API logger HOF | `lib/api-logger.ts` — wrap routes with `withApiLogger()` |
+| Analytics helpers | `lib/analytics.ts` — parseUA, anonymizeIp, getCountry |
+| VPS SSH utility | `lib/tool-installer/installer.ts` → `runArbitraryCommand` |
+| Default skills | `lib/default-skills.ts` |
+| MCP endpoint | `app/api/mcp/route.ts` |
+| Council logic | `lib/council/index.ts` |
+| SSE stream | `GET /api/notify/stream` |
 | Design tokens | `app/globals.css` — all `var(--color-*)` |
+| Wallet addresses | `app/(app)/billing/page.tsx` WALLETS constant |
+
+### Coordinator Flow (now fully wired)
+```
+You: "Build X and deploy it"
+
+Coordinator (25 iterations):
+  → create_plan("Build X")          [drafts tasks per team, council reviews]
+  → run_plan(planId)                 [auto-approves, dispatches in parallel]
+     Dev team (10 iter): tool loop → vps_exec, write_file, etc.
+     Research team (10 iter): web_search, vault_write, etc.
+  → get_task_result(devTaskId)       [read what dev team produced]
+  → get_task_result(researchTaskId)  [read what research team produced]
+  → synthesizes reply to you
+```
+
+---
+
+## Billing & Business Status
+
+| Phase | Status |
+|---|---|
+| Credit Gate (schema + UI) | ✅ Done — not enforced |
+| Admin Credits Panel | ✅ Done |
+| Crypto payment UI (USDT/USDC) | ✅ Done — manual verification |
+| Stripe payment automation | ❌ Needs keys |
+| Monthly Credit Reset | ❌ Not started |
+
+Update wallet addresses: `app/(app)/billing/page.tsx` → `WALLETS` constant.
+
+---
+
+## Quick Commands
+
+```bash
+# Dev
+npm run dev
+
+# Prisma
+npx prisma generate
+npx prisma db push
+
+# Deploy (always scp — git pull is broken on server)
+scp -i ~/.ssh/id_ed25519 <file> root@95.217.163.247:/root/opt/vps/<path>
+ssh -i ~/.ssh/id_ed25519 root@95.217.163.247 \
+  "cd /root/opt/vps && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build dashboard"
+
+# Set admin role in DB
+ssh -i ~/.ssh/id_ed25519 root@95.217.163.247 \
+  "cd /root/opt/vps && docker compose exec db psql -U \$POSTGRES_USER -d \$POSTGRES_DB -c \"UPDATE users SET role='admin' WHERE email='augustojmeyer@gmail.com';\""
+```
+
+---
+
+## Session History (condensed)
+
+| Session | What |
+|---|---|
+| 1-4 | Core platform: teams, agents, skills, chat, files, schedule, billing schema |
+| 5-6 | 2nd Brain (vault + pgvector), MCP endpoint, Brain page, Telegram pipeline |
+| 7-8 | Plans system, council, planner, dispatcher, provider adapter, SSE, /plans UI |
+| 9 | PWA, agent editor, design system v1+v2 |
+| 10 | Ollama tool loop, council_reason/vps_exec/convert_to_markdown tools, Design System v3 |
+| 11 | **Phase A** (Playground Teams Hub), **Phase B** (Admin Panel), **Phase C1** (delegation wired) |
+
+Full history → `docs/SESSION-HISTORY.md`

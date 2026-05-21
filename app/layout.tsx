@@ -41,12 +41,31 @@ const themeScript = `
 })();
 `;
 
+// Analytics beacon — fires pageview + duration events
+const analyticsScript = `
+(function(){
+  var sid = sessionStorage.getItem('_ap_sid');
+  if (!sid) { sid = Math.random().toString(36).slice(2); sessionStorage.setItem('_ap_sid', sid); }
+  var start = Date.now();
+  function beacon(data) {
+    navigator.sendBeacon('/api/admin/analytics/event', JSON.stringify(data));
+  }
+  beacon({ type: 'pageview', path: location.pathname, referrer: document.referrer || null, sessionId: sid });
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'hidden') {
+      beacon({ type: 'duration', path: location.pathname, sessionId: sid, durationMs: Date.now() - start });
+    }
+  });
+})();
+`;
+
 // Root layout — no sidebar here (app pages add it via their own layout)
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${geistMono.variable} h-full`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: analyticsScript }} />
       </head>
       <body className="h-full antialiased" style={{ background: "var(--color-background)" }}>
         <AuthProvider>
