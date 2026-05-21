@@ -15,45 +15,44 @@
 
 ---
 
-## Current Session — 2026-05-21 (session 7) ✅ DEPLOYED
+## Current Session — 2026-05-21 (session 8) — LOCAL ONLY, NEEDS DEPLOY
 
-### What was built — Design System v2 (full UI/UX redesign)
+### What was built — Design System v3 (Claude Desktop-inspired redesign)
 
-Complete visual overhaul replacing the indigo/violet brand identity with a
-**warm copper ops palette** inspired by Claude Desktop.
+Complete redesign replacing the "warm copper/sepia" v2 palette with a
+**neutral dark charcoal aesthetic** directly inspired by Claude Desktop's UI.
 
-**Design philosophy:** Warm dark (not pure black), earthy neutrals, single
-copper brand accent `#cf8c4a` — feels like precision instrumentation, not a
-generic chat app.
+**Design philosophy:** Near-neutral dark charcoal (not brown/sepia), clean
+neutral grays for all UI chrome, single rust accent `#D4715A` used ONLY for
+the logo asterisk and brand moments — everything else neutral.
 
-**Files changed (19 files, fully deployed):**
-- `app/globals.css` — complete token rewrite: surfaces, borders, text, brand,
-  shadows, radii, transitions. Dark default + warm cream light mode.
-- `components/Logo.tsx` — CSS-var auto-themed copper node-graph SVG; exports
-  `LogoMark` (auto), `LogoMarkDark`, `LogoMarkLight` (pinned)
-- `components/Sidebar.tsx` — 216px wide, wordmark next to mark, copper active bar
-- `app/(auth)/login/page.tsx` — LogoMark replaces Bot icon, warm form
-- `components/UserMenu.tsx` — brand-muted border
-- `components/ToastProvider.tsx` — info toast uses brand-dim/muted
-- `app/(app)/chat/page.tsx` — coordinator + tool badge copper
-- `app/(app)/dashboard/page.tsx` — optimization widget copper
-- `app/(app)/billing/page.tsx` — stat card accents → CSS vars
-- `app/(app)/agent-lab/page.tsx` — all workspace/badge indigo → brand vars
-- 9 other pages: connect, executor, files, optimize, plans, projects,
-  schedule, settings, tools — global indigo sweep → CSS vars
+**Files changed:**
+- `app/globals.css` — complete token overhaul: charcoal surfaces, neutral text
+  hierarchy, rust brand accent used sparingly
+- `components/Logo.tsx` — replaced node-graph with Anthropic-style 8-pointed
+  asterisk in rust/coral (`var(--color-brand)`)
+- `components/Sidebar.tsx` — Claude Desktop-style: "New chat" button, clean
+  nav items with section labels, no active color bar
+- `app/(app)/chat/page.tsx` — Claude Desktop empty state: centered greeting
+  "Good [time], [Name]" + asterisk logo, suggestions chips, clean input box
+  at bottom, config row moved to slim top bar
+- `app/(app)/blog/page.tsx` — removed hardcoded indigo-400 classes
+- `app/(app)/files/page.tsx` — removed hardcoded violet classes → CSS vars
+- `app/(app)/stack/page.tsx` — removed hardcoded #8b5cf6 → CSS var
 
-**Key design tokens:**
+**Key design tokens (v3):**
 ```css
---color-background:   #17150f   (warm near-black)
---color-surface:      #1d1b13   (sidebar / primary card)
---color-surface-2:    #242118   (elevated card)
---color-brand:        #cf8c4a   (copper accent)
---color-brand-dim:    rgba(207,140,74,0.12)
---color-brand-muted:  rgba(207,140,74,0.35)
---color-text:         #f0ece3   (warm off-white)
+--color-background:  #1a1a1a   (neutral dark charcoal)
+--color-surface:     #222222   (sidebar/panel)
+--color-surface-2:   #2a2a2a   (card/input bg)
+--color-surface-3:   #323232   (hover/code block)
+--color-brand:       #D4715A   (rust/coral — logo only)
+--color-text:        #efefef   (near-white)
+--color-text-secondary: #aaaaaa
+--color-muted:       #666666
 ```
 
-**Deploy:** ✅ git pushed + VPS deployed (container rebuilt, schema in sync)
+**Deploy:** ✅ DEPLOYED — git pushed + VPS rebuilt (session 8b)
 
 ---
 
@@ -71,42 +70,54 @@ Schema was already in sync on VPS (auto-migrated on previous container start).
 
 ## Next Session — Priority Order
 
-### 1. LLM Provider Settings UI (1-2h) ← START HERE
+### 1. ✅ DEPLOYED — Design System v3 (session 8b)
+
+### 2. UI/UX — Remaining Pages Audit ← START HERE
+- `app/globals.css`
+- `components/Logo.tsx`
+- `components/Sidebar.tsx`
+- `app/(app)/chat/page.tsx`
+- `app/(app)/blog/page.tsx`
+- `app/(app)/files/page.tsx`
+- `app/(app)/stack/page.tsx`
+
+```bash
+scp -i ~/.ssh/id_ed25519 app/globals.css components/Logo.tsx components/Sidebar.tsx \
+  root@95.217.163.247:/root/opt/vps/app/...
+ssh root@95.217.163.247 "cd /root/opt/vps && docker compose ... up -d --build dashboard"
+```
+
+### 2. UI/UX — Remaining Pages Audit (1-2h)
+Pages that still use hardcoded gray Tailwind classes (`text-gray-*`, `bg-gray-*`)
+and need to be migrated to CSS var tokens:
+- `app/(app)/blog/page.tsx` — still uses `text-gray-100`, `bg-gray-800` etc
+- Any other pages with old Tailwind color classes (run grep for `text-gray-`)
+Goal: all pages use `var(--color-*)` tokens consistently
+
+### 3. Dashboard Page Cleanup (1h)
+The dashboard still uses some `bg-gray-*` classes. Migrate to CSS vars
+and review widget card visual quality against the new design system.
+
+### 4. Empty States (30min)
+Add proper empty states to: Plans, Teams, Brain, Schedule pages
+Use the LogoMark asterisk + helpful message + CTA button pattern.
+
+### 5. PWA Icons
+Generate `public/icons/icon-192.png`, `icon-512.png`, `apple-touch-icon.png`
+from the new asterisk logo SVG.
+
+### 6. LLM Provider Settings UI (1-2h)
 Build the settings UI to configure which LLM is used for each role.
-This unlocks the "route to local Ollama after first API run" feature.
-
-**Files to edit:**
-- `app/(app)/settings/page.tsx` — add "Providers" tab
-
-**UI needed:**
-- List current providers (type, role, isDefault badge)
-- "Add provider" form: name, type, baseUrl (for ollama/custom), API key
-  (password field), role dropdown, set-as-default toggle
-- Delete button per provider
-- Quick-add: "Use Anthropic from env" + "Use local Ollama"
-
+**File:** `app/(app)/settings/page.tsx` — add "Providers" tab
 **Existing API:** `GET/POST/DELETE /api/llm-providers` (fully wired)
 
-### 2. Marketplace (4-6h)
+### 7. Marketplace (4-6h)
 Approved plan at `docs/MARKETPLACE-PLAN.md`.
-- `data/packages/*.json` — 8 package JSON files
-- `app/(app)/marketplace/page.tsx` — browse + install UI
-- `app/api/marketplace/route.ts` + `app/api/marketplace/install/route.ts`
-- Add Marketplace link to Sidebar (ShoppingBag icon)
 
-### 3. UX Phase 2 (1h)
-- Empty states on Plans, Teams, Brain, Schedule
-- Plain English audit (remove "pipeline", "vault_notes" jargon)
-- `docs/UX-REDESIGN-PLAN.md`
-
-### 4. PWA PNG icons
-Generate from `public/icons/icon.svg` at 180×180, 192×192, 512×512px.
-
-### 5. Frontend SSE listener
+### 8. Frontend SSE listener
 Connect `/api/notify/stream` to a toast/banner in the chat page.
-File: `app/(app)/chat/page.tsx` — add `useEffect` with EventSource.
 
-### 6. Landing page Block G
+### 9. Landing page Block G
 Brain section + updated pricing + blog link.
 
 ---
