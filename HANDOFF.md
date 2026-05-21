@@ -50,7 +50,7 @@ Problem: popup anchored to button clipped off screen on mobile and was unusable 
 - Greeting heading: `32px fixed → clamp(22px, 5vw, 30px)`
 - Empty state padding adjusted for notched phones (`padding: "16px 16px 32px"`)
 
-**Deploy:** ❌ NOT YET deployed — git commit + scp pending
+**Deploy:** ✅ DEPLOYED — git pushed (d4102b8) + scp + docker rebuild 2026-05-21
 
 ---
 
@@ -62,27 +62,6 @@ Problem: popup anchored to button clipped off screen on mobile and was unusable 
 ---
 
 ## Next Session — Priority Order
-
-### 0. DEPLOY SESSION 9 FIRST ← DO THIS BEFORE ANYTHING ELSE
-
-```bash
-# From local machine:
-scp -i ~/.ssh/id_ed25519 \
-  components/Logo.tsx \
-  "app/(app)/chat/page.tsx" \
-  public/icons/icon.svg \
-  public/icons/icon-192.png \
-  public/icons/icon-512.png \
-  public/icons/apple-touch-icon.png \
-  public/icons/favicon-32.png \
-  public/manifest.webmanifest \
-  root@95.217.163.247:/root/opt/vps/...
-
-ssh -i ~/.ssh/id_ed25519 root@95.217.163.247 \
-  "cd /root/opt/vps && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build dashboard"
-```
-
-No schema changes — no `prisma db push` needed.
 
 ### 1. UI/UX — Remaining Pages Audit (1-2h)
 Pages still using hardcoded Tailwind gray classes (`text-gray-*`, `bg-gray-*`):
@@ -174,7 +153,7 @@ Logo auto-themes via `var(--color-surface)` / `var(--color-brand)` in SVG fills.
 - Mobile-first UI (bottom nav, responsive)
 - Design System v3: charcoal tokens, Sidebar v2
 
-### Built locally, NOT YET deployed ⏳
+### Deployed this session ✅ (2026-05-21 session 9)
 - Brain network logo (replaces asterisk/play-button)
 - All PWA icons regenerated (192, 512, apple-touch, favicon-32)
 - `manifest.webmanifest` created (PWA install was broken without it)
