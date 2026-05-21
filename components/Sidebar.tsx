@@ -206,9 +206,36 @@ export function Sidebar() {
                 <div style={{
                   position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 100,
                   background: "var(--color-surface-2)", border: "1px solid var(--color-border)",
-                  borderRadius: "10px", padding: "4px", minWidth: "170px",
+                  borderRadius: "10px", padding: "4px", minWidth: "180px",
                   boxShadow: "var(--shadow-md)",
                 }}>
+                  {/* Navigation links */}
+                  {[
+                    { href: "/billing",  label: "Billing",  icon: CreditCard },
+                    ...(isAdmin ? [{ href: "/users", label: "Users", icon: Users }] : []),
+                    { href: "/settings", label: "Settings", icon: Settings },
+                  ].map(({ href, label, icon: Icon }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      onClick={() => setMenuOpen(false)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: "8px", width: "100%",
+                        padding: "6px 10px", borderRadius: "7px", textDecoration: "none",
+                        color: isActive(href) ? "var(--color-text)" : "var(--color-text-secondary)",
+                        fontSize: "12px", fontWeight: isActive(href) ? 500 : 400,
+                        background: isActive(href) ? "var(--color-surface-3)" : "transparent",
+                      }}
+                      onMouseEnter={e => { if (!isActive(href)) (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; }}
+                      onMouseLeave={e => { if (!isActive(href)) (e.currentTarget as HTMLElement).style.background = isActive(href) ? "var(--color-surface-3)" : "transparent"; }}
+                    >
+                      <span style={{ opacity: 0.7, display: "inline-flex" }}><Icon size={13} /></span>
+                      {label}
+                    </Link>
+                  ))}
+                  {/* Divider */}
+                  <div style={{ height: "1px", background: "var(--color-border)", margin: "4px 6px" }} />
+                  {/* Language toggle */}
                   <button
                     onClick={() => { toggleLocale(); setMenuOpen(false); }}
                     style={{
@@ -225,6 +252,7 @@ export function Sidebar() {
                     </span>
                     {locale === "en" ? "Switch to Spanish" : "Switch to English"}
                   </button>
+                  {/* Theme toggle */}
                   <button
                     onClick={() => { toggleTheme(); setMenuOpen(false); }}
                     style={{
@@ -421,16 +449,9 @@ export function Sidebar() {
         )}
       </nav>
 
-      {/* ── Bottom utilities ──────────────────────────────── */}
-      <div style={{ borderTop: "1px solid var(--color-border)" }}>
-        <div style={{ padding: collapsed ? "6px 6px" : "6px 8px", display: "flex", flexDirection: "column", gap: "1px" }}>
-          <NavItem href="/billing"  label="Billing"  icon={CreditCard} collapsed={collapsed} active={isActive("/billing")} />
-          {isAdmin && <NavItem href="/users" label="Users" icon={Users} collapsed={collapsed} active={isActive("/users")} />}
-          <NavItem href="/settings" label="Settings" icon={Settings}   collapsed={collapsed} active={isActive("/settings")} />
-        </div>
-        <div style={{ borderTop: "1px solid var(--color-border)", padding: collapsed ? "6px 6px 10px" : "6px 8px 10px" }}>
-          <UserMenu collapsed={collapsed} />
-        </div>
+      {/* ── Bottom — user menu only ───────────────────────── */}
+      <div style={{ borderTop: "1px solid var(--color-border)", padding: collapsed ? "6px 6px 10px" : "6px 8px 10px" }}>
+        <UserMenu collapsed={collapsed} />
       </div>
     </aside>
   );
