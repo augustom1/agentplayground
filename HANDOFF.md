@@ -1,5 +1,5 @@
 # Session Handoff
-> Last updated: 2026-05-21 (Session 11 — deployed)
+> Last updated: 2026-05-22 (Session 12 — deployed)
 > Read this at the start of every session BEFORE reading CLAUDE.md.
 > Update the "Current Session" block when ending a session.
 
@@ -18,14 +18,9 @@
 
 ### 1. New Concept (user to fill in)
 > **[Describe your new concept here before next session starts.]**
-> This should be the first thing tackled — it's the user's new idea from the end of Session 11.
+> This should be the first thing tackled — it's the user's new idea.
 
-### 2. Phase C2 — Skill Pack + Auto-Convert
-- Add 8 small business skills to `lib/default-skills.ts` (invoicing, CRM, proposals, etc.)
-- Add **UI/UX Pro Max** skill as a system prompt + tool config
-- Wire **MarkItDown auto-convert** on file upload: `app/api/files/upload/route.ts` → when `.xlsx/.docx/.pptx/.pdf` uploaded, call `convert_to_markdown` + index in Brain automatically. No manual step.
-
-### 3. Phase C3 — Google & Microsoft as Chat Tools
+### 2. Phase C3 — Google & Microsoft as Chat Tools
 - `lib/integrations/google/` — Gmail search/send, Calendar list/create, Drive search/read
 - `lib/integrations/microsoft/` — Outlook send, OneDrive search/read, Teams webhook
 - Wire as tools in `lib/chat-tools.ts` + add OAuth token storage (encrypted, `OAuthToken` table or in `ApiClient`)
@@ -43,7 +38,7 @@
 
 ---
 
-## What's Deployed (as of Session 11)
+## What's Deployed (as of Session 12)
 
 ### Live on VPS ✅
 - Core platform: Teams (workspace tabs), Agents, Skills, Chat (streaming, 25-iteration tool loop), Tools
@@ -58,13 +53,13 @@
 - **Delegation fully wired** — `delegate_to_team` executes, `run_plan` + `get_task_result` tools live, coordinator limit = 25
 - **Analytics beacon** — fires pageview + duration on every page load
 - Ollama tool loop, `council_reason`, `vps_exec`, `convert_to_markdown` tools
+- **Phase C2** — 8 business skills (Invoice, CRM, Proposal, Onboarding, Status Reporter, Meeting Summarizer, Sales Email, Support Ticket) + UI/UX Pro Max skill in `lib/default-skills.ts`
+- **MarkItDown auto-convert** — `.xlsx/.docx/.pptx/.pdf/.csv` files auto-convert + Brain-index on upload (fire-and-forget)
+- **Phase C5** — `COORDINATOR_INTRO` fully expanded: tool catalog, business skills, decision table, VPS exec policy, MCP note
 
 ### Not Built Yet ❌
 - Google/Microsoft integrations (C3)
 - MCP endpoint full tool exposure (C4)
-- Small business skill pack in default-skills.ts (C2)
-- UI/UX Pro Max skill (C2)
-- Auto-convert on file upload (C2)
 - OAuthToken storage table
 - Frontend SSE listener for plan/task events (real-time progress)
 - LLM Provider Settings UI
@@ -163,5 +158,6 @@ ssh -i ~/.ssh/id_ed25519 root@95.217.163.247 \
 | 9 | PWA, agent editor, design system v1+v2 |
 | 10 | Ollama tool loop, council_reason/vps_exec/convert_to_markdown tools, Design System v3 |
 | 11 | **Phase A** (Playground Teams Hub), **Phase B** (Admin Panel), **Phase C1** (delegation wired) |
+| 12 | **Phase C2** (8 business skills + UI/UX Pro Max + MarkItDown auto-convert), **Phase C5** (expanded coordinator) |
 
 Full history → `docs/SESSION-HISTORY.md`
