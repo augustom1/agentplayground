@@ -23,7 +23,7 @@ interface PlanSummary {
 
 const STATUS_CONFIG: Record<PlanStatus, { label: string; color: string; icon: React.ReactNode }> = {
   DRAFT:            { label: "Draft",           color: "var(--color-muted)",        icon: <Clock size={12} /> },
-  COUNCIL_REVIEW:   { label: "Council Review",  color: "#6366f1",                   icon: <Loader2 size={12} className="animate-spin" /> },
+  COUNCIL_REVIEW:   { label: "Council Review",  color: "var(--color-brand)",                   icon: <Loader2 size={12} className="animate-spin" /> },
   PENDING_APPROVAL: { label: "Awaiting Approval", color: "#f59e0b",                 icon: <AlertTriangle size={12} /> },
   APPROVED:         { label: "Approved",        color: "#10b981",                   icon: <CheckCircle2 size={12} /> },
   RUNNING:          { label: "Running",         color: "#3b82f6",                   icon: <PlayCircle size={12} /> },

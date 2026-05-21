@@ -122,9 +122,9 @@ function MessageContent({ content }: { content: string }) {
                   padding: "2px 9px",
                   borderRadius: "6px",
                   fontSize: "11px",
-                  background: "rgba(99,102,241,0.15)",
-                  color: "rgba(165,180,252,0.95)",
-                  border: "1px solid rgba(99,102,241,0.25)",
+                  background: "var(--color-brand-dim)",
+                  color: "var(--color-brand-hover)",
+                  border: "1px solid var(--color-brand-muted)",
                   fontWeight: 500,
                 }}
               >
@@ -482,7 +482,7 @@ function TeamBuilderModal({
             <div className="flex items-center gap-3">
               <div
                 className="w-8 h-8 flex items-center justify-center rounded-xl"
-                style={{ background: "rgba(99,102,241,0.18)" }}
+                style={{ background: "var(--color-brand-dim)" }}
               >
                 <Sparkles size={14} style={{ color: "rgba(165,180,252,1)" }} />
               </div>
@@ -494,7 +494,7 @@ function TeamBuilderModal({
                   {workspace && workspace !== "All" && (
                     <span
                       className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                      style={{ background: "rgba(99,102,241,0.15)", color: "rgba(165,180,252,0.9)", border: "1px solid rgba(99,102,241,0.25)" }}
+                      style={{ background: "var(--color-brand-dim)", color: "var(--color-brand-hover)", border: "1px solid var(--color-brand-muted)" }}
                     >
                       {workspace}
                     </span>
@@ -533,14 +533,14 @@ function TeamBuilderModal({
                     background:
                       msg.role === "user"
                         ? "var(--color-surface-3)"
-                        : "rgba(99,102,241,0.18)",
+                        : "var(--color-brand-dim)",
                     marginTop: "2px",
                   }}
                 >
                   {msg.role === "user" ? (
                     <User2 size={13} style={{ color: "var(--color-text-secondary)" }} />
                   ) : (
-                    <Bot size={13} style={{ color: "rgba(165,180,252,0.9)" }} />
+                    <Bot size={13} style={{ color: "var(--color-brand-hover)" }} />
                   )}
                 </div>
                 <div
@@ -836,7 +836,7 @@ function AgentEditModal({
           <div className="flex items-center gap-3">
             <div
               className="w-8 h-8 flex items-center justify-center rounded-xl"
-              style={{ background: "rgba(99,102,241,0.18)" }}
+              style={{ background: "var(--color-brand-dim)" }}
             >
               <Pencil size={14} style={{ color: "rgba(165,180,252,1)" }} />
             </div>
@@ -900,7 +900,7 @@ function AgentEditModal({
                 <span
                   key={cap}
                   className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full"
-                  style={{ background: "rgba(99,102,241,0.12)", color: "rgba(165,180,252,0.9)", border: "1px solid rgba(99,102,241,0.2)" }}
+                  style={{ background: "var(--color-brand-dim)", color: "var(--color-brand-hover)", border: "1px solid var(--color-brand-muted)" }}
                 >
                   {cap}
                   <button
@@ -1125,7 +1125,7 @@ function TeamInfoModal({
                               title="Edit agent"
                               className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors"
                               style={{ color: "var(--color-muted)", background: "transparent", border: "none", cursor: "pointer" }}
-                              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.15)")}
+                              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--color-brand-dim)")}
                               onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "transparent")}
                             >
                               <Pencil size={12} />
@@ -1138,7 +1138,7 @@ function TeamInfoModal({
                               <span
                                 key={cap}
                                 className="text-[11px] px-2 py-0.5 rounded-full"
-                                style={{ background: "rgba(99,102,241,0.12)", color: "rgba(165,180,252,0.9)", border: "1px solid rgba(99,102,241,0.2)" }}
+                                style={{ background: "var(--color-brand-dim)", color: "var(--color-brand-hover)", border: "1px solid var(--color-brand-muted)" }}
                               >
                                 {cap}
                               </span>
@@ -1542,9 +1542,9 @@ export default function AgentLabPage() {
                 onClick={() => setActiveWorkspace(ws)}
                 className="px-3 py-1 rounded-full text-[12px] font-medium transition-all"
                 style={{
-                  background: activeWorkspace === ws ? "rgba(99,102,241,0.2)" : "var(--color-surface-2)",
+                  background: activeWorkspace === ws ? "var(--color-brand-muted)" : "var(--color-surface-2)",
                   color: activeWorkspace === ws ? "rgba(165,180,252,1)" : "var(--color-muted)",
-                  border: activeWorkspace === ws ? "1px solid rgba(99,102,241,0.35)" : "1px solid var(--color-border)",
+                  border: activeWorkspace === ws ? "1px solid var(--color-brand-muted)" : "1px solid var(--color-border)",
                   cursor: "pointer",
                 }}
               >
@@ -1663,9 +1663,9 @@ export default function AgentLabPage() {
                         }}
                         className="text-[10px] px-2 py-0.5 rounded-full transition-colors"
                         style={{
-                          background: "rgba(99,102,241,0.1)",
+                          background: "var(--color-brand-dim)",
                           color: "rgba(165,180,252,0.7)",
-                          border: "1px solid rgba(99,102,241,0.2)",
+                          border: "1px solid var(--color-brand-muted)",
                           cursor: "pointer",
                           maxWidth: "80px",
                           overflow: "hidden",
@@ -1692,7 +1692,7 @@ export default function AgentLabPage() {
                               className="w-full text-left px-3 py-2 text-[12px] transition-colors"
                               style={{
                                 color: (team.category || "General") === ws ? "rgba(165,180,252,1)" : "var(--color-text)",
-                                background: (team.category || "General") === ws ? "rgba(99,102,241,0.12)" : "transparent",
+                                background: (team.category || "General") === ws ? "var(--color-brand-dim)" : "transparent",
                                 border: "none",
                                 cursor: "pointer",
                               }}

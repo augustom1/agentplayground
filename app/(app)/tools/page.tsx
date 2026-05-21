@@ -69,7 +69,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   general: "var(--color-text-secondary)",
   data: "#60a5fa",
   communication: "#34d399",
-  code: "#a78bfa",
+  code: "var(--color-brand)",
   research: "#fb923c",
   system: "#f87171",
 };
@@ -251,7 +251,7 @@ export default function ToolsPage() {
             value={data.stats.totalSkills}
             label="Skills"
             icon={BookOpen}
-            accent="#a78bfa"
+            accent="var(--color-brand)"
           />
           <StatCard
             value={data.stats.totalCliFunctions}

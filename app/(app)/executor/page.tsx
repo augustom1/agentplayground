@@ -120,7 +120,7 @@ export default function ExecutorPage() {
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3.5 shrink-0" style={{ borderBottom: "1px solid var(--color-border)" }}>
           <div className="flex items-center gap-2">
-            <Cpu size={15} style={{ color: "#a78bfa" }} />
+            <Cpu size={15} style={{ color: "var(--color-brand)" }} />
             <h1 className="text-sm font-semibold" style={{ color: "var(--color-text)" }}>Task Executor</h1>
           </div>
           <div className="flex items-center gap-1.5">
@@ -128,12 +128,12 @@ export default function ExecutorPage() {
               <button
                 onClick={generateAllPlans}
                 className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg font-medium hover:opacity-80"
-                style={{ background: "rgba(139,92,246,0.15)", color: "#a78bfa" }}
+                style={{ background: "var(--color-brand-dim)", color: "var(--color-brand)" }}
               >
                 <Play size={10} /> Plan all ({unplanned.length})
               </button>
             )}
-            {planningAll && <Loader2 size={13} className="animate-spin" style={{ color: "#a78bfa" }} />}
+            {planningAll && <Loader2 size={13} className="animate-spin" style={{ color: "var(--color-brand)" }} />}
             <button onClick={load} className="p-1.5 rounded hover:opacity-70">
               <RefreshCw size={12} className={loading ? "animate-spin" : ""} style={{ color: "var(--color-muted)" }} />
             </button>
@@ -173,7 +173,7 @@ export default function ExecutorPage() {
                   key={item.id}
                   onClick={() => item.hasPlan ? viewPlan(item) : setSelected(item)}
                   className="w-full text-left px-4 py-2.5 flex items-start gap-3 hover:opacity-80 transition-opacity"
-                  style={{ background: selected?.id === item.id ? "rgba(139,92,246,0.08)" : undefined }}
+                  style={{ background: selected?.id === item.id ? "var(--color-brand-dim)" : undefined }}
                 >
                   <div className="mt-0.5 shrink-0" style={{ color: item.hasPlan ? "var(--color-green)" : "var(--color-muted)" }}>
                     {planning === item.id
@@ -289,7 +289,7 @@ export default function ExecutorPage() {
                 </pre>
               ) : planning === selected.id ? (
                 <div className="flex items-center gap-2 py-8 justify-center">
-                  <Loader2 size={16} className="animate-spin" style={{ color: "#a78bfa" }} />
+                  <Loader2 size={16} className="animate-spin" style={{ color: "var(--color-brand)" }} />
                   <p className="text-sm" style={{ color: "var(--color-muted)" }}>Generating execution plan…</p>
                 </div>
               ) : selected.hasPlan ? (
@@ -313,7 +313,7 @@ export default function ExecutorPage() {
             {/* Brain path footer */}
             {selected.hasPlan && (
               <div className="flex items-center gap-2 px-5 py-2.5 shrink-0" style={{ borderTop: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
-                <Brain size={11} style={{ color: "#a78bfa" }} />
+                <Brain size={11} style={{ color: "var(--color-brand)" }} />
                 <span className="text-[10px] font-mono" style={{ color: "var(--color-muted)" }}>{selected.planPath}</span>
                 <ChevronRight size={9} style={{ color: "var(--color-border)" }} />
                 <span className="text-[10px]" style={{ color: "var(--color-muted)" }}>agents read this before starting work</span>

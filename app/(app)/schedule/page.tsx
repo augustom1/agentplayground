@@ -81,15 +81,15 @@ type AgentOption = {
 };
 
 const TEAM_PALETTE = [
-  "#6366f1",
+  "var(--color-brand)",
   "var(--color-green)",
   "var(--color-yellow)",
   "var(--color-red)",
-  "#818cf8",
+  "var(--color-brand-hover)",
   "#34d399",
   "#fbbf24",
   "#f87171",
-  "#a78bfa",
+  "var(--color-brand)",
   "#6ee7b7",
 ];
 
@@ -558,7 +558,7 @@ export default function SchedulePage() {
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors"
           style={{
             color: activeTab === "calendar" ? "var(--color-text)" : "var(--color-muted)",
-            borderBottom: activeTab === "calendar" ? "2px solid #818cf8" : "2px solid transparent",
+            borderBottom: activeTab === "calendar" ? "2px solid var(--color-brand-hover)" : "2px solid transparent",
             marginBottom: "-1px",
             background: "transparent",
             border: "none",
@@ -573,7 +573,7 @@ export default function SchedulePage() {
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors"
           style={{
             color: activeTab === "recurring" ? "var(--color-text)" : "var(--color-muted)",
-            borderBottom: activeTab === "recurring" ? "2px solid #818cf8" : "2px solid transparent",
+            borderBottom: activeTab === "recurring" ? "2px solid var(--color-brand-hover)" : "2px solid transparent",
             marginBottom: "-1px",
             background: "transparent",
             border: "none",
@@ -585,7 +585,7 @@ export default function SchedulePage() {
           {recurringTasks.length > 0 && (
             <span
               className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-              style={{ background: "rgba(129,140,248,0.15)", color: "#818cf8" }}
+              style={{ background: "rgba(129,140,248,0.15)", color: "var(--color-brand-hover)" }}
             >
               {recurringTasks.length}
             </span>
@@ -596,7 +596,7 @@ export default function SchedulePage() {
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors"
           style={{
             color: activeTab === "meetings" ? "var(--color-text)" : "var(--color-muted)",
-            borderBottom: activeTab === "meetings" ? "2px solid #818cf8" : "2px solid transparent",
+            borderBottom: activeTab === "meetings" ? "2px solid var(--color-brand-hover)" : "2px solid transparent",
             marginBottom: "-1px",
             background: "transparent",
             border: "none",
@@ -608,7 +608,7 @@ export default function SchedulePage() {
           {meetings.filter((m) => m.status === "upcoming").length > 0 && (
             <span
               className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-              style={{ background: "rgba(129,140,248,0.15)", color: "#818cf8" }}
+              style={{ background: "rgba(129,140,248,0.15)", color: "var(--color-brand-hover)" }}
             >
               {meetings.filter((m) => m.status === "upcoming").length}
             </span>
@@ -697,7 +697,7 @@ export default function SchedulePage() {
                   zIndex: 5,
                 }}
               >
-                <Loader2 size={24} className="animate-spin" style={{ color: "#818cf8" }} />
+                <Loader2 size={24} className="animate-spin" style={{ color: "var(--color-brand-hover)" }} />
               </div>
             )}
 
@@ -742,7 +742,7 @@ export default function SchedulePage() {
                     key={key}
                     className="min-h-[80px] flex flex-col transition-colors"
                     style={{
-                      background: isToday ? "rgba(99,102,241,0.05)" : "transparent",
+                      background: isToday ? "var(--color-brand-glow)" : "transparent",
                       borderRight: (i + 1) % 7 !== 0 ? "1px solid var(--color-border)" : undefined,
                       borderBottom: i < monthDays.length - 7 ? "1px solid var(--color-border)" : undefined,
                       cursor: hasJobs ? "pointer" : "default",
@@ -754,7 +754,7 @@ export default function SchedulePage() {
                         className="text-xs font-medium flex items-center justify-center"
                         style={{
                           color: isToday ? "#a5b4fc" : "var(--color-text)",
-                          background: isToday ? "rgba(99,102,241,0.15)" : "transparent",
+                          background: isToday ? "var(--color-brand-dim)" : "transparent",
                           borderRadius: "6px",
                           width: "24px",
                           height: "24px",
@@ -821,7 +821,7 @@ export default function SchedulePage() {
                               {job.recurring !== "none" && (
                                 <span
                                   className="text-[7px] px-1 py-0 rounded font-medium ml-1"
-                                  style={{ background: "rgba(99,102,241,0.08)", color: "#818cf8" }}
+                                  style={{ background: "var(--color-brand-dim)", color: "var(--color-brand-hover)" }}
                                 >
                                   {job.recurring}
                                 </span>
@@ -832,12 +832,12 @@ export default function SchedulePage() {
                                   background:
                                     job.status === "completed" ? "var(--color-green-dim)" :
                                     job.status === "failed" ? "var(--color-red-dim)" :
-                                    job.status === "running" ? "rgba(99,102,241,0.1)" :
+                                    job.status === "running" ? "var(--color-brand-dim)" :
                                     "rgba(100,116,139,0.1)",
                                   color:
                                     job.status === "completed" ? "var(--color-green)" :
                                     job.status === "failed" ? "var(--color-red)" :
-                                    job.status === "running" ? "#818cf8" :
+                                    job.status === "running" ? "var(--color-brand-hover)" :
                                     "var(--color-muted)",
                                 }}
                               >
@@ -880,7 +880,7 @@ export default function SchedulePage() {
           {/* Loading state */}
           {recurringLoading && (
             <div className="flex items-center justify-center py-12">
-              <Loader2 size={22} className="animate-spin" style={{ color: "#818cf8" }} />
+              <Loader2 size={22} className="animate-spin" style={{ color: "var(--color-brand-hover)" }} />
             </div>
           )}
 
@@ -961,7 +961,7 @@ export default function SchedulePage() {
                       {/* Team badge */}
                       <span
                         className="text-[10px] px-1.5 py-0.5 rounded-full"
-                        style={{ background: "rgba(99,102,241,0.08)", color: "#818cf8" }}
+                        style={{ background: "var(--color-brand-dim)", color: "var(--color-brand-hover)" }}
                       >
                         {task.team.name}
                       </span>
@@ -1053,7 +1053,7 @@ export default function SchedulePage() {
 
           {meetingsLoading && (
             <div className="flex items-center justify-center py-12">
-              <Loader2 size={22} className="animate-spin" style={{ color: "#818cf8" }} />
+              <Loader2 size={22} className="animate-spin" style={{ color: "var(--color-brand-hover)" }} />
             </div>
           )}
 
@@ -1090,7 +1090,7 @@ export default function SchedulePage() {
                       borderLeft: `3px solid ${
                         meeting.status === "done" ? "var(--color-muted)"
                         : isReminding ? "var(--color-yellow)"
-                        : "#818cf8"
+                        : "var(--color-brand-hover)"
                       }`,
                       opacity: meeting.status === "done" ? 0.65 : 1,
                     }}
@@ -1134,8 +1134,8 @@ export default function SchedulePage() {
                               key={idx}
                               className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full"
                               style={{
-                                background: p.type === "agent" ? "rgba(99,102,241,0.1)" : "rgba(52,211,153,0.1)",
-                                color: p.type === "agent" ? "#818cf8" : "var(--color-green)",
+                                background: p.type === "agent" ? "var(--color-brand-dim)" : "rgba(52,211,153,0.1)",
+                                color: p.type === "agent" ? "var(--color-brand-hover)" : "var(--color-green)",
                                 border: `1px solid ${p.type === "agent" ? "rgba(129,140,248,0.2)" : "rgba(52,211,153,0.2)"}`,
                               }}
                             >
@@ -1300,7 +1300,7 @@ export default function SchedulePage() {
                     type="button"
                     onClick={addAgentParticipant}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg"
-                    style={{ background: "rgba(99,102,241,0.1)", color: "#818cf8", border: "1px solid rgba(129,140,248,0.2)" }}
+                    style={{ background: "var(--color-brand-dim)", color: "var(--color-brand-hover)", border: "1px solid rgba(129,140,248,0.2)" }}
                   >
                     <Bot size={12} /> Add Agent
                   </button>
@@ -1315,8 +1315,8 @@ export default function SchedulePage() {
                       key={idx}
                       className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full"
                       style={{
-                        background: p.type === "agent" ? "rgba(99,102,241,0.12)" : "rgba(52,211,153,0.12)",
-                        color: p.type === "agent" ? "#818cf8" : "var(--color-green)",
+                        background: p.type === "agent" ? "var(--color-brand-dim)" : "rgba(52,211,153,0.12)",
+                        color: p.type === "agent" ? "var(--color-brand-hover)" : "var(--color-green)",
                         border: `1px solid ${p.type === "agent" ? "rgba(129,140,248,0.25)" : "rgba(52,211,153,0.25)"}`,
                       }}
                     >

@@ -65,7 +65,7 @@ function categoryColor(cat: string): string {
   const map: Record<string, string> = {
     classification: "#60a5fa",
     extraction: "#34d399",
-    generation: "#a78bfa",
+    generation: "var(--color-brand)",
     summarization: "#f59e0b",
     routing: "#f472b6",
     formatting: "#fb923c",
@@ -77,7 +77,7 @@ function categoryColor(cat: string): string {
 function modelBadgeColor(model: string): string {
   if (model.includes("0.5b")) return "#34d399";
   if (model.includes("1.5b")) return "#60a5fa";
-  if (model.includes("7b")) return "#a78bfa";
+  if (model.includes("7b")) return "var(--color-brand)";
   return "var(--color-muted)";
 }
 
@@ -224,7 +224,7 @@ function ProtocolRow({
             <p className="font-medium mb-1" style={{ color: "var(--color-muted)" }}>Match Pattern</p>
             <code
               className="block px-2 py-1.5 rounded-md font-mono text-xs"
-              style={{ background: "var(--color-surface-3)", color: "#a78bfa", wordBreak: "break-all" }}
+              style={{ background: "var(--color-surface-3)", color: "var(--color-brand)", wordBreak: "break-all" }}
             >
               {protocol.taskPattern}
             </code>
@@ -332,7 +332,7 @@ export default function OptimizePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold flex items-center gap-2" style={{ color: "var(--color-text)" }}>
-            <Sparkles size={20} style={{ color: "#a78bfa" }} />
+            <Sparkles size={20} style={{ color: "var(--color-brand)" }} />
             Self-Optimization
           </h1>
           <p className="text-sm mt-0.5" style={{ color: "var(--color-muted)" }}>
@@ -376,7 +376,7 @@ export default function OptimizePage() {
           label="Active Protocols"
           value={`${activeCount} / ${protocols.length}`}
           sub="learned task patterns"
-          color="#a78bfa"
+          color="var(--color-brand)"
         />
         <StatCard
           icon={TrendingDown}
@@ -413,7 +413,7 @@ export default function OptimizePage() {
             <span><strong style={{ color: "var(--color-text)" }}>After every Claude call</strong> — a local Ollama model (free) evaluates whether the task pattern could be done by a mini model next time.</span>
           </div>
           <div className="flex gap-2">
-            <span style={{ color: "#a78bfa" }}>②</span>
+            <span style={{ color: "var(--color-brand)" }}>②</span>
             <span><strong style={{ color: "var(--color-text)" }}>Protocol written</strong> — if confidence ≥70%, a protocol is saved with the system prompt, instructions, and regex pattern to match future similar tasks.</span>
           </div>
           <div className="flex gap-2">

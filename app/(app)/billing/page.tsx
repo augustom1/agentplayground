@@ -40,7 +40,7 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 function serviceColor(s: string) {
-  const m: Record<string, string> = { claude: "var(--color-green)", web_search: "#a78bfa", web_browse: "#60a5fa", ollama: "var(--color-yellow)", compute: "var(--color-muted)" };
+  const m: Record<string, string> = { claude: "var(--color-green)", web_search: "var(--color-brand)", web_browse: "var(--color-blue)", ollama: "var(--color-yellow)", compute: "var(--color-muted)" };
   return m[s] ?? "var(--color-text)";
 }
 
@@ -164,8 +164,8 @@ export default function BillingPage() {
           {/* Stats */}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <StatCard icon={CreditCard} label="Credit Balance" value={formatCredits(data.balance)} sub={formatUsd(data.balanceUsd)} accent="var(--color-green)" />
-            <StatCard icon={TrendingDown} label="This Month" value={formatCredits(data.monthlySpendCredits)} sub={formatUsd(data.monthlySpendUsd) + " spent"} accent="#60a5fa" />
-            <StatCard icon={Package} label="Lifetime Purchased" value={formatCredits(data.lifetimePurchased)} sub={formatUsd(creditsToUsd(data.lifetimePurchased))} accent="#a78bfa" />
+            <StatCard icon={TrendingDown} label="This Month" value={formatCredits(data.monthlySpendCredits)} sub={formatUsd(data.monthlySpendUsd) + " spent"} accent="var(--color-blue)" />
+            <StatCard icon={Package} label="Lifetime Purchased" value={formatCredits(data.lifetimePurchased)} sub={formatUsd(creditsToUsd(data.lifetimePurchased))} accent="var(--color-brand)" />
             <StatCard icon={Zap} label="Lifetime Used" value={formatCredits(data.lifetimeUsed)} sub={formatUsd(creditsToUsd(data.lifetimeUsed))} accent="var(--color-yellow)" />
           </div>
 

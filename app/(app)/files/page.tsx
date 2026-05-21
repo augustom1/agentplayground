@@ -147,7 +147,7 @@ function SetupWizard({ onComplete }: { onComplete: () => void }) {
     <div className="flex-1 flex items-center justify-center p-8">
       <div className="w-full max-w-2xl rounded-2xl p-8" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(139,92,246,0.15)" }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--color-brand-dim)" }}>
             <Brain size={18} className="text-violet-400" />
           </div>
           <div>
@@ -244,7 +244,7 @@ function CapturePanel({ folder, onSaved }: { folder: string; onSaved: () => void
   return (
     <div className="flex flex-col gap-3 p-5 h-full overflow-auto">
       <div className="flex items-center gap-2 mb-1 shrink-0">
-        <Sparkles size={14} style={{ color: "#a78bfa" }} />
+        <Sparkles size={14} style={{ color: "var(--color-brand)" }} />
         <span className="text-sm font-semibold" style={{ color: "var(--color-text)" }}>Capture to Brain</span>
         <span className="text-xs ml-1" style={{ color: "var(--color-muted)" }}>
           → <strong className="text-violet-400">{folder || "inbox"}</strong>
@@ -262,7 +262,7 @@ function CapturePanel({ folder, onSaved }: { folder: string; onSaved: () => void
       <div className="flex flex-wrap gap-1.5 shrink-0">
         {tags.map((t) => (
           <span key={t} className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full"
-            style={{ background: "rgba(167,139,250,0.15)", color: "#a78bfa" }}>
+            style={{ background: "var(--color-brand-dim)", color: "var(--color-brand)" }}>
             #{t}
             <button onClick={() => setTags(tags.filter((x) => x !== t))} className="hover:opacity-70 ml-0.5">
               <X size={8} />
@@ -358,7 +358,7 @@ function NoteViewer({ item, onBack, onDelete, onSaved }: {
         <span className="text-xs font-semibold flex-1 truncate" style={{ color: "var(--color-text)" }}>{item.name}</span>
         {isTeamConfig && (
           <span className="text-[9px] px-1.5 py-0.5 rounded font-semibold shrink-0"
-            style={{ background: "rgba(99,102,241,0.18)", color: "rgba(165,180,252,0.95)", border: "1px solid rgba(99,102,241,0.3)" }}>
+            style={{ background: "var(--color-brand-dim)", color: "var(--color-brand-hover)", border: "1px solid var(--color-brand-muted)" }}>
             LIVE CONFIG
           </span>
         )}
@@ -407,7 +407,7 @@ function NoteViewer({ item, onBack, onDelete, onSaved }: {
       )}
 
       {isTeamConfig && !editing && (
-        <div className="px-4 py-2 shrink-0" style={{ borderBottom: "1px solid var(--color-border)", background: "rgba(99,102,241,0.04)" }}>
+        <div className="px-4 py-2 shrink-0" style={{ borderBottom: "1px solid var(--color-border)", background: "var(--color-brand-glow)" }}>
           <p className="text-[10px]" style={{ color: "rgba(165,180,252,0.7)" }}>
             Edit this file and click <strong>Save &amp; Sync</strong> to update the live agent team instantly. Changes to agents, skills, and CLI functions are applied immediately.
           </p>
@@ -418,7 +418,7 @@ function NoteViewer({ item, onBack, onDelete, onSaved }: {
         <div className="flex flex-wrap gap-1.5 px-4 pt-3 shrink-0">
           {item.tags.map((t) => (
             <span key={t} className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-              style={{ background: "rgba(167,139,250,0.15)", color: "#a78bfa" }}>
+              style={{ background: "var(--color-brand-dim)", color: "var(--color-brand)" }}>
               #{t.replace(/^#/, "")}
             </span>
           ))}
@@ -648,8 +648,8 @@ export default function KnowledgePage() {
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 px-4 py-2.5 shrink-0" style={{ borderBottom: "1px solid var(--color-border)" }}>
         <div className="flex items-center gap-2 shrink-0">
-          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "rgba(167,139,250,0.15)" }}>
-            <Brain size={13} style={{ color: "#a78bfa" }} />
+          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: "var(--color-brand-dim)" }}>
+            <Brain size={13} style={{ color: "var(--color-brand)" }} />
           </div>
           <span className="text-sm font-semibold" style={{ color: "var(--color-text)" }}>Knowledge Base</span>
           <span className="text-[10px] px-1.5 py-0.5 rounded-full font-mono"
@@ -697,9 +697,9 @@ export default function KnowledgePage() {
             title={showGraph ? "Hide graph" : "Show graph"}
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs hover:opacity-80"
             style={{
-              background: showGraph ? "rgba(167,139,250,0.15)" : "transparent",
-              color: showGraph ? "#a78bfa" : "var(--color-muted)",
-              border: `1px solid ${showGraph ? "rgba(167,139,250,0.3)" : "var(--color-border)"}`,
+              background: showGraph ? "var(--color-brand-dim)" : "transparent",
+              color: showGraph ? "var(--color-brand)" : "var(--color-muted)",
+              border: `1px solid ${showGraph ? "var(--color-brand-muted)" : "var(--color-border)"}`,
             }}>
             <Network size={11} />
           </button>
@@ -845,7 +845,7 @@ export default function KnowledgePage() {
                         <span className="text-xs font-medium" style={{ color: "var(--color-text)" }}>{r.title}</span>
                         {r.score !== undefined && (
                           <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded-full font-mono shrink-0"
-                            style={{ background: "rgba(167,139,250,0.15)", color: "#a78bfa" }}>
+                            style={{ background: "var(--color-brand-dim)", color: "var(--color-brand)" }}>
                             {(r.score * 100).toFixed(0)}%
                           </span>
                         )}
@@ -938,7 +938,7 @@ export default function KnowledgePage() {
             </div>
             {graphNodes.length > 0 && (
               <div className="px-3 py-2 shrink-0 flex flex-wrap gap-x-3 gap-y-1" style={{ borderTop: "1px solid var(--color-border)" }}>
-                {[["Business", "#4ade80"], ["Personal", "#60a5fa"], ["inbox", "#a78bfa"], ["Education", "#f59e0b"], ["Resources", "#f87171"]].map(([f, c]) => (
+                {[["Business", "#4ade80"], ["Personal", "#60a5fa"], ["inbox", "var(--color-brand)"], ["Education", "#f59e0b"], ["Resources", "#f87171"]].map(([f, c]) => (
                   <div key={f} className="flex items-center gap-1">
                     <div className="w-2 h-2 rounded-sm" style={{ background: c }} />
                     <span className="text-[9px]" style={{ color: "var(--color-muted)" }}>{f}</span>

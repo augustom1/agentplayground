@@ -7,7 +7,7 @@ import {
   LayoutDashboard, MessageSquare, Calendar, Settings,
   Bot, PanelLeftClose, PanelLeft, Users, Wrench, Layers,
   Sparkles, Server, ChevronRight, Clock, Globe, Brain,
-  Workflow, Link2, CreditCard, Languages, Sun, Moon, FolderOpen, BookOpen,
+  Workflow, Link2, CreditCard, Sun, Moon, FolderOpen, BookOpen,
   ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,7 +26,15 @@ function SectionDivider({ label, collapsed, action, actionOpen }: {
   actionOpen?: boolean;
 }) {
   if (collapsed) {
-    return <div style={{ height: "1px", background: "var(--color-border)", margin: "8px 4px" }} />;
+    return (
+      <div
+        style={{
+          height: "1px",
+          background: "var(--color-border)",
+          margin: "6px 8px",
+        }}
+      />
+    );
   }
   if (action) {
     return (
@@ -35,7 +43,15 @@ function SectionDivider({ label, collapsed, action, actionOpen }: {
         className="w-full flex items-center justify-between px-3 pt-3 pb-1 group"
         style={{ background: "none", border: "none", cursor: "pointer" }}
       >
-        <span className="text-[10px] font-semibold tracking-wider uppercase" style={{ color: "var(--color-muted)", letterSpacing: "0.08em" }}>
+        <span
+          style={{
+            fontSize: "10px",
+            fontWeight: 600,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--color-muted)",
+          }}
+        >
           {label}
         </span>
         <ChevronRight
@@ -43,7 +59,7 @@ function SectionDivider({ label, collapsed, action, actionOpen }: {
           style={{
             color: "var(--color-muted)",
             transform: actionOpen ? "rotate(90deg)" : "rotate(0deg)",
-            transition: "transform 0.2s",
+            transition: "transform 0.18s ease",
           }}
         />
       </button>
@@ -51,7 +67,15 @@ function SectionDivider({ label, collapsed, action, actionOpen }: {
   }
   return (
     <div className="px-3 pt-3 pb-1">
-      <span className="text-[10px] font-semibold tracking-wider uppercase" style={{ color: "var(--color-muted)", letterSpacing: "0.08em" }}>
+      <span
+        style={{
+          fontSize: "10px",
+          fontWeight: 600,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: "var(--color-muted)",
+        }}
+      >
         {label}
       </span>
     </div>
@@ -66,13 +90,11 @@ export function Sidebar() {
   const { locale, toggle: toggleLocale } = useLanguage();
   const { theme, toggle: toggleTheme } = useTheme();
 
-  // Playground sub-items
   const playgroundSubPaths = ["/projects", "/schedule", "/pipeline"];
   const isOnPlaygroundSub = playgroundSubPaths.some(p => pathname === p || pathname.startsWith(p + "/"));
   const [playgroundOpen, setPlaygroundOpen] = useState(false);
   useEffect(() => { if (isOnPlaygroundSub) setPlaygroundOpen(true); }, [pathname]);
 
-  // Stack section (collapsed by default)
   const [stackOpen, setStackOpen] = useState(false);
   useEffect(() => {
     try {
@@ -86,7 +108,6 @@ export function Sidebar() {
     try { localStorage.setItem("sidebarStackOpen", JSON.stringify(next)); } catch {}
   }
 
-  // Auto-expand stack if on a stack page
   const stackPaths = ["/optimize", "/server", "/websites", "/tools", "/connect", "/blog"];
   useEffect(() => {
     if (stackPaths.some(p => pathname === p || pathname.startsWith(p + "/"))) {
@@ -94,7 +115,6 @@ export function Sidebar() {
     }
   }, [pathname]);
 
-  // Chat dropdown
   const [chatOpen, setChatOpen] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const chatRef = useRef<HTMLDivElement>(null);
@@ -116,30 +136,32 @@ export function Sidebar() {
 
   const isChatActive = pathname.startsWith("/chat");
 
-  // Styles
-  const navItemCls = (active: boolean) =>
-    cn(
-      "nav-hover relative flex items-center gap-2.5 text-[13px] font-medium transition-all duration-200 rounded-lg",
-      collapsed ? "px-0 py-2 justify-center" : "px-3 py-2"
+  function navItemCls(active: boolean) {
+    return cn(
+      "nav-hover relative flex items-center gap-2.5 text-[13px] font-medium transition-all duration-[160ms] rounded-lg",
+      collapsed ? "px-0 py-2 justify-center" : "px-3 py-[7px]"
     );
+  }
 
-  const navItemStyle = (active: boolean): React.CSSProperties => ({
-    color: active ? "var(--color-brand-hover)" : "var(--color-muted)",
-    background: active ? "var(--color-brand-dim)" : "transparent",
-    textDecoration: "none",
-  });
+  function navItemStyle(active: boolean): React.CSSProperties {
+    return {
+      color: active ? "var(--color-brand-hover)" : "var(--color-muted)",
+      background: active ? "var(--color-brand-dim)" : "transparent",
+      textDecoration: "none",
+    };
+  }
 
   const activeBar = (
     <span
       className="absolute left-0 gradient-bar"
-      style={{ width: "3px", height: "16px", top: "50%", transform: "translateY(-50%)", borderRadius: "0 3px 3px 0" }}
+      style={{ width: "3px", height: "16px", top: "50%", transform: "translateY(-50%)" }}
     />
   );
 
   const quickBtnStyle: React.CSSProperties = {
-    width: 26, height: 26,
+    width: 28, height: 28,
     display: "flex", alignItems: "center", justifyContent: "center",
-    borderRadius: 6, border: "none", background: "transparent", cursor: "pointer",
+    borderRadius: 7, border: "none", background: "transparent", cursor: "pointer",
     color: "var(--color-muted)", flexShrink: 0, transition: "background 0.15s, color 0.15s",
   };
 
@@ -165,9 +187,9 @@ export function Sidebar() {
   }
 
   const playgroundSubItems = [
-    { href: "/projects", label: "Projects", icon: FolderOpen },
-    { href: "/schedule", label: "Schedule", icon: Calendar },
-    { href: "/pipeline", label: "Work Queue", icon: Workflow },
+    { href: "/projects",  label: "Projects",   icon: FolderOpen },
+    { href: "/schedule",  label: "Schedule",   icon: Calendar },
+    { href: "/pipeline",  label: "Work Queue", icon: Workflow },
   ];
 
   const stackItems = [
@@ -182,27 +204,35 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "glass-sidebar flex flex-col min-h-screen shrink-0 transition-all duration-300 ease-in-out",
-        collapsed ? "w-[52px]" : "w-[210px]"
+        "glass-sidebar flex flex-col min-h-screen shrink-0 transition-all duration-[240ms] ease-in-out",
+        collapsed ? "w-[52px]" : "w-[216px]"
       )}
     >
-      {/* Logo + collapse toggle */}
+      {/* Logo + collapse */}
       <div
         className="flex items-center justify-between px-2.5 py-3"
         style={{ borderBottom: "1px solid var(--color-border)" }}
       >
-        <Link href="/dashboard" className="flex items-center gap-2 min-w-0">
+        <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0">
           <LogoMark size={28} />
           {!collapsed && (
-            <span className="font-semibold text-[13px] animate-fade-in truncate" style={{ color: "var(--color-text)" }}>
-              Playground
-            </span>
+            <div className="animate-fade-in flex flex-col leading-none">
+              <span
+                className="font-semibold text-[13px] tracking-tight"
+                style={{ color: "var(--color-text)", letterSpacing: "-0.01em" }}
+              >
+                agent playground
+              </span>
+            </div>
           )}
         </Link>
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="nav-hover flex items-center justify-center rounded-lg shrink-0"
-          style={{ color: "var(--color-muted)", background: "transparent", border: "none", cursor: "pointer", width: "24px", height: "24px" }}
+          style={{
+            color: "var(--color-muted)", background: "transparent", border: "none",
+            cursor: "pointer", width: "24px", height: "24px",
+          }}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? <PanelLeft size={13} /> : <PanelLeftClose size={13} />}
@@ -212,7 +242,6 @@ export function Sidebar() {
       {/* Scrollable nav */}
       <nav className="flex flex-col gap-px p-1.5 flex-1 mt-1 overflow-y-auto">
 
-        {/* Home */}
         {renderNavLink("/dashboard", "Home", LayoutDashboard)}
 
         {/* Chat with recent conversations */}
@@ -240,7 +269,7 @@ export function Sidebar() {
                 className="nav-hover flex items-center justify-center rounded mr-0.5"
                 style={{ width: "20px", height: "20px", border: "none", background: "transparent", cursor: "pointer", color: "var(--color-muted)", flexShrink: 0 }}
               >
-                <ChevronRight size={11} style={{ transform: chatOpen ? "rotate(90deg)" : "none", transition: "transform 0.2s" }} />
+                <ChevronRight size={11} style={{ transform: chatOpen ? "rotate(90deg)" : "none", transition: "transform 0.18s" }} />
               </button>
             )}
           </div>
@@ -293,7 +322,7 @@ export function Sidebar() {
                 className="nav-hover flex items-center justify-center rounded mr-0.5"
                 style={{ width: "20px", height: "20px", border: "none", background: "transparent", cursor: "pointer", color: "var(--color-muted)", flexShrink: 0 }}
               >
-                <ChevronRight size={11} style={{ transform: playgroundOpen ? "rotate(90deg)" : "none", transition: "transform 0.2s" }} />
+                <ChevronRight size={11} style={{ transform: playgroundOpen ? "rotate(90deg)" : "none", transition: "transform 0.18s" }} />
               </button>
             )}
           </div>
@@ -325,15 +354,13 @@ export function Sidebar() {
         <SectionDivider label="Knowledge" collapsed={collapsed} />
         {renderNavLink("/files", "Brain & Files", Brain)}
 
-        {/* ── STACK ── (collapsible, collapsed by default) */}
+        {/* ── STACK ── */}
         <SectionDivider label="Stack" collapsed={collapsed} action={toggleStack} actionOpen={stackOpen} />
-
-        {/* In collapsed sidebar mode, always show stack icons */}
         {(stackOpen || collapsed) && stackItems.map(({ href, label, icon }) => renderNavLink(href, label, icon))}
 
       </nav>
 
-      {/* Bottom: Billing, Settings, quick actions, user */}
+      {/* Bottom: Billing, Settings, user */}
       <div className="flex flex-col" style={{ borderTop: "1px solid var(--color-border)" }}>
         <div className="px-1.5 pt-1.5 pb-0.5 flex flex-col gap-px">
           {renderNavLink("/billing", "Billing", CreditCard)}
@@ -341,7 +368,7 @@ export function Sidebar() {
           {renderNavLink("/settings", "App Settings", Settings)}
         </div>
 
-        {/* Quick actions: language + theme */}
+        {/* Quick: language + theme */}
         <div
           className={cn("px-1.5 pb-1", collapsed ? "flex flex-col items-center gap-0.5" : "flex items-center gap-0.5")}
         >
@@ -350,18 +377,32 @@ export function Sidebar() {
             title={locale === "en" ? "Español" : "English"}
             className="nav-hover"
             style={quickBtnStyle}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--color-muted)"; }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)";
+              (e.currentTarget as HTMLElement).style.color = "var(--color-text-secondary)";
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.background = "transparent";
+              (e.currentTarget as HTMLElement).style.color = "var(--color-muted)";
+            }}
           >
-            <span style={{ fontSize: "11px", fontWeight: 600, lineHeight: 1 }}>{locale === "en" ? "ES" : "EN"}</span>
+            <span style={{ fontSize: "10px", fontWeight: 700, lineHeight: 1, letterSpacing: "0.04em" }}>
+              {locale === "en" ? "ES" : "EN"}
+            </span>
           </button>
           <button
             onClick={toggleTheme}
             title={theme === "dark" ? "Light mode" : "Dark mode"}
             className="nav-hover"
             style={quickBtnStyle}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--color-muted)"; }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)";
+              (e.currentTarget as HTMLElement).style.color = "var(--color-text-secondary)";
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.background = "transparent";
+              (e.currentTarget as HTMLElement).style.color = "var(--color-muted)";
+            }}
           >
             {theme === "dark" ? <Sun size={13} /> : <Moon size={13} />}
           </button>

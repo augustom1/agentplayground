@@ -37,9 +37,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const colorMap: Record<ToastType, { bg: string; border: string; text: string }> = {
-    success: { bg: "var(--color-green-dim)", border: "rgba(52,211,153,0.25)", text: "var(--color-green)" },
-    error: { bg: "var(--color-red-dim)", border: "rgba(248,113,113,0.25)", text: "var(--color-red)" },
-    info: { bg: "rgba(255,255,255,0.08)", border: "rgba(255,255,255,0.08)", text: "var(--color-text)" },
+    success: { bg: "var(--color-green-dim)",  border: "rgba(111,190,142,0.25)", text: "var(--color-green)" },
+    error:   { bg: "var(--color-red-dim)",    border: "rgba(224,112,112,0.25)", text: "var(--color-red)" },
+    info:    { bg: "var(--color-brand-dim)",  border: "var(--color-brand-muted)", text: "var(--color-brand-hover)" },
   };
 
   return (

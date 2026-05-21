@@ -64,7 +64,7 @@ const providers = [
     name: "Anthropic Claude",
     description: "claude-sonnet-4-6 — Recommended",
     icon: Sparkles,
-    color: "#a78bfa",
+    color: "var(--color-brand)",
     status: "active",
   },
   {

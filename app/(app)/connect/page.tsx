@@ -64,7 +64,7 @@ const PROVIDERS = [
     name: "Claude Mobile",
     icon: "📱",
     badge: "Remote MCP",
-    badgeColor: "#a78bfa",
+    badgeColor: "var(--color-brand)",
     description: "Claude iOS/Android supports remote MCP via Integrations. Gives you vault_search, vault_write, dispatch_task and more.",
     steps: [
       'Open Claude app → Settings → Integrations',
@@ -82,7 +82,7 @@ const PROVIDERS = [
     name: "Claude Desktop",
     icon: "🖥️",
     badge: "MCP",
-    badgeColor: "#a78bfa",
+    badgeColor: "var(--color-brand)",
     description: "Full MCP support on Mac and Windows. Paste the config and restart.",
     steps: [
       'Open Claude Desktop → Settings → Developer → Edit Config',
@@ -136,7 +136,7 @@ const PROVIDERS = [
     name: "Cursor / VS Code",
     icon: "⚡",
     badge: "MCP",
-    badgeColor: "#a78bfa",
+    badgeColor: "var(--color-brand)",
     description: "Access your Brain from inside your IDE via the MCP extension.",
     steps: [
       "Open Cursor → Settings → MCP",
@@ -328,7 +328,7 @@ export default function ConnectPage() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-2 mb-1">
-          <Globe size={16} style={{ color: "#a78bfa" }} />
+          <Globe size={16} style={{ color: "var(--color-brand)" }} />
           <h1 className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>Connect from Any AI</h1>
         </div>
         <p className="text-xs" style={{ color: "var(--color-muted)" }}>
@@ -358,20 +358,20 @@ export default function ConnectPage() {
           )}
         </div>
         <p className="text-[11px] mt-3 leading-relaxed" style={{ color: "var(--color-muted)" }}>
-          You describe a strategy or brief in Claude Mobile → push it to the Brain → your Marketing team agents find it in <code style={{ fontFamily: "var(--font-mono)", fontSize: 10, background: "rgba(139,92,246,0.12)", color: "#a78bfa", padding: "1px 4px", borderRadius: 4 }}>Teams/marketing/</code> and use it for their next task.
+          You describe a strategy or brief in Claude Mobile → push it to the Brain → your Marketing team agents find it in <code style={{ fontFamily: "var(--font-mono)", fontSize: 10, background: "var(--color-brand-dim)", color: "var(--color-brand)", padding: "1px 4px", borderRadius: 4 }}>Teams/marketing/</code> and use it for their next task.
         </p>
       </div>
 
       {/* What agents see */}
       <div className="glass-card p-4">
         <div className="flex items-center gap-2 mb-2">
-          <Brain size={14} style={{ color: "#a78bfa" }} />
+          <Brain size={14} style={{ color: "var(--color-brand)" }} />
           <h2 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-text-secondary)" }}>What agents can do with your data</h2>
         </div>
         <div className="grid gap-2">
           {MCP_TOOLS.map((t) => (
             <div key={t.name} className="flex items-start gap-3">
-              <code className="text-[11px] shrink-0 px-1.5 py-0.5 rounded font-mono" style={{ background: "rgba(139,92,246,0.12)", color: "#a78bfa" }}>
+              <code className="text-[11px] shrink-0 px-1.5 py-0.5 rounded font-mono" style={{ background: "var(--color-brand-dim)", color: "var(--color-brand)" }}>
                 {t.name}
               </code>
               <p className="text-[11px]" style={{ color: "var(--color-muted)" }}>{t.desc}</p>
@@ -465,7 +465,7 @@ export default function ConnectPage() {
             {provider.steps.map((step, i) => (
               <li key={i} className="flex items-start gap-2.5">
                 <span className="shrink-0 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center mt-0.5"
-                  style={{ background: "rgba(139,92,246,0.15)", color: "#a78bfa" }}>
+                  style={{ background: "var(--color-brand-dim)", color: "var(--color-brand)" }}>
                   {i + 1}
                 </span>
                 <span
@@ -494,7 +494,7 @@ export default function ConnectPage() {
           {provider.hasPromptTemplate && (
             <div>
               <div className="flex items-center gap-2 mb-1.5">
-                <Sparkles size={12} style={{ color: "#a78bfa" }} />
+                <Sparkles size={12} style={{ color: "var(--color-brand)" }} />
                 <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--color-text-secondary)" }}>
                   System prompt to copy into {provider.name}
                 </p>
@@ -520,7 +520,7 @@ export default function ConnectPage() {
           <h2 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-text-secondary)" }}>Brain Push Endpoint</h2>
         </div>
         <p className="text-[11px] mb-3 leading-relaxed" style={{ color: "var(--color-muted)" }}>
-          The <code style={{ fontFamily: "var(--font-mono)", fontSize: 10, background: "rgba(139,92,246,0.12)", color: "#a78bfa", padding: "1px 4px", borderRadius: 4 }}>/api/brain/push</code> endpoint accepts Bearer auth from any external tool. Set <code style={{ fontFamily: "var(--font-mono)", fontSize: 10, background: "rgba(139,92,246,0.12)", color: "#a78bfa", padding: "1px 4px", borderRadius: 4 }}>team</code> to route content into that team&apos;s Brain folder. Your agents automatically search their folder before starting tasks.
+          The <code style={{ fontFamily: "var(--font-mono)", fontSize: 10, background: "var(--color-brand-dim)", color: "var(--color-brand)", padding: "1px 4px", borderRadius: 4 }}>/api/brain/push</code> endpoint accepts Bearer auth from any external tool. Set <code style={{ fontFamily: "var(--font-mono)", fontSize: 10, background: "var(--color-brand-dim)", color: "var(--color-brand)", padding: "1px 4px", borderRadius: 4 }}>team</code> to route content into that team&apos;s Brain folder. Your agents automatically search their folder before starting tasks.
         </p>
         <div className="grid gap-3">
           {[
@@ -543,8 +543,8 @@ export default function ConnectPage() {
             </div>
           ))}
         </div>
-        <div className="mt-3 p-3 rounded-lg" style={{ background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.2)" }}>
-          <p className="text-[11px] leading-relaxed" style={{ color: "#a78bfa" }}>
+        <div className="mt-3 p-3 rounded-lg" style={{ background: "var(--color-brand-dim)", border: "1px solid var(--color-brand-muted)" }}>
+          <p className="text-[11px] leading-relaxed" style={{ color: "var(--color-brand)" }}>
             <strong>GET</strong> <code style={{ fontFamily: "var(--font-mono)" }}>{APP_URL}/api/brain/push</code> returns the OpenAPI schema. Use this URL as the Schema URL in ChatGPT Custom GPT Actions.
           </p>
         </div>

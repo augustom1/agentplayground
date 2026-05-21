@@ -68,7 +68,7 @@ type ProviderConfig = {
 const PROVIDERS: Record<Provider, ProviderConfig> = {
   anthropic: {
     label: "Anthropic",
-    color: "#a78bfa",
+    color: "var(--color-brand)",
     models: [
       { value: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
       { value: "claude-opus-4-6", label: "Claude Opus 4.6" },
@@ -274,9 +274,9 @@ function renderContent(content: string) {
               padding: "2px 8px",
               borderRadius: "6px",
               fontSize: "11px",
-              background: "rgba(99,102,241,0.12)",
-              color: "rgba(167,139,250,0.95)",
-              border: "1px solid rgba(99,102,241,0.2)",
+              background: "var(--color-brand-dim)",
+              color: "var(--color-brand-hover)",
+              border: "1px solid var(--color-brand-muted)",
               fontWeight: 500,
             }}
           >
@@ -805,7 +805,7 @@ export default function ChatPage() {
     if (id === "coordinator")
       return (
         <span className="flex items-center gap-1.5">
-          <Network size={11} style={{ color: "#a78bfa" }} />
+          <Network size={11} style={{ color: "var(--color-brand)" }} />
           Coordinator
         </span>
       );
@@ -832,8 +832,8 @@ export default function ChatPage() {
     if (id === "coordinator")
       return (
         <span className="flex items-center gap-2">
-          <Network size={12} style={{ color: "#a78bfa" }} />
-          <span style={{ color: "#a78bfa" }}>Coordinator</span>
+          <Network size={12} style={{ color: "var(--color-brand)" }} />
+          <span style={{ color: "var(--color-brand)" }}>Coordinator</span>
           <span style={{ fontSize: "10px", color: "var(--color-muted)", marginLeft: "auto" }}>
             routes tasks
           </span>
@@ -915,7 +915,7 @@ export default function ChatPage() {
               }}
             >
               {teamId === "coordinator" ? (
-                <Network size={15} style={{ color: "#a78bfa" }} />
+                <Network size={15} style={{ color: "var(--color-brand)" }} />
               ) : (
                 <Bot size={15} style={{ color: "var(--color-text-secondary)" }} />
               )}

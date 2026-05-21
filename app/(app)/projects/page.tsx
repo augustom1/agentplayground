@@ -309,7 +309,7 @@ export default function ProjectsPage() {
       {upcomingMeetings.length > 0 && (
         <div className="glass-card p-4 flex flex-col gap-3">
           <div className="flex items-center gap-2">
-            <Users size={13} style={{ color: "#818cf8" }} />
+            <Users size={13} style={{ color: "var(--color-brand-hover)" }} />
             <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted)" }}>Upcoming Meetings</span>
           </div>
           <div className="flex flex-col gap-2">
@@ -323,7 +323,7 @@ export default function ProjectsPage() {
                     className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-lg"
                     style={{ background: isReminding ? "rgba(251,191,36,0.12)" : "rgba(129,140,248,0.1)" }}
                   >
-                    {isReminding ? <Bell size={12} style={{ color: "#fbbf24" }} /> : <Clock size={12} style={{ color: "#818cf8" }} />}
+                    {isReminding ? <Bell size={12} style={{ color: "#fbbf24" }} /> : <Clock size={12} style={{ color: "var(--color-brand-hover)" }} />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium truncate" style={{ color: "var(--color-text)" }}>{m.title}</p>
@@ -337,8 +337,8 @@ export default function ProjectsPage() {
                             key={idx}
                             className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded-full"
                             style={{
-                              background: p.type === "agent" ? "rgba(99,102,241,0.1)" : "rgba(52,211,153,0.1)",
-                              color: p.type === "agent" ? "#818cf8" : "var(--color-green)",
+                              background: p.type === "agent" ? "var(--color-brand-dim)" : "rgba(52,211,153,0.1)",
+                              color: p.type === "agent" ? "var(--color-brand-hover)" : "var(--color-green)",
                             }}
                           >
                             {p.type === "agent" ? <Bot size={8} /> : <UserPlus size={8} />}
@@ -355,7 +355,7 @@ export default function ProjectsPage() {
               );
             })}
           </div>
-          <a href="/schedule" className="text-[11px] self-start" style={{ color: "#818cf8", textDecoration: "none" }}>
+          <a href="/schedule" className="text-[11px] self-start" style={{ color: "var(--color-brand-hover)", textDecoration: "none" }}>
             View all in Schedule →
           </a>
         </div>

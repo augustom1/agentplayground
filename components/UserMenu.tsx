@@ -99,7 +99,7 @@ export function UserMenu({ collapsed }: { collapsed: boolean }) {
             borderRadius: "7px",
             background: "var(--color-brand-dim)",
             color: "var(--color-brand-hover)",
-            border: "1px solid rgba(99,102,241,0.25)",
+            border: "1px solid var(--color-brand-muted)",
           }}
         >
           {initials}

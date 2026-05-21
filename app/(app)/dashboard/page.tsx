@@ -252,8 +252,8 @@ function WidgetContent({ widget, metrics }: { widget: DashboardWidget; metrics: 
       );
     }
     const rows = [
-      { label: "Skills in catalog", value: opt.totalSkills, icon: Wrench, color: "#a78bfa" },
-      { label: "CLI functions", value: opt.totalCliFunctions, icon: Zap, color: "#60a5fa" },
+      { label: "Skills in catalog", value: opt.totalSkills, icon: Wrench, color: "var(--color-brand)" },
+      { label: "CLI functions", value: opt.totalCliFunctions, icon: Zap, color: "var(--color-blue)" },
       { label: "Improvements applied", value: opt.appliedImprovements, icon: CheckCircle2, color: "var(--color-green)" },
       { label: "Total improvements", value: opt.totalImprovements, icon: TrendingUp, color: "var(--color-yellow)" },
     ];
