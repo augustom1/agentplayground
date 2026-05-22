@@ -910,6 +910,7 @@ model PlaygroundMember {
   agentId String
   agent   Agent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
   role    String?
+  group   String?         // agent group label within this playground
   addedAt DateTime        @default(now())
 
   @@unique([teamId, agentId])

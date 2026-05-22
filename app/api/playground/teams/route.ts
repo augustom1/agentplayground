@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
               create: agentIds.map((agentId: string, i: number) => ({
                 agentId,
                 role: body.agentRoles?.[i] ?? null,
+                group: body.agentGroups?.[i] ?? null,
               })),
             }
           : undefined,

@@ -21,7 +21,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (!body.agentId) return apiError("Missing agentId", 400);
 
     const member = await prisma.playgroundMember.create({
-      data: { teamId: id, agentId: body.agentId, role: body.role ?? null },
+      data: { teamId: id, agentId: body.agentId, role: body.role ?? null, group: body.group ?? null },
       include: { agent: { select: { id: true, name: true, model: true } } },
     });
 

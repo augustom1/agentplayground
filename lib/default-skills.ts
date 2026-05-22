@@ -160,6 +160,32 @@ For copy: write in active voice, plain language, under 10 words for labels, unde
     instructions:
       "Export: GET /api/export-team/:id returns full team config JSON. Import: POST /api/import-team with team config JSON creates the team, agents, skills, and CLI functions.",
   },
+
+  // ─── Crypto Wallet Management ─────────────────────────────────────────────
+  {
+    name: "Monitor Inbound Wallet",
+    description:
+      "Monitor a client-billing crypto wallet for inbound payments. Reports new transactions by coin type, amount, and sender. Scaffold — wire WALLET_INBOUND_ADDRESS env var to activate.",
+    category: "crypto",
+    instructions:
+      "Check the inbound wallet for new transactions. Configuration comes from environment variables: WALLET_INBOUND_ADDRESS (wallet address to monitor), WALLET_API_PROVIDER (blockchain API: blockstream | etherscan | trongrid). Steps: 1) Call the provider API to fetch recent transactions since last check timestamp. 2) Filter for confirmed transactions only (>= 2 block confirmations). 3) Group by coin type (BTC, ETH, USDT-TRC20, USDT-ERC20, USDC). 4) Write a summary to vault at 'Wallet/Inbound/<Date>.md'. 5) Report totals to the coordinator. SCAFFOLD: If env vars not set, return placeholder data with a note to configure the wallet address.",
+  },
+  {
+    name: "Coin Filter and Router",
+    description:
+      "Apply business routing rules to received coins: filter by type, check minimum amounts, flag suspicious transactions, and prepare transfer instructions.",
+    category: "crypto",
+    instructions:
+      "Apply routing rules to wallet transactions: 1) Read the latest inbound wallet report from vault. 2) Apply filters: ROUTING_MIN_USDT (minimum amount in USD equivalent, default 10), ROUTING_ACCEPTED_COINS (comma-separated list, default: USDT,USDC,BTC,ETH). 3) For each accepted transaction: compute USD equivalent, apply fee deduction (ROUTING_FEE_PCT, default 0%), and generate transfer instruction. 4) Flag any unrecognized coins or amounts below minimum. 5) Write routing decisions to vault at 'Wallet/Routing/<Date>.md'. 6) Return a structured report: accepted transfers, flagged items, total USD value. SCAFFOLD: returns mock data if wallet not connected.",
+  },
+  {
+    name: "Settlement Transfer",
+    description:
+      "Execute the final transfer of filtered funds from the inbound wallet to the operator's business account. Requires explicit approval before executing.",
+    category: "crypto",
+    instructions:
+      "IMPORTANT: This skill requires explicit coordinator approval before executing any transfer. Steps: 1) Read the routing report from vault (latest 'Wallet/Routing/*.md'). 2) Present a summary of pending settlements to the coordinator: coin, amount, destination. 3) Wait for explicit approval (string 'APPROVED'). 4) On approval: call the transfer API (WALLET_TRANSFER_ENDPOINT env var). 5) Log the result in vault at 'Wallet/Settlements/<Date>.md'. 6) Report success/failure with transaction IDs. SCAFFOLD: If WALLET_TRANSFER_ENDPOINT not set, simulate the transfer and log as 'SIMULATED'. Never transfer without explicit approval.",
+  },
 ];
 
 /** The default Database Agent team definition */
@@ -186,4 +212,54 @@ export const FILE_AGENT_TEAM = {
     permissions: ["db:read:own_team", "db:write:own_team", "files:read", "files:write"],
     isSystemTeam: true,
   },
+};
+
+/**
+ * Crypto Wallet Management group scaffold.
+ * Three agents: Monitor, Router, Settlement.
+ * Wire env vars to activate live blockchain reads/writes:
+ *   WALLET_INBOUND_ADDRESS — client-facing inbound wallet
+ *   WALLET_TRANSFER_ENDPOINT — API to execute outbound transfers
+ *   WALLET_API_PROVIDER — blockstream | etherscan | trongrid
+ *   ROUTING_ACCEPTED_COINS — comma-separated: USDT,USDC,BTC,ETH
+ *   ROUTING_MIN_USDT — minimum USD equivalent per transfer
+ */
+export const CRYPTO_WALLET_TEAM = {
+  name: "Crypto Wallet Management",
+  description:
+    "Handles client billing and payment routing. Monitors inbound wallets, filters coins, and routes settlements to the business account. Fully scaffolded — wire env vars to activate.",
+  port: 9002,
+  language: "TypeScript / Internal",
+  category: "Finance",
+  config: {
+    permissions: ["db:read:own_team", "db:write:own_team", "files:read", "vault:read", "vault:write"],
+    isSystemTeam: false,
+  },
+  agents: [
+    {
+      name: "Wallet Monitor",
+      description: "Polls the inbound client billing wallet for new confirmed transactions. Reports by coin type.",
+      model: "claude-haiku-4-5-20251001",
+      capabilities: ["wallet_monitoring", "blockchain_api", "transaction_parsing"],
+      systemPrompt:
+        "You monitor a crypto wallet for inbound payments. You call blockchain APIs to check for new confirmed transactions, group them by coin type, and report summaries to the coordinator. You are precise and security-conscious — never approve or execute transfers, only report.",
+    },
+    {
+      name: "Coin Router",
+      description: "Applies routing rules to received coins: filters by type and amount, and generates transfer instructions.",
+      model: "claude-haiku-4-5-20251001",
+      capabilities: ["routing_logic", "coin_filtering", "transfer_preparation"],
+      systemPrompt:
+        "You apply business routing rules to crypto transactions. You filter by accepted coin types and minimum amounts, flag suspicious transactions, and prepare transfer instructions for the settlement agent. You never execute transfers — only prepare them for explicit approval.",
+    },
+    {
+      name: "Settlement Agent",
+      description: "Executes approved fund transfers from the inbound wallet to the business account. Requires coordinator approval before any transfer.",
+      model: "claude-haiku-4-5-20251001",
+      capabilities: ["settlement", "transfer_execution", "audit_logging"],
+      systemPrompt:
+        "You execute crypto settlements. You NEVER transfer funds without explicit coordinator approval. When given approval: execute the transfer via the configured API, log the result, and report transaction IDs. If the transfer API is not configured, simulate and log as SIMULATED. Maintain a complete audit trail in vault.",
+    },
+  ],
+  skills: ["Monitor Inbound Wallet", "Coin Filter and Router", "Settlement Transfer"],
 };
