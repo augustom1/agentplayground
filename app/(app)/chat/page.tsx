@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Send, Bot, Zap, Plus, ChevronDown, Globe, Network,
   Loader2, Sparkles, Search, Eye, Users, Paperclip,
-  Mic, FileText, X,
+  Mic, FileText, X, AlertCircle,
 } from "lucide-react";
 import { useToast } from "@/components/ToastProvider";
 import { LogoMark } from "@/components/Logo";
@@ -416,6 +416,9 @@ export default function ChatPage() {
   const [meetingReminders, setMeetingReminders] = useState<MeetingReminder[]>([]);
   const [dismissedMeetings, setDismissedMeetings] = useState<Set<string>>(new Set());
 
+  type ActiveAgent = { taskId: string; teamName: string; taskTitle: string; status: "running" | "done" | "error" | "blocked" };
+  const [activeAgents, setActiveAgents] = useState<ActiveAgent[]>([]);
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -438,6 +441,40 @@ export default function ChatPage() {
 
   useEffect(() => {
     fetch("/api/ollama/models").then(r => r.json()).then(d => { if (d.running && d.models?.length > 0) setOllamaModels(d.models.map((m: { name: string }) => ({ value: m.name, label: m.name }))); }).catch(() => {});
+  }, []);
+
+  // Live agent activity via SSE
+  useEffect(() => {
+    const es = new EventSource("/api/notify/stream");
+    es.onmessage = (e: MessageEvent) => {
+      try {
+        const ev = JSON.parse(e.data as string) as { type: string; taskId?: string; message: string; data?: Record<string, unknown> };
+        if (ev.type === "TASK_STARTED") {
+          setActiveAgents(prev => [...prev, {
+            taskId: ev.taskId ?? Math.random().toString(36).slice(2),
+            teamName: (ev.data?.teamName as string) ?? "Agent",
+            taskTitle: (ev.data?.taskTitle as string) ?? ev.message,
+            status: "running",
+          }]);
+        } else if (ev.type === "TASK_DONE") {
+          setActiveAgents(prev => prev.map(a => a.taskId === ev.taskId ? { ...a, status: "done" } : a));
+          setTimeout(() => setActiveAgents(prev => prev.filter(a => a.taskId !== ev.taskId)), 3000);
+        } else if (ev.type === "ERROR") {
+          setActiveAgents(prev => prev.map(a => a.taskId === ev.taskId ? { ...a, status: "error" } : a));
+          setTimeout(() => setActiveAgents(prev => prev.filter(a => a.taskId !== ev.taskId)), 5000);
+        } else if (ev.type === "MISSING_INFO") {
+          setActiveAgents(prev => [...prev, {
+            taskId: ev.taskId ?? Math.random().toString(36).slice(2),
+            teamName: (ev.data?.teamName as string) ?? "Agent",
+            taskTitle: (ev.data?.question as string) ?? ev.message,
+            status: "blocked",
+          }]);
+        } else if (ev.type === "PLAN_DONE" || ev.type === "PLAN_BLOCKED") {
+          setTimeout(() => setActiveAgents([]), 4000);
+        }
+      } catch {}
+    };
+    return () => es.close();
   }, []);
 
   useEffect(() => {
@@ -625,6 +662,28 @@ export default function ChatPage() {
               <div ref={bottomRef} />
             </div>
           </div>
+
+          {/* Live agent activity strip */}
+          {activeAgents.length > 0 && (
+            <div className="shrink-0" style={{ borderTop: "1px solid var(--color-border)", background: "var(--color-surface)", padding: "6px 0" }}>
+              <div style={{ maxWidth: 680, margin: "0 auto", padding: "0 12px", display: "flex", flexDirection: "column", gap: 3 }}>
+                {activeAgents.map(agent => (
+                  <div key={agent.taskId} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+                    {agent.status === "running" && <Loader2 size={11} className="animate-spin" style={{ color: "var(--color-brand)", flexShrink: 0 }} />}
+                    {agent.status === "done" && <span style={{ color: "var(--color-green)", flexShrink: 0, lineHeight: 1 }}>✓</span>}
+                    {agent.status === "error" && <AlertCircle size={11} style={{ color: "var(--color-red)", flexShrink: 0 }} />}
+                    {agent.status === "blocked" && <AlertCircle size={11} style={{ color: "#e8b84a", flexShrink: 0 }} />}
+                    <span style={{ fontWeight: 600, color: "var(--color-text)", flexShrink: 0 }}>{agent.teamName}</span>
+                    <span style={{ color: "var(--color-muted)", flexShrink: 0 }}>—</span>
+                    <span style={{ color: "var(--color-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{agent.taskTitle}</span>
+                    {agent.status === "blocked" && <span style={{ fontSize: 10, color: "#e8b84a", flexShrink: 0, fontWeight: 500 }}>needs input</span>}
+                    {agent.status === "done" && <span style={{ fontSize: 10, color: "var(--color-muted)", flexShrink: 0 }}>done</span>}
+                    {agent.status === "error" && <span style={{ fontSize: 10, color: "var(--color-red)", flexShrink: 0 }}>failed</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Token bar */}
           {sessionUsage.input > 0 && (

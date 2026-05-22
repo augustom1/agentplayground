@@ -9,6 +9,7 @@
 import { prisma } from "@/lib/prisma";
 import { PERMISSION_PRESETS } from "@/lib/agent-permissions";
 import { saveTeamConfig, initTeamBrain } from "@/lib/brain";
+import { notifyPlanEvent } from "@/lib/notify/sse";
 import fs from "fs";
 import path from "path";
 
@@ -735,6 +736,20 @@ export const CHAT_TOOLS: ToolDefinition[] = [
       required: ["taskId"],
     },
   },
+  {
+    name: "request_human_input",
+    description:
+      "Request input, approval, or a decision from the human user. Call this when a task cannot continue without information only the user can provide — a credential, approval, file path, or key decision. The task will pause and the coordinator will relay the question to the user.",
+    input_schema: {
+      type: "object",
+      properties: {
+        question: { type: "string", description: "The specific question or request for the user — be concise and concrete" },
+        context: { type: "string", description: "Why this input is needed and what it unblocks" },
+        taskId: { type: "string", description: "Optional task ID to mark as blocked in the system" },
+      },
+      required: ["question"],
+    },
+  },
 ];
 
 /**
@@ -827,6 +842,8 @@ export async function executeTool(
         return await toolRunPlan(input);
       case "get_task_result":
         return await toolGetTaskResult(input);
+      case "request_human_input":
+        return await toolRequestHumanInput(input);
       default:
         return JSON.stringify({ error: `Unknown tool: ${toolName}` });
     }
@@ -1264,6 +1281,14 @@ async function toolDelegateToTeam(input: Record<string, unknown>): Promise<strin
     },
   });
 
+  // Emit task started event so the UI can show live activity
+  notifyPlanEvent({
+    type: "TASK_STARTED",
+    taskId: task.id,
+    message: `${input.teamName as string}: ${task.title}`,
+    data: { teamName: input.teamName, taskTitle: task.title },
+  });
+
   // Actually execute via the agent runner (tool loop)
   try {
     const { runDelegatedTask } = await import("@/lib/agents/delegated");
@@ -1273,9 +1298,30 @@ async function toolDelegateToTeam(input: Record<string, unknown>): Promise<strin
       teamId: task.teamId,
     });
 
+    // Agent paused and needs human input
+    if (result.content.startsWith("NEEDS_HUMAN_INPUT:")) {
+      const question = result.content.replace("NEEDS_HUMAN_INPUT:", "").trim();
+      await prisma.task.update({ where: { id: task.id }, data: { status: "blocked" } });
+      return JSON.stringify({
+        success: false,
+        taskId: task.id,
+        needs_input: true,
+        question,
+        message: `The ${input.teamName as string} team paused on "${task.title}" and needs your input: ${question}`,
+        instruction: "Ask the user this question directly. Once they answer, re-delegate the task with the answer included in the description.",
+      });
+    }
+
     await prisma.task.update({
       where: { id: task.id },
       data: { status: "completed", result: result.content, completedAt: new Date() },
+    });
+
+    notifyPlanEvent({
+      type: "TASK_DONE",
+      taskId: task.id,
+      message: `${input.teamName as string} completed: ${task.title}`,
+      data: { teamName: input.teamName, taskTitle: task.title },
     });
 
     return JSON.stringify({
@@ -1286,15 +1332,23 @@ async function toolDelegateToTeam(input: Record<string, unknown>): Promise<strin
       message: `Task "${task.title}" completed by ${input.teamName as string}.`,
     });
   } catch (err) {
-    await prisma.task.update({
-      where: { id: task.id },
-      data: { status: "failed" },
+    const errorMsg = String(err);
+    await prisma.task.update({ where: { id: task.id }, data: { status: "failed" } });
+
+    notifyPlanEvent({
+      type: "ERROR",
+      taskId: task.id,
+      message: `${input.teamName as string}: ${task.title} failed`,
+      data: { teamName: input.teamName, taskTitle: task.title, error: errorMsg },
     });
+
     return JSON.stringify({
       success: false,
       taskId: task.id,
-      error: String(err),
-      message: `Task delegation failed: ${String(err)}`,
+      error: errorMsg,
+      tried: `The ${input.teamName as string} team attempted to execute "${task.title}".`,
+      recovery: "Options: (1) retry with more specific instructions, (2) delegate to a different team, (3) install a missing skill with install_tool, (4) use request_human_input if user input is needed.",
+      message: `Task failed: ${errorMsg.slice(0, 300)}`,
     });
   }
 }
@@ -1353,6 +1407,31 @@ async function toolGetTaskResult(input: Record<string, unknown>): Promise<string
   } catch (err) {
     return JSON.stringify({ error: String(err) });
   }
+}
+
+async function toolRequestHumanInput(input: Record<string, unknown>): Promise<string> {
+  const question = input.question as string;
+  const context = input.context as string | undefined;
+  const taskId = input.taskId as string | undefined;
+
+  if (taskId) {
+    await prisma.task.update({ where: { id: taskId }, data: { status: "blocked" } }).catch(() => {});
+  }
+
+  notifyPlanEvent({
+    type: "MISSING_INFO",
+    taskId,
+    message: question,
+    data: { question, context },
+  });
+
+  return JSON.stringify({
+    type: "TASK_PAUSED",
+    question,
+    context,
+    taskId,
+    message: "Human input has been requested. Relay this question to the user: " + question,
+  });
 }
 
 // ─── File System Tool Handlers ────────────────────────────────────────────────

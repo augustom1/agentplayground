@@ -10,6 +10,7 @@ export interface PlanEvent {
     | "PLAN_READY"
     | "PLAN_DONE"
     | "PLAN_BLOCKED"
+    | "TASK_STARTED"
     | "TASK_DONE"
     | "COUNCIL_COMPLETE"
     | "AGENT_BLOCKED"

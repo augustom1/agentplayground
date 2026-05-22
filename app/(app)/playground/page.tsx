@@ -152,47 +152,82 @@ function PlaygroundCard({ team, onClick }: { team: PlaygroundTeam; onClick: () =
   );
 }
 
+type AgentTeamWithAgents = {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  _count: { agents: number };
+  agents: { id: string; name: string; model: string; description?: string }[];
+};
+
 function NewPlaygroundModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: string) => void }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState("#38BDF8");
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [selected, setSelected] = useState<{ id: string; role: string; group: string }[]>([]);
+  const [agentTeams, setAgentTeams] = useState<AgentTeamWithAgents[]>([]);
+  // { agentId → { group, role } }
+  const [selected, setSelected] = useState<Map<string, { group: string; role: string }>>(new Map());
+  const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
-  const [agentsLoading, setAgentsLoading] = useState(true);
-  const [pendingGroupName, setPendingGroupName] = useState<string>("");
-  const [pendingGroupFor, setPendingGroupFor] = useState<string | null>(null);
+  const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/agents")
-      .then((r) => r.json())
-      .then((data) => setAgents(Array.isArray(data) ? data : []))
+    Promise.all([
+      fetch("/api/teams").then((r) => r.json()),
+      fetch("/api/agents").then((r) => r.json()),
+    ])
+      .then(([teams, allAgents]) => {
+        const agentsByTeam = new Map<string, typeof allAgents[0][]>();
+        for (const a of (allAgents as { id: string; name: string; model: string; description?: string; teamId: string }[])) {
+          if (!agentsByTeam.has(a.teamId)) agentsByTeam.set(a.teamId, []);
+          agentsByTeam.get(a.teamId)!.push(a);
+        }
+        const enriched = (teams as AgentTeamWithAgents[])
+          .filter((t) => !("isSystemTeam" in t && t.isSystemTeam))
+          .map((t) => ({ ...t, agents: agentsByTeam.get(t.id) ?? [] }));
+        setAgentTeams(enriched);
+      })
       .catch(() => {})
-      .finally(() => setAgentsLoading(false));
+      .finally(() => setDataLoading(false));
   }, []);
 
-  const usedGroups = [...new Set(selected.map((s) => s.group).filter(Boolean))];
+  // Toggle an entire Agent Team — adds/removes all its agents with group = team name
+  const toggleTeam = (team: AgentTeamWithAgents) => {
+    const allSelected = team.agents.every((a) => selected.has(a.id));
+    const next = new Map(selected);
+    if (allSelected) {
+      for (const a of team.agents) next.delete(a.id);
+    } else {
+      for (const a of team.agents) {
+        if (!next.has(a.id)) next.set(a.id, { group: team.name, role: "" });
+      }
+    }
+    setSelected(next);
+  };
 
-  const toggleAgent = (id: string) =>
-    setSelected((prev) =>
-      prev.find((s) => s.id === id)
-        ? prev.filter((s) => s.id !== id)
-        : [...prev, { id, role: "", group: "" }]
-    );
-
-  const updateSelected = (id: string, field: "role" | "group", value: string) =>
-    setSelected((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
-
-  const confirmNewGroup = (agentId: string) => {
-    const val = pendingGroupName.trim();
-    if (val) updateSelected(agentId, "group", val);
-    setPendingGroupFor(null);
-    setPendingGroupName("");
+  // Toggle a single agent
+  const toggleAgent = (agentId: string, teamName: string) => {
+    const next = new Map(selected);
+    if (next.has(agentId)) {
+      next.delete(agentId);
+    } else {
+      next.set(agentId, { group: teamName, role: "" });
+    }
+    setSelected(next);
   };
 
   const submit = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || selected.size === 0) return;
     setLoading(true);
+    const agentIds: string[] = [];
+    const agentRoles: (string | null)[] = [];
+    const agentGroups: (string | null)[] = [];
+    for (const [id, meta] of selected) {
+      agentIds.push(id);
+      agentRoles.push(meta.role || null);
+      agentGroups.push(meta.group || null);
+    }
     try {
       const res = await fetch("/api/playground/teams", {
         method: "POST",
@@ -201,9 +236,9 @@ function NewPlaygroundModal({ onClose, onCreated }: { onClose: () => void; onCre
           name: name.trim(),
           description: description.trim() || null,
           color,
-          agentIds: selected.map((s) => s.id),
-          agentRoles: selected.map((s) => s.role || null),
-          agentGroups: selected.map((s) => s.group || null),
+          agentIds,
+          agentRoles,
+          agentGroups,
         }),
       });
       if (!res.ok) throw new Error("Failed");
@@ -213,6 +248,8 @@ function NewPlaygroundModal({ onClose, onCreated }: { onClose: () => void; onCre
       setLoading(false);
     }
   };
+
+  const selectedCount = selected.size;
 
   return (
     <div
@@ -231,6 +268,7 @@ function NewPlaygroundModal({ onClose, onCreated }: { onClose: () => void; onCre
           </button>
         </div>
 
+        {/* Color */}
         <div className="flex flex-col gap-2">
           <label className="text-[11px] font-medium" style={{ color: "var(--color-muted)" }}>ACCENT COLOR</label>
           <div className="flex gap-2">
@@ -250,6 +288,7 @@ function NewPlaygroundModal({ onClose, onCreated }: { onClose: () => void; onCre
           </div>
         </div>
 
+        {/* Name */}
         <div className="flex flex-col gap-1.5">
           <label className="text-[11px] font-medium" style={{ color: "var(--color-muted)" }}>PLAYGROUND NAME *</label>
           <input
@@ -261,6 +300,7 @@ function NewPlaygroundModal({ onClose, onCreated }: { onClose: () => void; onCre
           />
         </div>
 
+        {/* Description */}
         <div className="flex flex-col gap-1.5">
           <label className="text-[11px] font-medium" style={{ color: "var(--color-muted)" }}>DESCRIPTION</label>
           <textarea
@@ -273,82 +313,105 @@ function NewPlaygroundModal({ onClose, onCreated }: { onClose: () => void; onCre
           />
         </div>
 
+        {/* Agent Teams */}
         <div className="flex flex-col gap-2">
-          <label className="text-[11px] font-medium" style={{ color: "var(--color-muted)" }}>AGENTS & GROUPS</label>
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] font-medium" style={{ color: "var(--color-muted)" }}>AGENT TEAMS</label>
+            {selectedCount > 0 && (
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded" style={{ background: `${color}20`, color }}>
+                {selectedCount} agent{selectedCount !== 1 ? "s" : ""} selected
+              </span>
+            )}
+          </div>
           <p className="text-[11px]" style={{ color: "var(--color-muted)" }}>
-            Select agents and assign them to named groups within this playground.
+            Select one or more Agent Teams. Each team becomes a group in the playground — agents stay organized by team.
           </p>
-          {agentsLoading ? (
-            <p className="text-[12px]" style={{ color: "var(--color-muted)" }}>Loading agents...</p>
-          ) : agents.length === 0 ? (
-            <p className="text-[12px]" style={{ color: "var(--color-muted)" }}>No agents yet. Create some in Agent Lab first.</p>
+          {dataLoading ? (
+            <div className="flex items-center gap-2 py-2" style={{ color: "var(--color-muted)" }}>
+              <Loader2 size={13} className="animate-spin" />
+              <span className="text-[12px]">Loading teams...</span>
+            </div>
+          ) : agentTeams.length === 0 ? (
+            <p className="text-[12px]" style={{ color: "var(--color-muted)" }}>No agent teams yet. Create teams in Agent Lab first.</p>
           ) : (
-            <div className="flex flex-col gap-1 max-h-52 overflow-y-auto">
-              {agents.map((a) => {
-                const sel = selected.find((s) => s.id === a.id);
-                const isNewGroup = sel?.group === "__new__";
+            <div className="flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
+              {agentTeams.map((team) => {
+                const allSelected = team.agents.length > 0 && team.agents.every((a) => selected.has(a.id));
+                const someSelected = team.agents.some((a) => selected.has(a.id));
+                const isExpanded = expandedTeams.has(team.id);
+                const accent = allSelected ? color : "var(--color-border)";
+
                 return (
                   <div
-                    key={a.id}
-                    className="rounded-lg px-3 py-2"
+                    key={team.id}
+                    className="rounded-xl overflow-hidden"
                     style={{
-                      background: sel ? "var(--color-brand-dim)" : "var(--color-surface-2)",
-                      border: `1px solid ${sel ? "var(--color-brand)" : "var(--color-border)"}`,
+                      border: `1px solid ${allSelected || someSelected ? color : "var(--color-border)"}`,
+                      background: allSelected ? `${color}08` : "var(--color-surface-2)",
                     }}
                   >
-                    <div className="flex items-center gap-2">
-                      <input type="checkbox" checked={!!sel} onChange={() => toggleAgent(a.id)} className="accent-blue-400" />
+                    {/* Team header row */}
+                    <div className="flex items-center gap-2 px-3 py-2.5">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        ref={(el) => { if (el) el.indeterminate = !allSelected && someSelected; }}
+                        onChange={() => toggleTeam(team)}
+                        className="flex-shrink-0"
+                        style={{ accentColor: color }}
+                      />
                       <div className="flex-1 min-w-0">
-                        <p className="text-[12px] font-medium" style={{ color: "var(--color-text)" }}>{a.name}</p>
-                        <p className="text-[10px]" style={{ color: "var(--color-muted)" }}>{a.model}</p>
+                        <p className="text-[13px] font-semibold truncate" style={{ color: "var(--color-text)" }}>{team.name}</p>
+                        <p className="text-[10px]" style={{ color: "var(--color-muted)" }}>
+                          {team.agents.length} agent{team.agents.length !== 1 ? "s" : ""}
+                          {team.category && team.category !== "General" ? ` · ${team.category}` : ""}
+                        </p>
                       </div>
+                      {/* Group label badge */}
+                      {(allSelected || someSelected) && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0" style={{ background: `${color}20`, color }}>
+                          group: {team.name}
+                        </span>
+                      )}
+                      {/* Expand toggle */}
+                      {team.agents.length > 0 && (
+                        <button
+                          onClick={() => setExpandedTeams((prev) => {
+                            const next = new Set(prev);
+                            next.has(team.id) ? next.delete(team.id) : next.add(team.id);
+                            return next;
+                          })}
+                          className="p-1 rounded hover:opacity-70 flex-shrink-0"
+                          style={{ color: "var(--color-muted)" }}
+                        >
+                          <ChevronRight
+                            size={13}
+                            style={{ transform: isExpanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}
+                          />
+                        </button>
+                      )}
                     </div>
-                    {sel && (
-                      <div className="flex gap-2 mt-1.5 ml-5">
-                        {pendingGroupFor === a.id ? (
-                          <div className="flex gap-1 flex-1">
-                            <input
-                              autoFocus
-                              value={pendingGroupName}
-                              onChange={(e) => setPendingGroupName(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === "Enter") confirmNewGroup(a.id); if (e.key === "Escape") { setPendingGroupFor(null); setPendingGroupName(""); } }}
-                              placeholder="Group name"
-                              className="text-[11px] rounded px-2 py-1 flex-1 outline-none"
-                              style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text)" }}
-                            />
-                            <button
-                              onClick={() => confirmNewGroup(a.id)}
-                              className="text-[11px] px-2 py-1 rounded font-medium"
-                              style={{ background: color, color: "#fff" }}
-                            >
-                              Add
-                            </button>
-                          </div>
-                        ) : (
-                          <select
-                            value={isNewGroup ? "__new__" : sel.group}
-                            onChange={(e) => {
-                              if (e.target.value === "__new__") {
-                                setPendingGroupFor(a.id);
-                              } else {
-                                updateSelected(a.id, "group", e.target.value);
-                              }
-                            }}
-                            className="text-[11px] rounded px-2 py-1 flex-1 outline-none"
-                            style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text)" }}
-                          >
-                            <option value="">No group</option>
-                            {usedGroups.map((g) => <option key={g} value={g}>{g}</option>)}
-                            <option value="__new__">+ New group...</option>
-                          </select>
-                        )}
-                        <input
-                          value={sel.role}
-                          onChange={(e) => updateSelected(a.id, "role", e.target.value)}
-                          placeholder="Role"
-                          className="text-[11px] rounded px-2 py-1 w-24 outline-none"
-                          style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)", color: "var(--color-text)" }}
-                        />
+
+                    {/* Expanded agent list */}
+                    {isExpanded && team.agents.length > 0 && (
+                      <div className="px-3 pb-2 flex flex-col gap-1" style={{ borderTop: `1px solid ${accent}30` }}>
+                        {team.agents.map((a) => {
+                          const isSel = selected.has(a.id);
+                          return (
+                            <div key={a.id} className="flex items-center gap-2 pl-4 py-1">
+                              <input
+                                type="checkbox"
+                                checked={isSel}
+                                onChange={() => toggleAgent(a.id, team.name)}
+                                style={{ accentColor: color }}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[12px]" style={{ color: "var(--color-text)" }}>{a.name}</p>
+                                <p className="text-[10px]" style={{ color: "var(--color-muted)" }}>{a.model}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -368,7 +431,7 @@ function NewPlaygroundModal({ onClose, onCreated }: { onClose: () => void; onCre
           </button>
           <button
             onClick={submit}
-            disabled={loading || !name.trim()}
+            disabled={loading || !name.trim() || selectedCount === 0}
             className="px-4 py-2 rounded-lg text-[13px] font-semibold flex items-center gap-2 disabled:opacity-50"
             style={{ background: color, color: "#fff" }}
           >

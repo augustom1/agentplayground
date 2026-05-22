@@ -12,7 +12,7 @@ const TEAM_TOOL_SUBSETS: Record<string, string[]> = {
   ops:        ["schedule_task", "delegate_to_team", "vault_write", "web_search", "query_data"],
   default:    ["vault_search", "vault_write", "web_search", "web_browse", "write_file", "read_file"],
 };
-const COMMON_TOOLS = ["council_reason", "save_memory", "recall_memories"];
+const COMMON_TOOLS = ["council_reason", "save_memory", "recall_memories", "request_human_input"];
 
 function getTeamTools(teamName: string): string[] {
   const n = teamName.toLowerCase();
@@ -74,6 +74,7 @@ Write results to the vault when done. Return a clear summary of what you accompl
   let fullText = "";
   let totalInput = 0;
   let totalOutput = 0;
+  let needsInput: { question: string; context?: string } | null = null;
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     const response = await client.messages.create({
@@ -97,10 +98,22 @@ Write results to the vault when done. Return a clear summary of what you accompl
       const toolResults: Anthropic.Messages.ToolResultBlockParam[] = [];
       for (const block of response.content) {
         if (block.type === "tool_use") {
+          // Intercept request_human_input — pause task and surface to coordinator
+          if (block.name === "request_human_input") {
+            const inp = block.input as Record<string, unknown>;
+            // Execute to emit SSE + update DB
+            await executeTool(block.name, { ...inp, taskId });
+            needsInput = {
+              question: inp.question as string,
+              context: inp.context as string | undefined,
+            };
+            break;
+          }
           const result = await executeTool(block.name, block.input as Record<string, unknown>);
           toolResults.push({ type: "tool_result", tool_use_id: block.id, content: result });
         }
       }
+      if (needsInput) break;
       currentMessages = [
         ...currentMessages,
         { role: "assistant", content: response.content },
@@ -110,6 +123,20 @@ Write results to the vault when done. Return a clear summary of what you accompl
     }
 
     break;
+  }
+
+  // Agent paused — needs human input before continuing
+  if (needsInput) {
+    const ctx = needsInput.context ? `\n\nContext: ${needsInput.context}` : "";
+    return {
+      taskId,
+      content: `NEEDS_HUMAN_INPUT: ${needsInput.question}${ctx}`,
+      summary: `Needs input: ${needsInput.question.slice(0, 100)}`,
+      inputTokens: totalInput,
+      outputTokens: totalOutput,
+      provider: "anthropic",
+      model: "claude-haiku-4-5-20251001",
+    };
   }
 
   const content = fullText.trim() || "Task completed.";

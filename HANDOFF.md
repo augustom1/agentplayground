@@ -1,5 +1,5 @@
 # Session Handoff
-> Last updated: 2026-05-22 (Session 13 — DEPLOYED ✅)
+> Last updated: 2026-05-22 (Session 14 — built locally, NOT yet deployed)
 > Read this at the start of every session BEFORE reading CLAUDE.md.
 > Update the "Current Session" block when ending a session.
 
@@ -16,14 +16,23 @@
 
 ## Next Session Priority
 
-### 0. PENDING — Run schema migration on VPS (one command)
-The `group` column on `playground_members` is not yet in the live DB.
-Run this once (type `! <command>` in Claude Code prompt to execute):
+### 0. PENDING — Deploy Session 14 changes (scp + restart)
+No schema changes this session. Just deploy the changed files:
+```bash
+# Changed files in this session:
+scp -i ~/.ssh/id_ed25519 lib/notify/sse.ts root@95.217.163.247:/root/opt/vps/lib/notify/sse.ts
+scp -i ~/.ssh/id_ed25519 lib/chat-tools.ts root@95.217.163.247:/root/opt/vps/lib/chat-tools.ts
+scp -i ~/.ssh/id_ed25519 lib/agents/delegated.ts root@95.217.163.247:/root/opt/vps/lib/agents/delegated.ts
+scp -i ~/.ssh/id_ed25519 "app/(app)/chat/page.tsx" root@95.217.163.247:"/root/opt/vps/app/(app)/chat/page.tsx"
+scp -i ~/.ssh/id_ed25519 "app/(app)/playground/page.tsx" root@95.217.163.247:"/root/opt/vps/app/(app)/playground/page.tsx"
+ssh -i ~/.ssh/id_ed25519 root@95.217.163.247 "cd /root/opt/vps && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build dashboard"
+```
+
+Also still pending from Session 13 — prisma db push for `group` column:
 ```bash
 ssh -i ~/.ssh/id_ed25519 root@95.217.163.247 \
   "cd /root/opt/vps && docker compose exec dashboard npx prisma db push --accept-data-loss"
 ```
-This is safe — adds a nullable column, no data is dropped.
 
 ### 1. Evaluation & Adjustment (next session focus)
 User will evaluate the live app at https://app.agentplayground.net and report:
@@ -69,6 +78,14 @@ See item 0 above — run `prisma db push` on VPS.
 - **Phase C2** — 8 business skills (Invoice, CRM, Proposal, Onboarding, Status Reporter, Meeting Summarizer, Sales Email, Support Ticket) + UI/UX Pro Max skill in `lib/default-skills.ts`
 - **MarkItDown auto-convert** — `.xlsx/.docx/.pptx/.pdf/.csv` files auto-convert + Brain-index on upload (fire-and-forget)
 - **Phase C5** — `COORDINATOR_INTRO` fully expanded: tool catalog, business skills, decision table, VPS exec policy, MCP note
+
+### Session 14 — Built locally, NOT yet deployed (see Next Session #0)
+- **Live agent activity strip** in coordinator chat — SSE EventSource connects to `/api/notify/stream`, shows team name + task title as tasks run, auto-clears on done/error
+- **`TASK_STARTED` SSE event** — emitted when `delegate_to_team` begins execution
+- **`request_human_input` tool** — agents can pause mid-task to ask user for credentials/approval/decisions; surfaces to chat as "needs input" badge
+- **Delegated runner checkpoint detection** — `delegated.ts` intercepts `request_human_input` call, emits SSE MISSING_INFO, returns `NEEDS_HUMAN_INPUT:` result to coordinator
+- **Structured failure reporting** — `toolDelegateToTeam` returns `tried` + `recovery` fields on error so coordinator can reason about next steps
+- **Playground creation: Agent Teams selection** — `NewPlaygroundModal` now fetches Agent Teams, shows team-centric hierarchy (Team → expand → agents), selecting a team adds all agents with `group = team.name`
 
 ### Session 13 — DEPLOYED ✅ (schema migration still pending — see Next Session #0)
 - **Playground redesign** — all emojis removed, "group" terminology, "New Playground" button
@@ -116,7 +133,9 @@ See item 0 above — run `prisma db push` on VPS.
 | Default skills | `lib/default-skills.ts` |
 | MCP endpoint | `app/api/mcp/route.ts` |
 | Council logic | `lib/council/index.ts` |
-| SSE stream | `GET /api/notify/stream` |
+| SSE stream | `GET /api/notify/stream` — TASK_STARTED, TASK_DONE, MISSING_INFO, ERROR, PLAN_DONE |
+| Activity strip | `app/(app)/chat/page.tsx` — EventSource hook, `activeAgents` state |
+| Human checkpoint | `request_human_input` tool in `lib/chat-tools.ts` → `lib/agents/delegated.ts` detects + surfaces |
 | Design tokens | `app/globals.css` — all `var(--color-*)` |
 | Wallet addresses | `app/(app)/billing/page.tsx` WALLETS constant |
 
@@ -184,5 +203,6 @@ ssh -i ~/.ssh/id_ed25519 root@95.217.163.247 \
 | 11 | **Phase A** (Playground Teams Hub), **Phase B** (Admin Panel), **Phase C1** (delegation wired) |
 | 12 | **Phase C2** (8 business skills + UI/UX Pro Max + MarkItDown auto-convert), **Phase C5** (expanded coordinator) |
 | 13 | **Playground redesign** (no emoji, groups, tabbed Dashboard/Chat/Groups), **widget system**, **Crypto Wallet scaffold**, **Phase C4** (MCP expansion) |
+| 14 | **P1** live agent activity strip in chat (SSE EventSource, TASK_STARTED event), **P2+P3** `request_human_input` tool + delegated runner checkpoint + structured failure recovery, **P4** playground creation now selects Agent Teams (not individual agents) with expand/collapse hierarchy |
 
 Full history → `docs/SESSION-HISTORY.md`
