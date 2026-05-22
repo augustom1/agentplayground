@@ -153,6 +153,18 @@ services:
       - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
       - traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true
       - traefik.http.routers.ar-http.middlewares=redirect-to-https
+      # sensorguard.DOMAIN router — CLEANUP after 2026-06-19
+      - traefik.http.routers.sensorguard.rule=Host(`sensorguard.${DOMAIN}`)
+      - traefik.http.routers.sensorguard.entrypoints=websecure
+      - traefik.http.routers.sensorguard.tls=true
+      - traefik.http.routers.sensorguard.tls.certresolver=le
+      - traefik.http.routers.sensorguard.service=nginx
+      - traefik.http.routers.sensorguard-http.rule=Host(`sensorguard.${DOMAIN}`)
+      - traefik.http.routers.sensorguard-http.entrypoints=web
+      - traefik.http.routers.sensorguard-http.service=nginx
+      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true
+      - traefik.http.routers.sensorguard-http.middlewares=redirect-to-https
     networks:
       - default
       - proxy
