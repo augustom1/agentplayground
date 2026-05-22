@@ -1,5 +1,5 @@
 # Session Handoff
-> Last updated: 2026-05-22 (Session 14 — built locally, NOT yet deployed)
+> Last updated: 2026-05-22 (Session 14 — DEPLOYED ✅, schema migration still pending)
 > Read this at the start of every session BEFORE reading CLAUDE.md.
 > Update the "Current Session" block when ending a session.
 
@@ -16,23 +16,13 @@
 
 ## Next Session Priority
 
-### 0. PENDING — Deploy Session 14 changes (scp + restart)
-No schema changes this session. Just deploy the changed files:
-```bash
-# Changed files in this session:
-scp -i ~/.ssh/id_ed25519 lib/notify/sse.ts root@95.217.163.247:/root/opt/vps/lib/notify/sse.ts
-scp -i ~/.ssh/id_ed25519 lib/chat-tools.ts root@95.217.163.247:/root/opt/vps/lib/chat-tools.ts
-scp -i ~/.ssh/id_ed25519 lib/agents/delegated.ts root@95.217.163.247:/root/opt/vps/lib/agents/delegated.ts
-scp -i ~/.ssh/id_ed25519 "app/(app)/chat/page.tsx" root@95.217.163.247:"/root/opt/vps/app/(app)/chat/page.tsx"
-scp -i ~/.ssh/id_ed25519 "app/(app)/playground/page.tsx" root@95.217.163.247:"/root/opt/vps/app/(app)/playground/page.tsx"
-ssh -i ~/.ssh/id_ed25519 root@95.217.163.247 "cd /root/opt/vps && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build dashboard"
-```
-
-Also still pending from Session 13 — prisma db push for `group` column:
+### 0. PENDING — Schema migration (one command, run manually)
+Session 14 files are deployed. The only remaining item is the `group` column on `playground_members` (from Session 13). Run this once:
 ```bash
 ssh -i ~/.ssh/id_ed25519 root@95.217.163.247 \
   "cd /root/opt/vps && docker compose exec dashboard npx prisma db push --accept-data-loss"
 ```
+This is safe — adds a nullable column, no data is dropped. Type `! <command>` in Claude Code to run it.
 
 ### 1. Evaluation & Adjustment (next session focus)
 User will evaluate the live app at https://app.agentplayground.net and report:
