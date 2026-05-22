@@ -1,8 +1,13 @@
 // Public chatbot API for sensorguard.agentplayground.net
 // No auth required — uses local Ollama LLM.
 // CLEANUP: delete this file after 2026-06-19.
+// Uses Node.js http module directly to avoid Next.js fetch instrumentation.
 
 export const dynamic = "force-dynamic";
+
+import http from "http";
+import https from "https";
+import { URL } from "url";
 
 const SYSTEM_PROMPT = `Sos el Analista Virtual de SensorGuard, el sistema de gestión de mantenimiento predictivo desarrollado para MetalTech Argentina S.A.
 
@@ -40,34 +45,57 @@ Alcance del MVP:
 - Incluye: dashboard, alertas email, órdenes de mantenimiento, historial, usuarios, configuración de umbrales, exportación PDF, API REST para sensores
 - Excluye: integración ERP, IA/ML predictivo, app móvil nativa, MQTT, control remoto de máquinas
 
-Podés responder preguntas sobre:
-- Decisiones técnicas del proyecto
-- Qué hace cada requerimiento y por qué tiene esa prioridad
-- Diferencia entre requerimientos funcionales y no funcionales
-- Qué es el FODA y por qué se hizo así
-- Cómo se desarrolla con Scrum
-- Cualquier aspecto del análisis de sistemas aplicado a este proyecto
-
-Respondé siempre en español, de forma clara y concisa. Si te preguntan algo fuera del scope del proyecto, podés responder brevemente pero redirigí al tema del sistema.`;
+Respondé siempre en español, de forma clara y concisa.`;
 
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
 }
 
-interface RequestBody {
-  messages: ChatMessage[];
+function httpPost(urlStr: string, payload: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(urlStr);
+    const isHttps = parsed.protocol === "https:";
+    const lib = isHttps ? https : http;
+
+    const options = {
+      hostname: parsed.hostname,
+      port: parseInt(parsed.port || (isHttps ? "443" : "80")),
+      path: parsed.pathname + parsed.search,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(payload),
+        "Connection": "close",
+      },
+    };
+
+    const req = lib.request(options, (res) => {
+      let data = "";
+      res.on("data", (chunk: Buffer) => { data += chunk.toString(); });
+      res.on("end", () => resolve(data));
+    });
+
+    req.setTimeout(90000, () => {
+      req.destroy();
+      reject(new Error("Ollama request timed out"));
+    });
+
+    req.on("error", reject);
+    req.write(payload);
+    req.end();
+  });
 }
 
 export async function POST(req: Request) {
-  // CORS — allow the sensorguard subdomain
   const origin = req.headers.get("origin") || "";
   const allowedOrigins = [
     "https://sensorguard.agentplayground.net",
+    "http://sensorguard.agentplayground.net",
     "http://localhost:3000",
     "http://localhost",
   ];
-  const corsOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+  const corsOrigin = allowedOrigins.includes(origin) ? origin : "https://sensorguard.agentplayground.net";
 
   const corsHeaders = {
     "Access-Control-Allow-Origin": corsOrigin,
@@ -75,13 +103,9 @@ export async function POST(req: Request) {
     "Access-Control-Allow-Headers": "Content-Type",
   };
 
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
-  }
-
-  let body: RequestBody;
+  let body: { messages: ChatMessage[] };
   try {
-    body = (await req.json()) as RequestBody;
+    body = (await req.json()) as { messages: ChatMessage[] };
   } catch {
     return Response.json({ error: "Invalid JSON" }, { status: 400, headers: corsHeaders });
   }
@@ -91,52 +115,34 @@ export async function POST(req: Request) {
     return Response.json({ error: "messages array required" }, { status: 400, headers: corsHeaders });
   }
 
-  // Keep last 10 messages to avoid context overflow
   const recentMessages = messages.slice(-10);
-
   const ollamaUrl = process.env.OLLAMA_BASE_URL || "http://ollama:11434";
-  const model = "qwen2.5:7b";
+  const model = "qwen2.5:3b";
+
+  const payload = JSON.stringify({
+    model,
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      ...recentMessages,
+    ],
+    stream: false,
+    options: { temperature: 0.7, num_predict: 1024 },
+  });
 
   try {
-    const ollamaRes = await fetch(`${ollamaUrl}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          ...recentMessages,
-        ],
-        stream: false,
-        options: {
-          temperature: 0.7,
-          num_predict: 1024,
-        },
-      }),
-      signal: AbortSignal.timeout(90000),
-    });
+    const raw = await httpPost(`${ollamaUrl}/api/chat`, payload);
+    const data = JSON.parse(raw) as { message?: { content: string }; error?: string };
 
-    if (!ollamaRes.ok) {
-      const errText = await ollamaRes.text();
-      console.error("[sensorguard/chat] Ollama error:", ollamaRes.status, errText);
-      return Response.json(
-        { error: "LLM unavailable", detail: ollamaRes.status },
-        { status: 503, headers: corsHeaders }
-      );
+    if (data.error) {
+      console.error("[sensorguard/chat] Ollama returned error:", data.error);
+      return Response.json({ error: "LLM error" }, { status: 503, headers: corsHeaders });
     }
-
-    const data = (await ollamaRes.json()) as {
-      message?: { content: string };
-    };
 
     const response = data.message?.content || "No pude generar una respuesta. Intentá de nuevo.";
     return Response.json({ response }, { headers: corsHeaders });
   } catch (err) {
-    console.error("[sensorguard/chat] fetch error:", err);
-    return Response.json(
-      { error: "Connection failed" },
-      { status: 503, headers: corsHeaders }
-    );
+    console.error("[sensorguard/chat] error:", err);
+    return Response.json({ error: "Connection failed" }, { status: 503, headers: corsHeaders });
   }
 }
 
