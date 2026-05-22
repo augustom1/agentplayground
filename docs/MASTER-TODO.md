@@ -1,7 +1,29 @@
 # Master TODO — Agent Playground + 2nd Brain
-> Updated: 2026-05-02
-> Work blocks in priority order. Start Block A. Don't jump ahead.
-> Each task says exactly which files to touch. Check off as done.
+> Updated: 2026-05-22 (Session 15)
+> Most blocks A–E completed in Sessions 1–15. See docs/SESSION-HISTORY.md for per-session details.
+> Remaining priorities: see HANDOFF.md → Next Session Priority
+
+---
+
+## COMPLETED IN SESSION 15 ✅
+
+| Item | What | Files |
+|---|---|---|
+| P5 Project Status | `get_project_status` tool + `/api/projects/[id]/status` + workstream UI in `/projects` | lib/chat-tools.ts, app/api/projects/[id]/status/route.ts, app/(app)/projects/page.tsx |
+| P6 Telegram | DMs → coordinator, group notifications, settings UI, register-webhook API | lib/integrations/telegram/bot.ts, components/TelegramSettings.tsx, app/api/telegram/register-webhook/route.ts, app/(app)/settings/page.tsx |
+| P7 Widget data | Live task_queue + project_pipeline in playground widgets | app/api/playground/teams/[teamId]/widget-data/route.ts, app/(app)/playground/[teamId]/page.tsx |
+
+## OPEN PRIORITIES
+
+| Priority | Item | Notes |
+|---|---|---|
+| Next | LLM Provider Settings UI | lib/providers/ adapter exists, no UI |
+| Next | Admin Monitoring Panel | No system health/usage view |
+| Next | Empty States | Plans, Teams, Brain, Schedule |
+| Future | Stripe payment automation | Schema done, needs keys |
+| Future | Landing page Brain section | Block G |
+| Future | Telegram env vars on VPS | Add TELEGRAM_GROUP_CHAT_ID + TELEGRAM_OWNER_CHAT_ID to .env.local |
+| Future | Live blockchain (Crypto Wallet) | Scaffold only |
 
 ---
 

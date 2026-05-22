@@ -4,6 +4,42 @@
 
 ---
 
+### Session 2026-05-22 (Session 15) — Project Status Dashboard, Telegram Bidirectional, Live Widget Data
+
+**P5 — Project Status Dashboard**
+- `/projects` page expanded: clicking a project card now fetches `/api/projects/[id]/status` and renders per-team workstream panels — task counts (running/completed/pending/failed), recent task list with status dots, and project output log
+- `get_project_status(projectId)` tool added to `lib/chat-tools.ts` (now 29 tools total) — coordinator can call this to get full workstream summary for any project in one call
+- `GET /api/projects/[id]/status` new API route — returns workstreams array (team name, status, task counts, recent tasks) + outputs array
+- `PROJECT_UPDATE` event type added to `lib/notify/sse.ts` PlanEvent interface — emitted when coordinator calls `get_project_status`
+
+**P6 — Telegram Integration (bidirectional)**
+- `lib/integrations/telegram/bot.ts` changed: non-command DMs now route to `getKeeperResponse()` (coordinator chat) instead of vault. `/note`, `/brain`, `/daily` still route to vault commands
+- `sendGroupNotification(text)` function added — fires on task completion when `TELEGRAM_GROUP_CHAT_ID` env var is set (group chat gets notified when delegated tasks complete)
+- `sendOwnerAlert(text)` function added — fires on human checkpoint (NEEDS_HUMAN_INPUT) when `TELEGRAM_OWNER_CHAT_ID` env var is set (owner DM gets pinged when agent needs input)
+- Both notifications wired in `toolDelegateToTeam()` in `lib/chat-tools.ts` (fire-and-forget dynamic imports)
+- `components/TelegramSettings.tsx` — new client component showing env var status, live webhook info, "Register Webhook" button, setup instructions
+- `GET/POST /api/telegram/register-webhook` — GET returns current webhook info from Telegram API; POST calls `setWebhook` with the correct URL built from NEXTAUTH_URL/DOMAIN
+- `/settings` Messaging Channels section replaced with TelegramSettings component + other channels (WhatsApp, Email) kept below
+
+**P7 — Live Widget Data in Playground Dashboard**
+- `GET /api/playground/teams/[teamId]/widget-data?type=task_queue|project_pipeline` — resolves AgentTeam IDs from playground members, queries live Tasks or Projects
+- `task_queue`: queries Tasks where status IN [running, pending] for all AgentTeams whose agents are playground members; returns with team name
+- `project_pipeline`: queries ProjectTeam for those AgentTeam IDs, fetches the linked Projects
+- `WidgetCard` in `app/(app)/playground/[teamId]/page.tsx` updated: adds `liveTasks` + `liveProjects` state, useEffect fetches widget-data API for data-driven widget types on mount; renders live data (task list with status dots, project list with status badges) instead of hardcoded placeholders
+
+**Deploy:** Committed to GitHub (4acba29), all 10 files scp'd to VPS, Docker rebuilt — container healthy ✅
+
+---
+
+### Session 2026-05-22 (Session 14) — Live Agent Activity, Human Checkpoints, Playground Teams
+
+- Live agent activity strip in coordinator chat (SSE, auto-clear)
+- `request_human_input` tool for mid-task pausing with NEEDS_HUMAN_INPUT protocol
+- Structured failure recovery in `delegate_to_team` (tried + recovery fields)
+- Playground creation now selects whole Agent Teams (not individual agents); group auto-set to team name
+
+---
+
 ### Session 2026-05-21 (session 9) — Brain logo, dropdown fix, mobile fixes
 
 - **New logo:** Brain outline + 3 connected nodes (minimalist, rust `#D4715A`). Replaces asterisk/play-button. `components/Logo.tsx` rewritten, `public/icons/icon.svg` updated.
