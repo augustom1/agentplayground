@@ -4,6 +4,22 @@
 
 ---
 
+### Session 2026-05-22 (Session 16) — Hotfix: slug conflict + deploy protocol
+
+**Bug:** `app/api/playground/teams/[teamId]/widget-data/route.ts` introduced in Session 15 conflicted with the existing `[id]` slug at the same path level. Next.js App Router raised `You cannot use different slug names for the same dynamic path` as an unhandledRejection on every request, making the app unhealthy.
+
+**Fix:**
+- Moved route file from `app/api/playground/teams/[teamId]/widget-data/` → `app/api/playground/teams/[id]/widget-data/`
+- Updated internal param destructure: `{ teamId }` → `{ id: teamId }`
+- Removed the bad `[teamId]` directory from both VPS and local
+- Docker no-cache rebuild required (regular `--build` used cached `COPY . .` layer)
+
+**Deploy protocol added** — `docs/DEPLOY-PROTOCOL.md` documents the pre-deploy checklist, slug conflict rule, and no-cache rebuild trigger to prevent this class of error recurring.
+
+**Deploy:** Hotfix committed + pushed, no-cache rebuild on VPS, container healthy ✅
+
+---
+
 ### Session 2026-05-22 (Session 15) — Project Status Dashboard, Telegram Bidirectional, Live Widget Data
 
 **P5 — Project Status Dashboard**
@@ -27,7 +43,7 @@
 - `project_pipeline`: queries ProjectTeam for those AgentTeam IDs, fetches the linked Projects
 - `WidgetCard` in `app/(app)/playground/[teamId]/page.tsx` updated: adds `liveTasks` + `liveProjects` state, useEffect fetches widget-data API for data-driven widget types on mount; renders live data (task list with status dots, project list with status badges) instead of hardcoded placeholders
 
-**Deploy:** Committed to GitHub (4acba29), all 10 files scp'd to VPS, Docker rebuilt — container healthy ✅
+**Deploy:** Committed to GitHub (4acba29), all 10 files scp'd to VPS, Docker rebuilt — container UNHEALTHY (slug conflict discovered; fixed in Session 16)
 
 ---
 

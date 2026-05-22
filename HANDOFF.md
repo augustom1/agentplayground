@@ -1,5 +1,5 @@
 # Session Handoff
-> Last updated: 2026-05-22 (Session 15 — built locally, ready to deploy)
+> Last updated: 2026-05-22 (Session 16 — hotfix deployed, app healthy ✅)
 > Read this at the start of every session BEFORE reading CLAUDE.md.
 > Update the "Current Session" block when ending a session.
 
@@ -14,34 +14,15 @@
 
 ---
 
-## Deploy Steps for Session 15
+## Deploy Steps for Next Session
 
-No schema changes needed — no `prisma db push` required.
+No schema changes pending. No files pending scp.
 
-Files to scp (10 files):
-```bash
-# Modified
-scp -i ~/.ssh/id_ed25519 "app/(app)/playground/[teamId]/page.tsx" root@95.217.163.247:/root/opt/vps/app/\(app\)/playground/\[teamId\]/page.tsx
-scp -i ~/.ssh/id_ed25519 "app/(app)/projects/page.tsx" root@95.217.163.247:/root/opt/vps/app/\(app\)/projects/page.tsx
-scp -i ~/.ssh/id_ed25519 "app/(app)/settings/page.tsx" root@95.217.163.247:/root/opt/vps/app/\(app\)/settings/page.tsx
-scp -i ~/.ssh/id_ed25519 lib/chat-tools.ts root@95.217.163.247:/root/opt/vps/lib/chat-tools.ts
-scp -i ~/.ssh/id_ed25519 lib/integrations/telegram/bot.ts root@95.217.163.247:/root/opt/vps/lib/integrations/telegram/bot.ts
-scp -i ~/.ssh/id_ed25519 lib/notify/sse.ts root@95.217.163.247:/root/opt/vps/lib/notify/sse.ts
+App is healthy ✅ as of Session 16 hotfix.
 
-# New files
-scp -i ~/.ssh/id_ed25519 components/TelegramSettings.tsx root@95.217.163.247:/root/opt/vps/components/TelegramSettings.tsx
+**Before any future deploy, read `docs/DEPLOY-PROTOCOL.md` first.**
 
-# New directories — create them first
-ssh -i ~/.ssh/id_ed25519 root@95.217.163.247 "mkdir -p /root/opt/vps/app/api/projects/[id]/status /root/opt/vps/app/api/playground/teams/[teamId]/widget-data /root/opt/vps/app/api/telegram/register-webhook"
-
-scp -i ~/.ssh/id_ed25519 "app/api/projects/[id]/status/route.ts" root@95.217.163.247:"/root/opt/vps/app/api/projects/[id]/status/route.ts"
-scp -i ~/.ssh/id_ed25519 "app/api/playground/teams/[teamId]/widget-data/route.ts" root@95.217.163.247:"/root/opt/vps/app/api/playground/teams/[teamId]/widget-data/route.ts"
-scp -i ~/.ssh/id_ed25519 app/api/telegram/register-webhook/route.ts root@95.217.163.247:/root/opt/vps/app/api/telegram/register-webhook/route.ts
-
-# Rebuild
-ssh -i ~/.ssh/id_ed25519 root@95.217.163.247 \
-  "cd /root/opt/vps && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build dashboard"
-```
+Key rule: every `[slug]` at the same URL level must use the SAME name (e.g., all routes under `app/api/playground/teams/[id]/` must use `[id]`, never `[teamId]`).
 
 ## Next Session Priority
 
@@ -60,9 +41,14 @@ Plans, Teams, Brain, Schedule all show empty divs when there's no data. Add mean
 
 ---
 
-## What's Deployed (as of Session 15 — ready to deploy)
+## What's Deployed (as of Session 16 — all live ✅)
 
-### Session 15 (built locally, deploy steps above)
+### Session 16 hotfix (deployed ✅)
+- **Slug conflict fixed** — `app/api/playground/teams/[teamId]/widget-data/` renamed to `app/api/playground/teams/[id]/widget-data/`; param updated internally to `{ id: teamId }`
+- **No-cache Docker rebuild** — cleared stale layer cache that was preserving the old `[teamId]` directory
+- **Deploy protocol** — `docs/DEPLOY-PROTOCOL.md` added with pre-deploy checklist, slug rule table, no-cache trigger guide, common errors table
+
+### Session 15 (deployed ✅ — see Session 16 hotfix for slug fix)
 - **P5 Project Status Dashboard** — `/projects` page now shows workstream panels on expand: per-team task counts (running/completed/pending/failed), recent task list, project outputs
 - **`get_project_status` tool** — coordinator can call this to get full workstream summary for any project; emits `PROJECT_UPDATE` SSE event
 - **`/api/projects/[id]/status` API** — returns workstreams + outputs for a project
@@ -217,5 +203,6 @@ ssh -i ~/.ssh/id_ed25519 root@95.217.163.247 \
 | 13 | Playground redesign (no emoji, groups, tabbed Dashboard/Chat/Groups), widget system, Crypto Wallet scaffold, Phase C4 (MCP expansion) |
 | 14 | P1 live agent activity strip (SSE), P2+P3 request_human_input + checkpoint + failure recovery, P4 playground creation selects Agent Teams |
 | 15 | P5 project status dashboard + get_project_status tool, P6 Telegram bidirectional DMs + group notifications + Settings UI, P7 live widget data (task_queue, project_pipeline) |
+| 16 | Hotfix: slug conflict `[teamId]` → `[id]` in widget-data route; no-cache Docker rebuild; deploy protocol doc |
 
 Full history → `docs/SESSION-HISTORY.md`

@@ -1,9 +1,16 @@
 # Master TODO — Agent Playground + 2nd Brain
-> Updated: 2026-05-22 (Session 15)
-> Most blocks A–E completed in Sessions 1–15. See docs/SESSION-HISTORY.md for per-session details.
+> Updated: 2026-05-22 (Session 16)
+> Most blocks A–E completed in Sessions 1–16. See docs/SESSION-HISTORY.md for per-session details.
 > Remaining priorities: see HANDOFF.md → Next Session Priority
 
 ---
+
+## COMPLETED IN SESSION 16 ✅
+
+| Item | What | Files |
+|---|---|---|
+| Hotfix slug conflict | Moved widget-data route from `[teamId]` → `[id]`, no-cache rebuild | app/api/playground/teams/[id]/widget-data/route.ts |
+| Deploy protocol | Documented checklist + slug rule + no-cache trigger | docs/DEPLOY-PROTOCOL.md |
 
 ## COMPLETED IN SESSION 15 ✅
 
@@ -11,7 +18,7 @@
 |---|---|---|
 | P5 Project Status | `get_project_status` tool + `/api/projects/[id]/status` + workstream UI in `/projects` | lib/chat-tools.ts, app/api/projects/[id]/status/route.ts, app/(app)/projects/page.tsx |
 | P6 Telegram | DMs → coordinator, group notifications, settings UI, register-webhook API | lib/integrations/telegram/bot.ts, components/TelegramSettings.tsx, app/api/telegram/register-webhook/route.ts, app/(app)/settings/page.tsx |
-| P7 Widget data | Live task_queue + project_pipeline in playground widgets | app/api/playground/teams/[teamId]/widget-data/route.ts, app/(app)/playground/[teamId]/page.tsx |
+| P7 Widget data | Live task_queue + project_pipeline in playground widgets | app/api/playground/teams/[id]/widget-data/route.ts, app/(app)/playground/[teamId]/page.tsx |
 
 ## OPEN PRIORITIES
 

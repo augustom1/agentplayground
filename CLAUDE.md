@@ -206,13 +206,14 @@ VPS IP: 95.217.163.247 · App: `/root/opt/vps/` · Secrets: `.env.local`
 > Session notes moved to `HANDOFF.md` (current) and `docs/SESSION-HISTORY.md` (archive).
 > **Read `HANDOFF.md` first** — it has what was done, what's next, and the billing plan.
 
-### Last session summary — 2026-05-20
-- Workspace tabs added to Agent Teams (`/agent-lab`)
-- `category` field added to `AgentTeam` schema (default: "General")
-- `create_team` tool updated to accept `category` parameter
-- Workspace tab bar, inline category assignment dropdown, workspace-aware builder modal
+### Last session summary — 2026-05-22 (Session 16 hotfix)
+- Fixed slug conflict: `[teamId]` → `[id]` in widget-data API route; no-cache Docker rebuild
+- Added `docs/DEPLOY-PROTOCOL.md` — pre-deploy checklist, slug rule, no-cache trigger, rollback guide
+- App healthy ✅ at app.agentplayground.net
 
 ### Action items still open
-- Deploy: `scp` 4 files + `prisma db push` on VPS (see HANDOFF.md deploy steps)
 - Update wallet addresses in `app/(app)/billing/page.tsx` (WALLETS constant)
 - Build LLM Provider Settings UI (next priority — see HANDOFF.md)
+- Add Telegram env vars on VPS: `TELEGRAM_GROUP_CHAT_ID` + `TELEGRAM_OWNER_CHAT_ID`
+
+**Before any deploy:** Read `docs/DEPLOY-PROTOCOL.md` — especially the slug conflict rule.
