@@ -1,5 +1,5 @@
 # Session Handoff
-> Last updated: 2026-05-22 (Session 13 — local, needs deploy)
+> Last updated: 2026-05-22 (Session 13 — DEPLOYED ✅)
 > Read this at the start of every session BEFORE reading CLAUDE.md.
 > Update the "Current Session" block when ending a session.
 
@@ -16,40 +16,42 @@
 
 ## Next Session Priority
 
-### 1. New Concept (user to fill in)
-> **[Describe your new concept here before next session starts.]**
-> This should be the first thing tackled — it's the user's new idea.
-
-### 2. Deploy Session 13
+### 0. PENDING — Run schema migration on VPS (one command)
+The `group` column on `playground_members` is not yet in the live DB.
+Run this once (type `! <command>` in Claude Code prompt to execute):
 ```bash
-# Push schema change (adds group column to playground_members)
-npx prisma db push
-
-# scp changed files to VPS then rebuild
-scp -i ~/.ssh/id_ed25519 app/(app)/playground/page.tsx root@95.217.163.247:/root/opt/vps/app/(app)/playground/page.tsx
-scp -i ~/.ssh/id_ed25519 "app/(app)/playground/[teamId]/page.tsx" root@95.217.163.247:"/root/opt/vps/app/(app)/playground/[teamId]/page.tsx"
-scp -i ~/.ssh/id_ed25519 app/api/mcp/route.ts root@95.217.163.247:/root/opt/vps/app/api/mcp/route.ts
-scp -i ~/.ssh/id_ed25519 lib/default-skills.ts root@95.217.163.247:/root/opt/vps/lib/default-skills.ts
-scp -i ~/.ssh/id_ed25519 prisma/schema.prisma root@95.217.163.247:/root/opt/vps/prisma/schema.prisma
+ssh -i ~/.ssh/id_ed25519 root@95.217.163.247 \
+  "cd /root/opt/vps && docker compose exec dashboard npx prisma db push --accept-data-loss"
 ```
+This is safe — adds a nullable column, no data is dropped.
 
-### 3. Phase C3 — Google & Microsoft as Chat Tools
-- Needs OAuth setup on Google Cloud Console and Azure Portal first
-- `lib/integrations/google/` — Gmail search/send, Calendar list/create, Drive search/read
-- Wire as tools in `lib/chat-tools.ts` + add OAuth token storage (encrypted)
+### 1. Evaluation & Adjustment (next session focus)
+User will evaluate the live app at https://app.agentplayground.net and report:
+- What works well → keep / reinforce
+- What feels wrong → fix before continuing
+- Missing UX gaps → address immediately
+- New ideas → spec and build
 
-### 4. Activate Crypto Wallet Group
-- Create the group via coordinator: "Create the Crypto Wallet Management group in Agent Lab"
-- Set env vars: `WALLET_INBOUND_ADDRESS`, `WALLET_TRANSFER_ENDPOINT`, `WALLET_API_PROVIDER`
-- Add the group to a Playground to get the crypto dashboard widgets
+**Things likely to surface:**
+- Playground Dashboard empty state (no widgets show real data yet)
+- Group assignment flow (only set at creation — no inline reassign yet)
+- Chat tab needs agent context shown more clearly
+- Widget re-ordering (move up/down is minimal — consider drag)
+- Empty states for Plans, Brain, Teams
 
-### 5. Update Claude Desktop config for MCP
-- Point `%APPDATA%\Claude\claude_desktop_config.json` at `https://app.agentplayground.net/api/mcp`
-- Auth: create an `ApiClient` of type `CLAUDE_MOBILE` in Admin → API Monitor → get key
+### 2. After evaluation — pending features
+- Phase C3: Google/Microsoft as chat tools (needs OAuth setup first)
+- Crypto Wallet group activation (set env vars, wire to playground)
+- Claude Desktop → MCP: create ApiClient key in Admin → API Monitor, update desktop config
+- LLM Provider Settings UI
+- Real widget data (tasks completed, projects, revenue) via API endpoints
+
+### 3. Schema migration still needed
+See item 0 above — run `prisma db push` on VPS.
 
 ---
 
-## What's Deployed (as of Session 12)
+## What's Deployed (as of Session 13)
 
 ### Live on VPS ✅
 - Core platform: Teams (workspace tabs), Agents, Skills, Chat (streaming, 25-iteration tool loop), Tools
@@ -68,16 +70,16 @@ scp -i ~/.ssh/id_ed25519 prisma/schema.prisma root@95.217.163.247:/root/opt/vps/
 - **MarkItDown auto-convert** — `.xlsx/.docx/.pptx/.pdf/.csv` files auto-convert + Brain-index on upload (fire-and-forget)
 - **Phase C5** — `COORDINATOR_INTRO` fully expanded: tool catalog, business skills, decision table, VPS exec policy, MCP note
 
-### Session 13 (local — needs deploy) ✅
+### Session 13 — DEPLOYED ✅ (schema migration still pending — see Next Session #0)
 - **Playground redesign** — all emojis removed, "group" terminology, "New Playground" button
-- **PlaygroundMember.group** field added to schema (needs `prisma db push` on VPS)
+- **PlaygroundMember.group** field in schema ⚠️ `prisma db push` not yet run on live DB
 - **Playground listing** — cards show named groups co-located, colored left border accent
 - **Playground workspace** — tabbed UI: Dashboard | Chat | [Group tabs] | Configure
-- **Dashboard tab** — widget grid (sm/md/lg cells), add/remove/reorder widgets, auto-saves to team config
-- **Widget library** — Business (revenue, invoices, pipeline, tasks) + Crypto (balances, transfers, settlement queue) + Core (agents, groups, conversations)
-- **Group drilldown tab** — per-group agent list, stats row, crypto wallet info block if wallet-named group
-- **Crypto Wallet Management scaffold** — 3 agents (Monitor, Router, Settlement), 3 skills, exported as `CRYPTO_WALLET_TEAM` in `lib/default-skills.ts`
-- **Phase C4 — MCP expansion** — `list_teams`, `ask_team`, `run_agent`, `create_task`, `list_tasks`, `search_brain` added to `/api/mcp/route.ts` (was vault-only)
+- **Dashboard tab** — widget grid (sm/md/lg), add/remove/reorder, persists to `team.config`
+- **Widget library** — Core + Business (revenue, invoices, pipeline) + Crypto (balances, transfers, queue)
+- **Group drilldown tabs** — per-group agent list, stats, crypto wallet info block
+- **Crypto Wallet Management scaffold** — 3 agents + 3 skills in `lib/default-skills.ts`
+- **Phase C4 — MCP expansion** — `list_teams`, `ask_team`, `run_agent`, `create_task`, `list_tasks`, `search_brain`
 
 ### Not Built Yet ❌
 - Google/Microsoft integrations (C3) — needs OAuth setup
