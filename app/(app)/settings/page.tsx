@@ -3,6 +3,7 @@ import { OllamaPanel } from "@/components/OllamaPanel";
 import { BillingSection } from "@/components/BillingSection";
 import { ApiKeySection } from "@/components/ApiKeySection";
 import { CreditsAdminPanel } from "@/components/CreditsAdminPanel";
+import { TelegramSettings } from "@/components/TelegramSettings";
 import { auth } from "@/auth";
 
 function EnvRow({
@@ -334,29 +335,27 @@ export default async function SettingsPage() {
         );
       })()}
 
-      {/* Channels */}
+      {/* Telegram */}
       <div className="glass-card p-4">
         <h2 className="font-semibold text-xs uppercase tracking-wider mb-3" style={{ color: "var(--color-text-secondary)" }}>
           Messaging Channels
         </h2>
-        <div className="flex flex-col gap-0">
+        <TelegramSettings
+          botTokenSet={!!process.env.TELEGRAM_BOT_TOKEN}
+          webhookSecretSet={!!process.env.TELEGRAM_WEBHOOK_SECRET}
+          groupChatIdSet={!!process.env.TELEGRAM_GROUP_CHAT_ID}
+          ownerChatIdSet={!!process.env.TELEGRAM_OWNER_CHAT_ID}
+        />
+        <div className="mt-3 flex flex-col gap-0">
           {[
-            {
-              name: "Telegram",
-              configured: !!process.env.TELEGRAM_BOT_TOKEN,
-              webhook: "https://app.agentplayground.net/api/telegram/webhook",
-              note: "Set TELEGRAM_BOT_TOKEN + TELEGRAM_WEBHOOK_SECRET. Register via @BotFather.",
-            },
             {
               name: "WhatsApp (Twilio)",
               configured: !!process.env.TWILIO_ACCOUNT_SID && !!process.env.TWILIO_AUTH_TOKEN,
-              webhook: "https://app.agentplayground.net/api/channels/whatsapp/webhook",
               note: "Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM.",
             },
             {
               name: "Email (Gmail polling)",
               configured: !!process.env.GMAIL_USER && !!process.env.GMAIL_APP_PASSWORD,
-              webhook: null,
               note: "Set GMAIL_USER + GMAIL_APP_PASSWORD (Google App Password). Polled every 2 min via cron.",
             },
           ].map((ch) => (
@@ -377,9 +376,6 @@ export default async function SettingsPage() {
                   )}
                 </div>
               </div>
-              {ch.webhook && (
-                <p className="text-[11px] font-mono mb-0.5" style={{ color: "var(--color-text-secondary)" }}>{ch.webhook}</p>
-              )}
               <p className="text-[11px]" style={{ color: "var(--color-muted)" }}>{ch.note}</p>
             </div>
           ))}

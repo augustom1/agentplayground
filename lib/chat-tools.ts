@@ -521,6 +521,18 @@ export const CHAT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "get_project_status",
+    description:
+      "Get a detailed status report for a specific project: which agent teams are assigned, task counts per team (running/completed/pending), and recent outputs. Use when the user asks for a project update, workstream status, or wants to know what each team has done.",
+    input_schema: {
+      type: "object",
+      properties: {
+        projectId: { type: "string", description: "The project ID to get status for" },
+      },
+      required: ["projectId"],
+    },
+  },
+  {
     name: "update_project",
     description: "Update a project's status, description, or type. Use to mark projects complete, pause them, or archive them.",
     input_schema: {
@@ -812,6 +824,8 @@ export async function executeTool(
         return await toolCreateProject(input);
       case "list_projects":
         return await toolListProjects(input);
+      case "get_project_status":
+        return await toolGetProjectStatus(input);
       case "update_project":
         return await toolUpdateProject(input);
       case "log_project_output":
@@ -1302,6 +1316,12 @@ async function toolDelegateToTeam(input: Record<string, unknown>): Promise<strin
     if (result.content.startsWith("NEEDS_HUMAN_INPUT:")) {
       const question = result.content.replace("NEEDS_HUMAN_INPUT:", "").trim();
       await prisma.task.update({ where: { id: task.id }, data: { status: "blocked" } });
+      // Alert owner via Telegram DM
+      import("@/lib/integrations/telegram/bot")
+        .then(({ sendOwnerAlert }) =>
+          sendOwnerAlert(`*Input needed:* ${question}\nTask: _${task.title}_ (${input.teamName as string})`)
+        )
+        .catch(() => {});
       return JSON.stringify({
         success: false,
         taskId: task.id,
@@ -1323,6 +1343,13 @@ async function toolDelegateToTeam(input: Record<string, unknown>): Promise<strin
       message: `${input.teamName as string} completed: ${task.title}`,
       data: { teamName: input.teamName, taskTitle: task.title },
     });
+
+    // Telegram group notification (fire-and-forget)
+    import("@/lib/integrations/telegram/bot")
+      .then(({ sendGroupNotification }) =>
+        sendGroupNotification(`Task done: *${task.title}*\nTeam: ${input.teamName as string}`)
+      )
+      .catch(() => {});
 
     return JSON.stringify({
       success: true,
@@ -1637,6 +1664,80 @@ async function toolListProjects(input: Record<string, unknown>): Promise<string>
       createdAt: p.createdAt,
     })),
     count: projects.length,
+  });
+}
+
+async function toolGetProjectStatus(input: Record<string, unknown>): Promise<string> {
+  const projectId = input.projectId as string;
+  if (!projectId) return JSON.stringify({ error: "projectId is required" });
+
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  if (!project) return JSON.stringify({ error: `Project ${projectId} not found` });
+
+  const projectTeams = await prisma.projectTeam.findMany({ where: { projectId } });
+  const teamIds = projectTeams.map((pt: { teamId: string }) => pt.teamId);
+
+  const [teams, recentTasks, outputs] = await Promise.all([
+    teamIds.length > 0
+      ? prisma.agentTeam.findMany({
+          where: { id: { in: teamIds } },
+          select: { id: true, name: true, status: true, tasksCompleted: true },
+        })
+      : Promise.resolve([]),
+    teamIds.length > 0
+      ? prisma.task.findMany({
+          where: { teamId: { in: teamIds } },
+          orderBy: { createdAt: "desc" as const },
+          take: 30,
+          select: { id: true, title: true, status: true, priority: true, teamId: true },
+        })
+      : Promise.resolve([]),
+    prisma.projectOutput.findMany({
+      where: { projectId },
+      orderBy: { createdAt: "desc" as const },
+      take: 10,
+    }),
+  ]);
+
+  const teamMap = new Map(teams.map((t: { id: string; name: string; status: string; tasksCompleted: number }) => [t.id, t]));
+
+  const workstreams = projectTeams.map((pt: { teamId: string; role: string | null }) => {
+    const team = teamMap.get(pt.teamId);
+    const tasks = recentTasks.filter((t: { teamId: string }) => t.teamId === pt.teamId);
+    return {
+      team: team?.name ?? pt.teamId,
+      role: pt.role ?? "member",
+      status: team?.status ?? "unknown",
+      running: tasks.filter((t: { status: string }) => t.status === "running").length,
+      completed: tasks.filter((t: { status: string }) => t.status === "completed").length,
+      pending: tasks.filter((t: { status: string }) => t.status === "pending").length,
+      failed: tasks.filter((t: { status: string }) => t.status === "failed").length,
+      recentTask: (tasks[0] as { title?: string } | undefined)?.title,
+    };
+  });
+
+  // Emit PROJECT_UPDATE SSE event
+  notifyPlanEvent({
+    type: "PROJECT_UPDATE",
+    message: `Project status fetched: ${project.name}`,
+    data: { projectId, projectName: project.name, workstreamCount: workstreams.length },
+  });
+
+  return JSON.stringify({
+    success: true,
+    project: {
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      status: project.status,
+      type: project.type,
+    },
+    workstreams,
+    recentOutputs: outputs.map((o: { type: string; title: string | null; createdAt: Date }) => ({
+      type: o.type,
+      title: o.title,
+      createdAt: o.createdAt,
+    })),
   });
 }
 

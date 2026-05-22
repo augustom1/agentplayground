@@ -1,5 +1,5 @@
 # Session Handoff
-> Last updated: 2026-05-22 (Session 14 — FULLY DEPLOYED ✅)
+> Last updated: 2026-05-22 (Session 15 — built locally, ready to deploy)
 > Read this at the start of every session BEFORE reading CLAUDE.md.
 > Update the "Current Session" block when ending a session.
 
@@ -14,28 +14,64 @@
 
 ---
 
+## Deploy Steps for Session 15
+
+No schema changes needed — no `prisma db push` required.
+
+Files to scp (10 files):
+```bash
+# Modified
+scp -i ~/.ssh/id_ed25519 "app/(app)/playground/[teamId]/page.tsx" root@95.217.163.247:/root/opt/vps/app/\(app\)/playground/\[teamId\]/page.tsx
+scp -i ~/.ssh/id_ed25519 "app/(app)/projects/page.tsx" root@95.217.163.247:/root/opt/vps/app/\(app\)/projects/page.tsx
+scp -i ~/.ssh/id_ed25519 "app/(app)/settings/page.tsx" root@95.217.163.247:/root/opt/vps/app/\(app\)/settings/page.tsx
+scp -i ~/.ssh/id_ed25519 lib/chat-tools.ts root@95.217.163.247:/root/opt/vps/lib/chat-tools.ts
+scp -i ~/.ssh/id_ed25519 lib/integrations/telegram/bot.ts root@95.217.163.247:/root/opt/vps/lib/integrations/telegram/bot.ts
+scp -i ~/.ssh/id_ed25519 lib/notify/sse.ts root@95.217.163.247:/root/opt/vps/lib/notify/sse.ts
+
+# New files
+scp -i ~/.ssh/id_ed25519 components/TelegramSettings.tsx root@95.217.163.247:/root/opt/vps/components/TelegramSettings.tsx
+
+# New directories — create them first
+ssh -i ~/.ssh/id_ed25519 root@95.217.163.247 "mkdir -p /root/opt/vps/app/api/projects/[id]/status /root/opt/vps/app/api/playground/teams/[teamId]/widget-data /root/opt/vps/app/api/telegram/register-webhook"
+
+scp -i ~/.ssh/id_ed25519 "app/api/projects/[id]/status/route.ts" root@95.217.163.247:"/root/opt/vps/app/api/projects/[id]/status/route.ts"
+scp -i ~/.ssh/id_ed25519 "app/api/playground/teams/[teamId]/widget-data/route.ts" root@95.217.163.247:"/root/opt/vps/app/api/playground/teams/[teamId]/widget-data/route.ts"
+scp -i ~/.ssh/id_ed25519 app/api/telegram/register-webhook/route.ts root@95.217.163.247:/root/opt/vps/app/api/telegram/register-webhook/route.ts
+
+# Rebuild
+ssh -i ~/.ssh/id_ed25519 root@95.217.163.247 \
+  "cd /root/opt/vps && docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build dashboard"
+```
+
 ## Next Session Priority
 
-### 1. P5 — Project Status Dashboard + `get_project_status` tool
-The `projects` table, `project_teams`, and `project_outputs` all exist. Missing:
-- `/projects` page showing active projects with per-team workstream statuses
-- `get_project_status(projectId)` tool so the coordinator can summarize all workstreams in one call
-- SSE events emitted per workstream completion (reuse existing `planEventBus`)
+### 1. P6 Telegram — optional extras
+- `TELEGRAM_GROUP_CHAT_ID` / `TELEGRAM_OWNER_CHAT_ID` env vars — add to `.env.local` on VPS and restart
+- Run `/settings` → Messaging Channels → "Register Webhook" to activate the webhook
 
-### 2. P6 — Telegram Integration
-`channels` table exists. Prior Telegram bot stub in `lib/integrations/telegram/`. Missing:
-- Telegram bot webhook handler that routes DMs to coordinator chat (bidirectional)
-- Group notification system with per-task opt-in
-- Settings UI in `/settings` to configure bot token, DM chat ID, group chat ID, notification prefs
-
-### 3. Real Widget Data in Playground Dashboard
-All widgets show `$0` / `0` / placeholder text. Wire up:
-- `task_queue` widget → query Tasks where status=running/pending, filtered by playground members
-- `project_pipeline` widget → query Projects linked to this playground's teams
-- `revenue_mtd` and `invoices_pending` → query UserCredits / plan outputs (or leave as TODO if billing not wired)
-
-### 4. LLM Provider Settings UI
+### 2. LLM Provider Settings UI
 Provider adapter system exists in `lib/providers/`. No UI to manage API keys or switch providers per team. Build a settings panel under `/settings` or `/agent-lab`.
+
+### 3. Admin Monitoring Panel
+No admin-level system health/usage view. Could show: DB size, task volumes, SSE connection count, error logs.
+
+### 4. Empty States
+Plans, Teams, Brain, Schedule all show empty divs when there's no data. Add meaningful empty states.
+
+---
+
+## What's Deployed (as of Session 15 — ready to deploy)
+
+### Session 15 (built locally, deploy steps above)
+- **P5 Project Status Dashboard** — `/projects` page now shows workstream panels on expand: per-team task counts (running/completed/pending/failed), recent task list, project outputs
+- **`get_project_status` tool** — coordinator can call this to get full workstream summary for any project; emits `PROJECT_UPDATE` SSE event
+- **`/api/projects/[id]/status` API** — returns workstreams + outputs for a project
+- **P6 Telegram bidirectional** — non-command DMs now route to Keeper coordinator (not vault); `/note`, `/brain`, `/daily` still work as vault commands
+- **Telegram group notifications** — `sendGroupNotification` fires on task completion when `TELEGRAM_GROUP_CHAT_ID` is set; `sendOwnerAlert` fires on human checkpoint when `TELEGRAM_OWNER_CHAT_ID` is set
+- **TelegramSettings UI** — `/settings` → Messaging Channels: shows env var status, webhook status, "Register Webhook" button, setup instructions
+- **`/api/telegram/register-webhook`** — GET (webhook info) + POST (register webhook with Telegram API)
+- **P7 Widget live data** — `task_queue` widget fetches running/pending tasks from agents in the playground; `project_pipeline` widget fetches active projects linked to playground teams
+- **`/api/playground/teams/[teamId]/widget-data`** — GET ?type=task_queue|project_pipeline; resolves AgentTeam IDs from playground members
 
 ---
 
@@ -71,11 +107,10 @@ Provider adapter system exists in `lib/providers/`. No UI to manage API keys or 
 - Crypto Wallet Management scaffold (3 agents + 3 skills, awaits env vars)
 
 ### Not Built Yet ❌
-- P5: Project status dashboard + `get_project_status` tool
-- P6: Telegram DM + group notifications + settings UI
-- Real widget data (task_queue, project_pipeline live queries)
+- Telegram env vars on VPS (.env.local) — add and restart to activate
 - Google/Microsoft integrations (C3) — needs OAuth setup
 - LLM Provider Settings UI
+- Admin Monitoring Panel
 - Stripe payment automation
 - Landing page Brain section (Block G)
 - Live blockchain integration for Crypto Wallet (scaffold only)
@@ -98,8 +133,11 @@ Provider adapter system exists in `lib/providers/`. No UI to manage API keys or 
 | Agent runner | `lib/agents/runner.ts` (full tool loop, 10 iter) |
 | Delegated runner | `lib/agents/delegated.ts` (haiku, team-scoped tools, checkpoint aware) |
 | Plan dispatcher | `lib/planner/dispatch.ts` |
-| Chat tools | `lib/chat-tools.ts` (28 tools incl. request_human_input) |
-| SSE stream | `GET /api/notify/stream` — events: TASK_STARTED, TASK_DONE, MISSING_INFO, ERROR, PLAN_DONE |
+| Chat tools | `lib/chat-tools.ts` (29 tools incl. get_project_status) |
+| SSE stream | `GET /api/notify/stream` — events: TASK_STARTED, TASK_DONE, MISSING_INFO, ERROR, PLAN_DONE, PROJECT_UPDATE |
+| Widget data API | `GET /api/playground/teams/[teamId]/widget-data?type=task_queue\|project_pipeline` |
+| Project status API | `GET /api/projects/[id]/status` — workstreams + outputs |
+| Telegram webhook reg | `GET/POST /api/telegram/register-webhook` |
 | Activity strip | `app/(app)/chat/page.tsx` → `activeAgents` state + EventSource hook |
 | Human checkpoint | `request_human_input` tool → `delegated.ts` intercepts → `NEEDS_HUMAN_INPUT:` result |
 | API logger HOF | `lib/api-logger.ts` — wrap routes with `withApiLogger()` |
@@ -178,5 +216,6 @@ ssh -i ~/.ssh/id_ed25519 root@95.217.163.247 \
 | 12 | Phase C2 (8 business skills + UI/UX Pro Max + MarkItDown auto-convert), Phase C5 (expanded coordinator) |
 | 13 | Playground redesign (no emoji, groups, tabbed Dashboard/Chat/Groups), widget system, Crypto Wallet scaffold, Phase C4 (MCP expansion) |
 | 14 | P1 live agent activity strip (SSE), P2+P3 request_human_input + checkpoint + failure recovery, P4 playground creation selects Agent Teams |
+| 15 | P5 project status dashboard + get_project_status tool, P6 Telegram bidirectional DMs + group notifications + Settings UI, P7 live widget data (task_queue, project_pipeline) |
 
 Full history → `docs/SESSION-HISTORY.md`

@@ -89,6 +89,11 @@ function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+// ── Live widget data types ──────────────────────────────────────────────────────
+
+type LiveTask = { id: string; title: string; status: string; priority: string; teamName: string; createdAt: string };
+type LiveProject = { id: string; name: string; status: string; type: string; deliveryChannel: string | null };
+
 // ── Widget renderer ─────────────────────────────────────────────────────────────
 
 function WidgetCard({
@@ -116,6 +121,24 @@ function WidgetCard({
   }, [team.members]);
 
   const namedGroups = [...groups.entries()].filter(([k]) => k !== "");
+
+  // Live data for data-driven widgets
+  const [liveTasks, setLiveTasks] = useState<LiveTask[] | null>(null);
+  const [liveProjects, setLiveProjects] = useState<LiveProject[] | null>(null);
+  const [liveLoading, setLiveLoading] = useState(false);
+
+  useEffect(() => {
+    if (widget.type !== "task_queue" && widget.type !== "project_pipeline") return;
+    setLiveLoading(true);
+    fetch(`/api/playground/teams/${team.id}/widget-data?type=${widget.type}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (widget.type === "task_queue") setLiveTasks(data.tasks ?? []);
+        if (widget.type === "project_pipeline") setLiveProjects(data.projects ?? []);
+      })
+      .catch(() => {})
+      .finally(() => setLiveLoading(false));
+  }, [widget.type, team.id]);
 
   const spanClass =
     widget.size === "lg" ? "col-span-3" : widget.size === "md" ? "col-span-2" : "col-span-1";
@@ -160,15 +183,57 @@ function WidgetCard({
           </div>
         );
       case "project_pipeline":
+        if (liveLoading) return <div className="flex items-center gap-2" style={{ color: "var(--color-muted)" }}><Loader2 size={11} className="animate-spin" /><span className="text-[11px]">Loading…</span></div>;
+        if (!liveProjects || liveProjects.length === 0) return (
+          <div className="flex flex-col gap-1">
+            <p className="text-[11px]" style={{ color: "var(--color-muted)" }}>No active projects linked to this playground.</p>
+          </div>
+        );
         return (
           <div className="flex flex-col gap-2">
-            <p className="text-[11px]" style={{ color: "var(--color-muted)" }}>No active projects — create tasks to populate this widget.</p>
+            {liveProjects.map((p) => (
+              <div key={p.id} className="flex items-center justify-between py-1 border-b" style={{ borderColor: "var(--color-border)" }}>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12px] font-medium truncate" style={{ color: "var(--color-text)" }}>{p.name}</p>
+                  <p className="text-[10px]" style={{ color: "var(--color-muted)" }}>{p.type}{p.deliveryChannel ? ` · ${p.deliveryChannel}` : ""}</p>
+                </div>
+                <span
+                  className="text-[10px] px-1.5 py-0.5 rounded-full ml-2 font-medium shrink-0"
+                  style={{
+                    background: p.status === "active" ? "var(--color-green-dim)" : p.status === "paused" ? "rgba(251,191,36,0.12)" : "var(--color-surface-3)",
+                    color: p.status === "active" ? "var(--color-green)" : p.status === "paused" ? "#fbbf24" : "var(--color-muted)",
+                  }}
+                >
+                  {p.status}
+                </span>
+              </div>
+            ))}
           </div>
         );
       case "task_queue":
+        if (liveLoading) return <div className="flex items-center gap-2" style={{ color: "var(--color-muted)" }}><Loader2 size={11} className="animate-spin" /><span className="text-[11px]">Loading…</span></div>;
+        if (!liveTasks || liveTasks.length === 0) return (
+          <div className="flex flex-col gap-1">
+            <p className="text-[11px]" style={{ color: "var(--color-muted)" }}>No running or pending tasks.</p>
+          </div>
+        );
         return (
-          <div className="flex flex-col gap-2">
-            <p className="text-[11px]" style={{ color: "var(--color-muted)" }}>No pending tasks — assign tasks to agents to populate this widget.</p>
+          <div className="flex flex-col gap-1.5">
+            {liveTasks.slice(0, 5).map((t) => (
+              <div key={t.id} className="flex items-start gap-2">
+                <span
+                  className="mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0"
+                  style={{ background: t.status === "running" ? accent : "var(--color-muted)" }}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] truncate" style={{ color: "var(--color-text)" }}>{t.title}</p>
+                  <p className="text-[10px]" style={{ color: "var(--color-muted)" }}>{t.teamName} · {t.status}</p>
+                </div>
+              </div>
+            ))}
+            {liveTasks.length > 5 && (
+              <p className="text-[10px]" style={{ color: "var(--color-muted)" }}>+{liveTasks.length - 5} more</p>
+            )}
           </div>
         );
       case "crypto_balances":

@@ -64,6 +64,24 @@ export interface TelegramUpdate {
 
 // ─── Telegram API helpers ──────────────────────────────────────────────────────
 
+/** Send a task completion or notification to the configured group chat. */
+export async function sendGroupNotification(text: string): Promise<void> {
+  const groupChatId = process.env.TELEGRAM_GROUP_CHAT_ID;
+  if (!groupChatId || !process.env.TELEGRAM_BOT_TOKEN) return;
+  const chatId = parseInt(groupChatId, 10);
+  if (isNaN(chatId)) return;
+  await sendTelegramMessage(chatId, text).catch(() => {});
+}
+
+/** Send an alert DM to the bot owner (human checkpoint, blocked task). */
+export async function sendOwnerAlert(text: string): Promise<void> {
+  const ownerChatId = process.env.TELEGRAM_OWNER_CHAT_ID;
+  if (!ownerChatId || !process.env.TELEGRAM_BOT_TOKEN) return;
+  const chatId = parseInt(ownerChatId, 10);
+  if (isNaN(chatId)) return;
+  await sendTelegramMessage(chatId, text).catch(() => {});
+}
+
 /** Send a text message to a Telegram chat */
 export async function sendTelegramMessage(chatId: number, text: string): Promise<void> {
   const truncated = text.length > 4000 ? text.slice(0, 3997) + "…" : text;
@@ -342,7 +360,7 @@ export async function processUpdate(update: TelegramUpdate): Promise<void> {
         return;
       }
 
-      // /ask <message> or /chat <message> — talk to the Keeper
+      // /ask <message> or /chat <message> — explicit Keeper invocation (kept for compatibility)
       if (text.startsWith("/ask") || text.startsWith("/chat")) {
         const question = text.startsWith("/ask") ? text.slice(4).trim() : text.slice(5).trim();
         if (!question) {
@@ -358,20 +376,19 @@ export async function processUpdate(update: TelegramUpdate): Promise<void> {
       if (text === "/start" || text === "/help") {
         await sendTelegramMessage(
           chatId,
-          "🧠 *Agent Playground Brain*\n\n" +
-          "Send any message and it gets saved to your second brain.\n\n" +
-          "*Commands:*\n" +
-          "/note <text> — save a note explicitly\n" +
+          "*Agent Playground Keeper*\n\n" +
+          "Send any message to talk with the Keeper. Commands:\n\n" +
+          "/note <text> — save a note to your brain\n" +
           "/brain <query> — search your brain\n" +
-          "/daily — view today's daily note\n" +
-          "/ask <question> — chat with the Keeper\n\n" +
-          "You can also send voice notes, photos, and documents — they're all captured automatically."
+          "/daily — view today's daily note\n\n" +
+          "Voice notes, photos, and documents are processed automatically."
         );
         return;
       }
 
-      // Any other text (non-command) → save to vault
-      await handleIngest(chatId, text, ["#telegram"]);
+      // Any other text → route to Playground Keeper (bidirectional coordinator chat)
+      const response = await getKeeperResponse(text, chatId);
+      await sendTelegramMessage(chatId, response);
       return;
     }
 

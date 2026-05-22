@@ -15,7 +15,8 @@ export interface PlanEvent {
     | "COUNCIL_COMPLETE"
     | "AGENT_BLOCKED"
     | "MISSING_INFO"
-    | "ERROR";
+    | "ERROR"
+    | "PROJECT_UPDATE";
   planId?: string;
   taskId?: string;
   message: string;

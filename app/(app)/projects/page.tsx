@@ -18,6 +18,8 @@ import {
   Bell,
   Bot,
   UserPlus,
+  Activity,
+  FileOutput,
 } from "lucide-react";
 
 type ProjectStatus = "active" | "paused" | "completed" | "archived";
@@ -32,6 +34,31 @@ type Project = {
   deliveryChannel: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+type WorkstreamTask = { id: string; title: string; status: string; priority: string };
+
+type Workstream = {
+  teamId: string;
+  teamName: string;
+  role: string | null;
+  teamStatus: string;
+  lastActivity: string;
+  tasks: {
+    running: number;
+    completed: number;
+    pending: number;
+    failed: number;
+    total: number;
+    recent: WorkstreamTask[];
+  };
+};
+
+type ProjectOutput = {
+  id: string;
+  type: string;
+  title: string | null;
+  createdAt: string;
 };
 
 const STATUS_CONFIG: Record<ProjectStatus, { label: string; color: string; icon: React.ComponentType<{ size: number }> }> = {
@@ -88,6 +115,8 @@ export default function ProjectsPage() {
   const [showForm, setShowForm] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [workstreams, setWorkstreams] = useState<Record<string, { workstreams: Workstream[]; outputs: ProjectOutput[] }>>({});
+  const [loadingWorkstreams, setLoadingWorkstreams] = useState<string | null>(null);
 
   // Upcoming meetings
   type MeetingParticipant = { type: "user" | "agent"; name: string; teamName?: string };
@@ -144,6 +173,25 @@ export default function ProjectsPage() {
       setError(e instanceof Error ? e.message : "Failed to create project");
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function expandProject(id: string) {
+    if (expandedId === id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(id);
+    if (!workstreams[id]) {
+      setLoadingWorkstreams(id);
+      try {
+        const res = await fetch(`/api/projects/${id}/status`);
+        if (res.ok) {
+          const data = await res.json();
+          setWorkstreams((prev) => ({ ...prev, [id]: { workstreams: data.workstreams, outputs: data.outputs } }));
+        }
+      } catch {}
+      setLoadingWorkstreams(null);
     }
   }
 
@@ -425,7 +473,7 @@ export default function ProjectsPage() {
               <div key={project.id} className="glass-card flex flex-col gap-0 overflow-hidden">
                 {/* Card header */}
                 <button
-                  onClick={() => setExpandedId(isExpanded ? null : project.id)}
+                  onClick={() => expandProject(project.id)}
                   className="flex items-start justify-between p-4 text-left w-full hover:bg-white/[0.02] transition-colors"
                 >
                   <div className="flex flex-col gap-2 flex-1 min-w-0">
@@ -475,44 +523,122 @@ export default function ProjectsPage() {
                   />
                 </button>
 
-                {/* Expanded actions */}
+                {/* Expanded panel */}
                 {isExpanded && (
                   <div
-                    className="flex flex-wrap gap-2 px-4 pb-4 animate-fade-in"
+                    className="flex flex-col gap-4 px-4 pb-4 animate-fade-in"
                     style={{ borderTop: "1px solid var(--color-border)", paddingTop: "12px" }}
                   >
-                    {project.status !== "active" && (
-                      <ActionButton
-                        label="Set Active"
-                        color="var(--color-green)"
-                        loading={updating === project.id}
-                        onClick={() => updateStatus(project.id, "active")}
-                      />
-                    )}
-                    {project.status === "active" && (
-                      <ActionButton
-                        label="Pause"
-                        color="var(--color-yellow)"
-                        loading={updating === project.id}
-                        onClick={() => updateStatus(project.id, "paused")}
-                      />
-                    )}
-                    {project.status !== "completed" && project.status !== "archived" && (
-                      <ActionButton
-                        label="Complete"
-                        color="#60a5fa"
-                        loading={updating === project.id}
-                        onClick={() => updateStatus(project.id, "completed")}
-                      />
-                    )}
-                    {project.status !== "archived" && (
-                      <ActionButton
-                        label="Archive"
-                        color="var(--color-muted)"
-                        loading={updating === project.id}
-                        onClick={() => updateStatus(project.id, "archived")}
-                      />
-                    )}
+                    {/* Actions */}
+                    <div className="flex flex-wrap gap-2">
+                      {project.status !== "active" && (
+                        <ActionButton label="Set Active" color="var(--color-green)" loading={updating === project.id} onClick={() => updateStatus(project.id, "active")} />
+                      )}
+                      {project.status === "active" && (
+                        <ActionButton label="Pause" color="var(--color-yellow)" loading={updating === project.id} onClick={() => updateStatus(project.id, "paused")} />
+                      )}
+                      {project.status !== "completed" && project.status !== "archived" && (
+                        <ActionButton label="Complete" color="#60a5fa" loading={updating === project.id} onClick={() => updateStatus(project.id, "completed")} />
+                      )}
+                      {project.status !== "archived" && (
+                        <ActionButton label="Archive" color="var(--color-muted)" loading={updating === project.id} onClick={() => updateStatus(project.id, "archived")} />
+                      )}
+                    </div>
+
+                    {/* Workstreams */}
+                    {loadingWorkstreams === project.id ? (
+                      <div className="flex items-center gap-2" style={{ color: "var(--color-muted)" }}>
+                        <Loader2 size={12} className="animate-spin" />
+                        <span className="text-[11px]">Loading workstreams…</span>
+                      </div>
+                    ) : workstreams[project.id] ? (
+                      <>
+                        {workstreams[project.id].workstreams.length === 0 ? (
+                          <p className="text-[11px]" style={{ color: "var(--color-muted)" }}>
+                            No teams assigned yet. Ask the Keeper to assign teams via <code>project_teams</code>.
+                          </p>
+                        ) : (
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <Activity size={11} style={{ color: "var(--color-brand)" }} />
+                              <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted)" }}>Workstreams</span>
+                            </div>
+                            {workstreams[project.id].workstreams.map((ws) => (
+                              <div
+                                key={ws.teamId}
+                                className="rounded-lg p-3 flex flex-col gap-2"
+                                style={{ background: "var(--color-surface-3)", border: "1px solid var(--color-border)" }}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[12px] font-medium" style={{ color: "var(--color-text)" }}>{ws.teamName}</span>
+                                  <span
+                                    className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                                    style={{
+                                      background: ws.teamStatus === "healthy" ? "var(--color-green-dim)" : ws.teamStatus === "error" ? "var(--color-red-dim)" : "var(--color-surface-2)",
+                                      color: ws.teamStatus === "healthy" ? "var(--color-green)" : ws.teamStatus === "error" ? "var(--color-red)" : "var(--color-muted)",
+                                    }}
+                                  >
+                                    {ws.teamStatus}
+                                  </span>
+                                </div>
+                                <div className="flex gap-3">
+                                  {[
+                                    { label: "running", count: ws.tasks.running, color: "var(--color-brand)" },
+                                    { label: "done", count: ws.tasks.completed, color: "var(--color-green)" },
+                                    { label: "pending", count: ws.tasks.pending, color: "var(--color-yellow)" },
+                                    { label: "failed", count: ws.tasks.failed, color: "var(--color-red)" },
+                                  ].filter((s) => s.count > 0).map((s) => (
+                                    <div key={s.label} className="flex items-center gap-1">
+                                      <span className="text-[13px] font-bold" style={{ color: s.color }}>{s.count}</span>
+                                      <span className="text-[10px]" style={{ color: "var(--color-muted)" }}>{s.label}</span>
+                                    </div>
+                                  ))}
+                                  {ws.tasks.running === 0 && ws.tasks.completed === 0 && ws.tasks.pending === 0 && ws.tasks.failed === 0 && (
+                                    <span className="text-[10px]" style={{ color: "var(--color-muted)" }}>No tasks yet</span>
+                                  )}
+                                </div>
+                                {ws.tasks.recent.length > 0 && (
+                                  <div className="flex flex-col gap-1">
+                                    {ws.tasks.recent.map((t) => (
+                                      <div key={t.id} className="flex items-center gap-2">
+                                        <span
+                                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                          style={{
+                                            background: t.status === "completed" ? "var(--color-green)" : t.status === "running" ? "var(--color-brand)" : t.status === "failed" ? "var(--color-red)" : "var(--color-muted)",
+                                          }}
+                                        />
+                                        <span className="text-[11px] truncate" style={{ color: "var(--color-muted)" }}>{t.title}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Outputs */}
+                        {workstreams[project.id].outputs.length > 0 && (
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <FileOutput size={11} style={{ color: "var(--color-brand)" }} />
+                              <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted)" }}>Outputs</span>
+                            </div>
+                            {workstreams[project.id].outputs.map((o) => (
+                              <div key={o.id} className="flex items-center gap-2">
+                                <span
+                                  className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                                  style={{ background: "var(--color-surface-3)", color: "var(--color-muted)", border: "1px solid var(--color-border)" }}
+                                >
+                                  {o.type}
+                                </span>
+                                <span className="text-[11px] truncate" style={{ color: "var(--color-text)" }}>{o.title ?? "Untitled"}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : null}
                   </div>
                 )}
               </div>
