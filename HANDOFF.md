@@ -25,15 +25,17 @@ App is **healthy** at `https://app.agentplayground.net`
 - PWA: manifest, icons, installable
 - Design System v3: charcoal `#1a1a1a`, rust logo `#D4715A`, neutral palette
 
-### Last Session (Session 17 — 2026-05-27)
-- Documentation restructure: slim CLAUDE.md, new PLAN.md + PROTOCOLS.md + architecture.md (updated)
-- `generate_session_report` tool (Brain upload from coordinator chat)
-- Research auto-archive: `web_search` + `web_browse` → Brain automatically (P1 protocol)
-- Task result auto-archive: `delegate_to_team` completion → Brain (P2 protocol)
-- 4-step onboarding wizard: account → mission → team selection → data/LLM preferences
-- `lib/seed-personal-teams.ts`: CV Advisory, Education, Financial Planner, Job Search, Fitness teams
-- `POST /api/admin/index-docs`: indexes all docs into Brain; button in `/admin/system`
-- 11 system protocols defined in `docs/PROTOCOLS.md`
+### Last Session (Session 18 — 2026-05-27)
+- Documentation restructure (S17): slim CLAUDE.md, PLAN.md, PROTOCOLS.md, architecture.md
+- `generate_session_report` tool, research/task auto-archive to Brain (P1/P2)
+- 4-step onboarding wizard, `lib/seed-personal-teams.ts`, `POST /api/admin/index-docs`
+- `lib/agents/local-runner.ts`: Ollama batch runner (no tool loop)
+- `app/api/admin/overnight/route.ts`: queues dev docs + business docs tasks via qwen2.5:7b
+- `/admin/system`: Overnight Knowledge Build UI (run + select groups)
+- `/notes` page: dump CV/business/education context → Brain (Notes & Context page)
+- `UserNote` model added to prisma schema (`prisma db push` needed on VPS)
+- Notes API: GET/POST/DELETE notes + `POST /api/notes/[noteId]/brain` to index note
+- Sidebar: Notes link added to brain tab
 
 ---
 
@@ -41,10 +43,16 @@ App is **healthy** at `https://app.agentplayground.net`
 
 See `docs/PLAN.md` for full detail. Short version:
 
-1. **LLM Provider Settings UI** — `lib/providers/` adapter exists, no UI to manage keys or switch models per team. Build under `/settings`.
-2. **Admin Monitoring Panel** — system health/usage: DB size, task volumes, SSE connections, error logs.
-3. **Empty States** — Plans, Teams, Brain, Schedule all show empty divs when no data.
-4. **Personal Agent Teams** (from current branch `feature/sensorguard-demo`) — CV Advisory, Education, Financial Planner, Job Search, Fitness teams + personal coordinator flows.
+**Deploy first (requires `prisma db push`):**
+- `UserNote` model is new — run `prisma db push` on VPS after deploying
+- Run overnight tasks from `/admin/system` to populate Brain with code docs + business docs
+
+**Build next:**
+1. **Education Agent UI** — `/notes` already lets you dump study topics; add `/learn` page showing what Education agents found (articles, summaries, video links) based on your Brain + CV content
+2. **CV Page** — dedicated `/cv` page: view current CV draft, add sections, get interview prep — feeds from Notes (category: cv) + CV Advisory team
+3. **LLM Provider Settings UI** — `lib/providers/` adapter exists, no UI to manage keys per team
+4. **Admin Monitoring Panel** — DB size, task volumes, SSE connections, error logs
+5. **Empty States** — Plans, Teams, Brain, Schedule
 
 ---
 
