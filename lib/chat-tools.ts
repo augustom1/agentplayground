@@ -762,6 +762,48 @@ export const CHAT_TOOLS: ToolDefinition[] = [
       required: ["question"],
     },
   },
+  {
+    name: "generate_session_report",
+    description:
+      "Generate a structured session report and upload it to the Brain (Knowledge tab). Call this at the end of a work session to record what was planned, what was done, and what's next. The report is indexed in the Brain for future reference and searchable from the app.",
+    input_schema: {
+      type: "object",
+      properties: {
+        whatWasPlanned: {
+          type: "string",
+          description: "What was planned for this session (from the previous HANDOFF.md next-session section)",
+        },
+        whatWasDone: {
+          type: "string",
+          description: "Summary of what was actually accomplished this session — be specific about files changed and features built",
+        },
+        status: {
+          type: "string",
+          enum: ["on_track", "deviation", "new_direction"],
+          description: "Whether the session went as planned: on_track = done what was planned; deviation = different work than planned; new_direction = pivoted to something new",
+        },
+        deviationNotes: {
+          type: "string",
+          description: "If status is deviation or new_direction, explain why the plan changed",
+        },
+        nextPriorities: {
+          type: "array",
+          items: { type: "string" },
+          description: "Ordered list of next session priorities (replaces the previous next-session list)",
+        },
+        keyFiles: {
+          type: "array",
+          items: { type: "string" },
+          description: "List of key files created or modified this session",
+        },
+        sessionNumber: {
+          type: "number",
+          description: "Optional session number for tracking",
+        },
+      },
+      required: ["whatWasDone", "whatWasPlanned", "nextPriorities"],
+    },
+  },
 ];
 
 /**
@@ -858,6 +900,8 @@ export async function executeTool(
         return await toolGetTaskResult(input);
       case "request_human_input":
         return await toolRequestHumanInput(input);
+      case "generate_session_report":
+        return await toolGenerateSessionReport(input);
       default:
         return JSON.stringify({ error: `Unknown tool: ${toolName}` });
     }
@@ -1106,6 +1150,7 @@ async function toolUpdateAgent(input: Record<string, unknown>): Promise<string> 
 async function toolWebSearch(input: Record<string, unknown>): Promise<string> {
   const query = input.query as string;
   const numResults = (input.num_results as number) || 5;
+  let resultPayload: string;
 
   try {
     // Use Brave Search if key is configured
@@ -1121,37 +1166,55 @@ async function toolWebSearch(input: Record<string, unknown>): Promise<string> {
         url: r.url,
         snippet: r.description,
       }));
-      return JSON.stringify({ success: true, query, results, source: "Brave Search" });
+      resultPayload = JSON.stringify({ success: true, query, results, source: "Brave Search" });
+    } else {
+      // Fallback: DuckDuckGo Instant Answer API
+      const res = await fetch(
+        `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`,
+        { headers: { "User-Agent": "AgentDashboard/1.0" } }
+      );
+      const data = await res.json();
+      const results: Array<{ title: string; url: string; snippet: string }> = [];
+
+      if (data.Abstract) {
+        results.push({ title: data.Heading, url: data.AbstractURL, snippet: data.Abstract });
+      }
+      for (const topic of (data.RelatedTopics || []).slice(0, numResults - 1)) {
+        if (topic.Text && topic.FirstURL) {
+          results.push({
+            title: topic.Text.split(" - ")[0] || topic.Text,
+            url: topic.FirstURL,
+            snippet: topic.Text,
+          });
+        }
+      }
+
+      resultPayload = JSON.stringify({
+        success: true,
+        query,
+        results,
+        source: "DuckDuckGo",
+        note: "For full web search results, set BRAVE_SEARCH_API_KEY in your environment.",
+      });
     }
 
-    // Fallback: DuckDuckGo Instant Answer API
-    const res = await fetch(
-      `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`,
-      { headers: { "User-Agent": "AgentDashboard/1.0" } }
-    );
-    const data = await res.json();
-    const results: Array<{ title: string; url: string; snippet: string }> = [];
-
-    if (data.Abstract) {
-      results.push({ title: data.Heading, url: data.AbstractURL, snippet: data.Abstract });
-    }
-    for (const topic of (data.RelatedTopics || []).slice(0, numResults - 1)) {
-      if (topic.Text && topic.FirstURL) {
-        results.push({
-          title: topic.Text.split(" - ")[0] || topic.Text,
-          url: topic.FirstURL,
-          snippet: topic.Text,
-        });
+    // Research archive protocol — save to Brain (non-blocking)
+    if (process.env.RESEARCH_AUTO_ARCHIVE !== "false") {
+      const parsed = JSON.parse(resultPayload) as { results?: Array<{ title: string; url: string; snippet: string }> };
+      const snippets = (parsed.results || []).map((r) => `### ${r.title}\n${r.url}\n${r.snippet}`).join("\n\n");
+      if (snippets) {
+        const { ingestToBrain } = await import("@/lib/brain/ingest");
+        ingestToBrain({
+          content: `# Search: ${query}\n\n${snippets}`,
+          title: `Research: ${query}`,
+          source: `search:${encodeURIComponent(query)}`,
+          sourceType: "research",
+          metadata: { query, timestamp: new Date().toISOString() },
+        }).catch(() => {});
       }
     }
 
-    return JSON.stringify({
-      success: true,
-      query,
-      results,
-      source: "DuckDuckGo",
-      note: "For full web search results, set BRAVE_SEARCH_API_KEY in your environment.",
-    });
+    return resultPayload;
   } catch (err) {
     return JSON.stringify({ error: `Web search failed: ${String(err)}` });
   }
@@ -1173,7 +1236,6 @@ async function toolWebBrowse(input: Record<string, unknown>): Promise<string> {
     }
 
     const html = await res.text();
-    // Extract readable text: strip scripts, styles, then tags
     const text = html
       .replace(/<script[\s\S]*?<\/script>/gi, " ")
       .replace(/<style[\s\S]*?<\/style>/gi, " ")
@@ -1186,6 +1248,18 @@ async function toolWebBrowse(input: Record<string, unknown>): Promise<string> {
       .replace(/\s+/g, " ")
       .trim()
       .slice(0, 4000);
+
+    // Research archive protocol — save browsed page to Brain (non-blocking)
+    if (process.env.RESEARCH_AUTO_ARCHIVE !== "false" && text.length > 100) {
+      const { ingestToBrain } = await import("@/lib/brain/ingest");
+      ingestToBrain({
+        content: `# Source: ${url}\n\n${text}`,
+        title: `Research: ${url}`,
+        source: `browse:${url}`,
+        sourceType: "research",
+        metadata: { url, timestamp: new Date().toISOString() },
+      }).catch(() => {});
+    }
 
     return JSON.stringify({ success: true, url, content: text, length: text.length });
   } catch (err) {
@@ -1343,6 +1417,19 @@ async function toolDelegateToTeam(input: Record<string, unknown>): Promise<strin
       message: `${input.teamName as string} completed: ${task.title}`,
       data: { teamName: input.teamName, taskTitle: task.title },
     });
+
+    // Task result archive protocol — index result to Brain (non-blocking)
+    if (result.content.length > 50) {
+      import("@/lib/brain/ingest").then(({ ingestToBrain }) =>
+        ingestToBrain({
+          content: `# Task: ${task.title}\nTeam: ${input.teamName as string}\n\n${result.content}`,
+          title: `Task Result: ${task.title}`,
+          source: `task-result:${task.id}`,
+          sourceType: "task-result",
+          metadata: { taskId: task.id, teamName: input.teamName, completedAt: new Date().toISOString() },
+        })
+      ).catch(() => {});
+    }
 
     // Telegram group notification (fire-and-forget)
     import("@/lib/integrations/telegram/bot")
@@ -2190,5 +2277,59 @@ async function toolConvertToMarkdown(input: Record<string, unknown>): Promise<st
     savedToVault: saveToVault,
     tags,
     message: `✓ Converted "${filePath}" to Markdown (${markdown.length} chars).${saveToVault ? " Saved to Brain vault and indexed for RAG search." : ""}`,
+  });
+}
+
+// ─── Session Report ───────────────────────────────────────────────────────────
+
+async function toolGenerateSessionReport(input: Record<string, unknown>): Promise<string> {
+  const { ingestToBrain } = await import("@/lib/brain/ingest");
+
+  const date = new Date().toISOString().split("T")[0];
+  const sessionNum = input.sessionNumber ? ` (Session ${input.sessionNumber})` : "";
+  const status = (input.status as string) || "on_track";
+  const statusLabel = { on_track: "On Track", deviation: "Deviation", new_direction: "New Direction" }[status] ?? status;
+  const deviationNotes = (input.deviationNotes as string) || "";
+  const keyFiles = (input.keyFiles as string[]) || [];
+  const nextPriorities = (input.nextPriorities as string[]) || [];
+
+  const report = `# Session Report — ${date}${sessionNum}
+
+## What Was Planned
+${input.whatWasPlanned as string}
+
+## What Was Done
+${input.whatWasDone as string}
+
+## Status: ${statusLabel}
+${deviationNotes ? `**Notes:** ${deviationNotes}` : ""}
+
+## Key Files Changed
+${keyFiles.length > 0 ? keyFiles.map((f) => `- ${f}`).join("\n") : "_No files listed._"}
+
+## Next Session Priorities
+${nextPriorities.map((p, i) => `${i + 1}. ${p}`).join("\n")}
+
+---
+_Generated by coordinator · ${new Date().toISOString()}_
+`;
+
+  // Index to Brain (BrainDocument + BrainChunks with embeddings)
+  const docId = await ingestToBrain({
+    content: report,
+    title: `Session Report ${date}${sessionNum}`,
+    source: `session-report:${date}`,
+    sourceType: "report",
+    metadata: { date, status, sessionNumber: input.sessionNumber ?? null },
+    force: true,
+  });
+
+  return JSON.stringify({
+    success: true,
+    docId,
+    reportDate: date,
+    brainPath: `session-report:${date}`,
+    message: `✓ Session report for ${date} saved to Brain (doc ID: ${docId}). Searchable from the Knowledge tab.`,
+    preview: report.slice(0, 500),
   });
 }

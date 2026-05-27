@@ -8,7 +8,7 @@ import {
   Globe, Brain, Workflow, Link2, CreditCard, Sun, Moon,
   FolderOpen, BookOpen, ClipboardList, Plus, Layers,
   MessageSquare, Calendar, ChevronLeft, ChevronRight,
-  Search, Menu, Clock, PanelLeftClose,
+  Search, Menu, Clock, PanelLeftClose, StickyNote,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { UserMenu } from "@/components/UserMenu";
@@ -32,6 +32,7 @@ const TAB_NAV: Record<Tab, Array<{ href: string; label: string; icon: React.Comp
     { href: "/optimize",   label: "AI Efficiency",icon: Sparkles },
   ],
   brain: [
+    { href: "/notes",      label: "Notes",       icon: StickyNote },
     { href: "/files",      label: "Brain & Files",icon: Brain },
     { href: "/projects",   label: "Projects",    icon: FolderOpen },
     { href: "/schedule",   label: "Schedule",    icon: Calendar },

@@ -34,6 +34,7 @@ model User {
   apiUsage  ApiUsage[]
   credits   UserCredits?
   invoices  Invoice[]
+  notes     UserNote[]
 
   @@map("users")
 }
@@ -951,4 +952,26 @@ model OptimizationScan {
 
   @@index([weekStart])
   @@map("optimization_scans")
+}
+
+// ─── User Notes (Context Dumps) ──────────────────────
+// User-created notes with categories. Indexed into Brain on demand.
+// Categories map to agent teams: cv → CV Advisory, business → Business, etc.
+
+model UserNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  content   String   @db.Text
+  category  String   @default("personal") // cv | business | education | finance | fitness | personal | dev
+  inBrain   Boolean  @default(false)       // true once indexed into Brain
+  brainDocId String?                       // BrainDocument.id after indexing
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([category])
+  @@map("user_notes")
 }

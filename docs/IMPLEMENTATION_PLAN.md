@@ -1,8 +1,7 @@
 # Implementation Plan — Agent Playground Feature Roadmap
 
+> ⚠️ SUPERSEDED by `docs/PLAN.md` (2026-05-27). Kept for historical reference.
 > Last updated: 2026-04-16
-> This file is the master tracker. Update status as features complete.
-> Each feature has a detailed spec in `docs/features/`.
 
 ---
 

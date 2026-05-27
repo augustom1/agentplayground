@@ -1,7 +1,7 @@
 # Master TODO — Agent Playground + 2nd Brain
+> ⚠️ SUPERSEDED by `docs/PLAN.md` (2026-05-27). This file is kept for historical reference only.
+> For open work, see `docs/PLAN.md`. For session history, see `docs/SESSION-HISTORY.md`.
 > Updated: 2026-05-22 (Session 16)
-> Most blocks A–E completed in Sessions 1–16. See docs/SESSION-HISTORY.md for per-session details.
-> Remaining priorities: see HANDOFF.md → Next Session Priority
 
 ---
 
