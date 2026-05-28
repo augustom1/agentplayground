@@ -43,16 +43,28 @@ App is **healthy** at `https://app.agentplayground.net`
 
 See `docs/PLAN.md` for full detail. Short version:
 
-**Deploy first (requires `prisma db push`):**
-- `UserNote` model is new — run `prisma db push` on VPS after deploying
-- Run overnight tasks from `/admin/system` to populate Brain with code docs + business docs
+**FIRST THING: Deploy + Schema Push**
+```bash
+# 1. scp all session 18 files to VPS
+# 2. prisma db push — new models: UserNote, PendingAction
+docker compose exec dashboard npx prisma db push
+# 3. Restart dashboard
+```
 
-**Build next:**
-1. **Education Agent UI** — `/notes` already lets you dump study topics; add `/learn` page showing what Education agents found (articles, summaries, video links) based on your Brain + CV content
-2. **CV Page** — dedicated `/cv` page: view current CV draft, add sections, get interview prep — feeds from Notes (category: cv) + CV Advisory team
-3. **LLM Provider Settings UI** — `lib/providers/` adapter exists, no UI to manage keys per team
-4. **Admin Monitoring Panel** — DB size, task volumes, SSE connections, error logs
-5. **Empty States** — Plans, Teams, Brain, Schedule
+**Then run these in order from /admin/system:**
+1. "Seed Context Now" — loads brain context docs + creates 8 pending actions for coordinator
+2. "Index Docs Now" — indexes all project docs into Brain
+3. "Run Overnight Tasks" — qwen2.5:7b documents codebase + writes business docs (runs in background)
+
+**After that, open Chat** — the coordinator will see pending actions and walk you through: CV info, ARQ account, Monotributo details, learning preferences.
+
+**Next session priorities:**
+1. Blog auto-generation page (`/blog/generate`)
+2. CV subdomain (public-facing `cv.agentplayground.net`)
+3. Crypto billing agents (depends on ARQ account info from user)
+4. Job application agents (`/jobs` page + Application Package flow)
+5. LLM Provider Settings UI
+6. Admin Monitoring Panel (DB size, SSE, Ollama status)
 
 ---
 

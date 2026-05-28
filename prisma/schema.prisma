@@ -954,6 +954,26 @@ model OptimizationScan {
   @@map("optimization_scans")
 }
 
+// ─── Pending Actions ─────────────────────────────────
+// Items the coordinator flags as needing user attention or manual action.
+// Shown as ! badges in the sidebar. Dismissed once resolved.
+
+model PendingAction {
+  id          String   @id @default(cuid())
+  title       String
+  description String   @db.Text
+  category    String   @default("general") // business | cv | education | technical | general
+  priority    String   @default("normal")  // high | normal | low
+  status      String   @default("open")    // open | snoozed | done
+  context     Json?                         // extra data the coordinator attached
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@map("pending_actions")
+}
+
 // ─── User Notes (Context Dumps) ──────────────────────
 // User-created notes with categories. Indexed into Brain on demand.
 // Categories map to agent teams: cv → CV Advisory, business → Business, etc.

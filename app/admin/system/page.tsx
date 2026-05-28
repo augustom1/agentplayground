@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BookOpen, Loader2, CheckCircle2, AlertCircle, RefreshCw, Moon, ChevronDown, ChevronUp } from "lucide-react";
+import { BookOpen, Loader2, CheckCircle2, AlertCircle, RefreshCw, Moon, ChevronDown, ChevronUp, Zap } from "lucide-react";
 
 type IndexResult = {
   path: string;
@@ -26,6 +26,10 @@ export default function AdminSystemPage() {
   const [indexResult, setIndexResult] = useState<IndexResponse | null>(null);
   const [indexError, setIndexError]   = useState<string | null>(null);
 
+  const [seedCtx, setSeedCtx]               = useState(false);
+  const [seedCtxResult, setSeedCtxResult]   = useState<{ message: string; actionsCreated: number } | null>(null);
+  const [seedCtxError, setSeedCtxError]     = useState<string | null>(null);
+
   const [overnight, setOvernight]       = useState(false);
   const [overnightResult, setOvernightResult] = useState<OvernightResponse | null>(null);
   const [overnightError, setOvernightError]   = useState<string | null>(null);
@@ -45,6 +49,22 @@ export default function AdminSystemPage() {
       setIndexError(err instanceof Error ? err.message : "Failed to index docs");
     } finally {
       setIndexing(false);
+    }
+  }
+
+  async function handleSeedContext() {
+    setSeedCtx(true);
+    setSeedCtxResult(null);
+    setSeedCtxError(null);
+    try {
+      const res = await fetch("/api/admin/seed-context", { method: "POST" });
+      const data = await res.json() as { message: string; actionsCreated: number };
+      if (!res.ok) throw new Error((data as unknown as { error?: string }).error ?? "Seed failed");
+      setSeedCtxResult(data);
+    } catch (err) {
+      setSeedCtxError(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setSeedCtx(false);
     }
   }
 
@@ -75,6 +95,35 @@ export default function AdminSystemPage() {
       <p className="text-[13px] mb-6" style={{ color: "var(--color-muted)" }}>
         Platform maintenance and knowledge base management.
       </p>
+
+      {/* Seed Context — first-run setup */}
+      <div className="glass-card p-5 mb-4" style={{ border: "1px solid var(--color-accent)44" }}>
+        <div className="flex items-start gap-3 mb-4">
+          <Zap size={18} style={{ color: "var(--color-accent)", marginTop: 2 }} />
+          <div>
+            <p className="font-medium text-sm" style={{ color: "var(--color-text)" }}>Seed Business & Personal Context</p>
+            <p className="text-[12px] mt-0.5" style={{ color: "var(--color-muted)" }}>
+              Run once on first setup. Indexes business-setup, personal-profile, education-goals, and platform-operations
+              docs into Brain, and creates initial action items for the coordinator. Safe to re-run.
+            </p>
+          </div>
+        </div>
+        <button onClick={handleSeedContext} disabled={seedCtx} className="btn-primary flex items-center gap-2 py-2 px-4 text-sm">
+          {seedCtx ? <><Loader2 size={14} className="animate-spin" /> Seeding…</> : <><Zap size={14} /> Seed Context Now</>}
+        </button>
+        {seedCtxResult && (
+          <div className="mt-3 flex items-center gap-2 text-sm" style={{ color: "var(--color-green)" }}>
+            <CheckCircle2 size={14} />
+            {seedCtxResult.message}
+          </div>
+        )}
+        {seedCtxError && (
+          <div className="mt-3 flex items-center gap-2 text-sm" style={{ color: "var(--color-red)" }}>
+            <AlertCircle size={14} />
+            {seedCtxError}
+          </div>
+        )}
+      </div>
 
       {/* Knowledge Base Indexing */}
       <div className="glass-card p-5 mb-4">

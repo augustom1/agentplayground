@@ -8,7 +8,7 @@ import {
   Globe, Brain, Workflow, Link2, CreditCard, Sun, Moon,
   FolderOpen, BookOpen, ClipboardList, Plus, Layers,
   MessageSquare, Calendar, ChevronLeft, ChevronRight,
-  Search, Menu, Clock, PanelLeftClose, StickyNote,
+  Search, Menu, Clock, PanelLeftClose, StickyNote, AlertCircle, FileText,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { UserMenu } from "@/components/UserMenu";
@@ -21,6 +21,7 @@ type Tab = "chat" | "teams" | "brain";
 
 const TAB_NAV: Record<Tab, Array<{ href: string; label: string; icon: React.ComponentType<{ size?: number }> }>> = {
   chat: [
+    { href: "/actions",    label: "Actions",     icon: AlertCircle },
     { href: "/plans",      label: "Plans",       icon: ClipboardList },
     { href: "/playground", label: "Playground",  icon: Layers },
     { href: "/pipeline",   label: "Work Queue",  icon: Workflow },
@@ -32,13 +33,15 @@ const TAB_NAV: Record<Tab, Array<{ href: string; label: string; icon: React.Comp
     { href: "/optimize",   label: "AI Efficiency",icon: Sparkles },
   ],
   brain: [
-    { href: "/notes",      label: "Notes",       icon: StickyNote },
+    { href: "/notes",      label: "Notes",        icon: StickyNote },
+    { href: "/cv",         label: "CV Builder",   icon: FileText },
+    { href: "/learn",      label: "Learning",     icon: BookOpen },
     { href: "/files",      label: "Brain & Files",icon: Brain },
-    { href: "/projects",   label: "Projects",    icon: FolderOpen },
-    { href: "/schedule",   label: "Schedule",    icon: Calendar },
-    { href: "/server",     label: "Server",      icon: Server },
-    { href: "/websites",   label: "Websites",    icon: Globe },
-    { href: "/blog",       label: "Blog",        icon: BookOpen },
+    { href: "/projects",   label: "Projects",     icon: FolderOpen },
+    { href: "/schedule",   label: "Schedule",     icon: Calendar },
+    { href: "/server",     label: "Server",       icon: Server },
+    { href: "/websites",   label: "Websites",     icon: Globe },
+    { href: "/blog",       label: "Blog",         icon: BookOpen },
   ],
 };
 
@@ -94,6 +97,22 @@ export function Sidebar() {
   const [showRecents, setShowRecents] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/actions?status=open")
+      .then((r) => r.json())
+      .then((data: unknown) => { if (Array.isArray(data)) setPendingCount(data.length); })
+      .catch(() => {});
+    // Refresh every 60s
+    const iv = setInterval(() => {
+      fetch("/api/actions?status=open")
+        .then((r) => r.json())
+        .then((data: unknown) => { if (Array.isArray(data)) setPendingCount(data.length); })
+        .catch(() => {});
+    }, 60_000);
+    return () => clearInterval(iv);
+  }, []);
 
   useEffect(() => {
     if (
@@ -104,7 +123,8 @@ export function Sidebar() {
     } else if (
       pathname.startsWith("/files") || pathname.startsWith("/brain") ||
       pathname.startsWith("/server") || pathname.startsWith("/websites") ||
-      pathname.startsWith("/blog") || pathname.startsWith("/projects")
+      pathname.startsWith("/blog") || pathname.startsWith("/projects") ||
+      pathname.startsWith("/notes") || pathname.startsWith("/cv") || pathname.startsWith("/learn")
     ) {
       setActiveTab("brain");
     } else {
@@ -349,6 +369,23 @@ export function Sidebar() {
             >
               <Icon size={13} />
               {!collapsed && label}
+              {/* ! badge on Chat tab when there are pending actions */}
+              {id === "chat" && pendingCount > 0 && (
+                <span style={{
+                  marginLeft: collapsed ? 0 : "auto",
+                  background: "#e05252",
+                  color: "#fff",
+                  fontSize: "10px",
+                  fontWeight: 700,
+                  borderRadius: "99px",
+                  padding: "1px 5px",
+                  lineHeight: "14px",
+                  minWidth: 16,
+                  textAlign: "center",
+                }}>
+                  {pendingCount > 9 ? "9+" : pendingCount}
+                </span>
+              )}
             </button>
           ))}
         </div>

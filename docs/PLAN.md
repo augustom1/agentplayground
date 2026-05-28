@@ -1,5 +1,5 @@
 # docs/PLAN.md — Master Open Work List
-> Updated: 2026-05-27 (Session 17)
+> Updated: 2026-05-27 (Session 18)
 > Single source of truth for open work. HANDOFF.md has the short version.
 > Full history → docs/SESSION-HISTORY.md
 
@@ -7,31 +7,51 @@
 
 ## Active / Next Session
 
-### 1. LLM Provider Settings UI
+### 1. Deploy Session 18 + Run Setup
+**Status:** Built locally. Needs deploy + schema push.
+**Steps:**
+1. `scp` all changed files to VPS
+2. `docker compose exec dashboard npx prisma db push` (new models: UserNote, PendingAction)
+3. `/admin/system` → "Seed Context Now" (seeds Brain + creates pending actions)
+4. `/admin/system` → "Index Docs Now" (indexes all docs)
+5. `/admin/system` → "Run Overnight Tasks" (generates code docs + business docs via qwen2.5:7b)
+6. Chat → coordinator will show pending actions, ask for CV/business info
+
+### 2. Blog Auto-Generation
+**Status:** Not started. Docs/context seeded (content-strategy in PLAN).
+**What to build:** `/blog/generate` page — user picks topic + outline, coordinator drafts post, saves to Brain + publishes to `/blog`.
+**Agent flow:** Business team → draft post → user reviews → publish to `data/blog/<slug>.md` → render at `/blog/[slug]`.
+
+### 3. CV Subdomain
+**Status:** `/cv` page built (local). Needs subdomain + public view.
+**What to build:** `cv.agentplayground.net` or `/public/cv/[username]` — public-facing rendered CV from Brain notes.
+**Agent flow:** CV Advisory team formats Brain notes → renders as clean HTML CV page.
+
+### 4. Crypto Billing Agents
+**Status:** Architecture documented in `docs/context/business-setup.md`. Not built.
+**What to build:**
+- `Billing Monitor Agent` team: wallet watcher + invoice matcher + ARQ transfer
+- Schema: `Invoice`, `CryptoTransaction`, `WalletConfig` models
+- `/billing/crypto` page: wallet config, transaction log, ARQ transfer history
+**Blocked on:** User providing ARQ account + preferred chain (see pending actions)
+
+### 5. Job Application Agents
+**Status:** Job Search team seeded in `lib/seed-personal-teams.ts`. UI missing.
+**What to build:** `/jobs` page — paste job description → Application Package skill runs → cover letter + outreach → saves to Brain.
+**Agent flow:** CV notes + job desc → Job Scout analyzes → Application Writer drafts cover letter.
+
+### 6. LLM Provider Settings UI
 **Status:** Backend done. UI missing.
-**Where:** `lib/providers/` has full adapter (anthropic, openai, ollama, custom). `LlmProvider` model in schema.
-**Build:** `/settings/providers` page — list providers, add/edit API keys, set default per team, test connection button.
+**Build:** `/settings/providers` page — list providers, add/edit API keys, set default per team, test connection.
 
-### 2. Admin Monitoring Panel
-**Status:** Admin system page created (Session 17) with Index Docs. Health monitoring not built.
-**Build:** `/admin/system` — DB size, task volumes, active SSE connections, Ollama model status, recent errors from activity_logs, ApiUsage chart (daily tokens by model).
+### 7. Admin Monitoring Panel
+**Status:** Partially built (`/admin/system` has Index Docs + Overnight). Health metrics missing.
+**Build:** DB size, task volumes, active SSE connections, Ollama model status, ApiUsage chart (daily tokens by model).
 
-### 3. Empty States
+### 8. Empty States
 **Status:** Not started.
 **Where:** `/plans`, `/agent-lab`, `/brain`, `/schedule` — blank divs when no data.
-**Build:** Consistent empty states with lucide icons + call-to-action for each page.
-
-### 4. Personal Agent Teams — Schema + Flows
-**Status:** Teams seeded in `lib/seed-personal-teams.ts`. Schema additions not yet applied.
-**What's needed:**
-- Schema: add `UserMemory`, `ConversationSummary`, `HostedApp`, `StudyTopic+Log`, `FinancialEntry` models; add `tools/version/changelog` to `Agent`
-- Run `prisma db push`
-- Test the four coordinator flows: study topic, expense log, job prep, CV update
-- UI: "Handled by: X" agent badge in chat
-
-### 5. "Index Docs" — Admin → System page trigger
-**Status:** API (`POST /api/admin/index-docs`) built. Button in `/admin/system` built.
-**Next:** Deploy to VPS and run once to populate Brain with all docs.
+**Build:** Consistent empty states with lucide icons + call-to-action per page.
 
 ---
 
