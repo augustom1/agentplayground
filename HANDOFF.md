@@ -1,5 +1,5 @@
 # HANDOFF.md — Session State
-> Last updated: 2026-05-27 (Session 17)
+> Last updated: 2026-06-08 (Session 19)
 > Read this FIRST at every session start, before CLAUDE.md.
 > See `docs/PLAN.md` for the full open work list.
 > See `docs/SESSION-HISTORY.md` for full session archive.
@@ -14,7 +14,7 @@ App is **healthy** at `https://app.agentplayground.net`
 - Teams, Agents, Skills, Chat (streaming, 25-iteration tool loop, 30 tools)
 - 2nd Brain: vault, MCP endpoint, graph, semantic search, brain chunks + HNSW
 - Plans system: create → council review → approve → dispatch → execute
-- LLM Provider adapter system (`lib/providers/`)
+- LLM Provider adapter system (`lib/providers/`) — extended thinking support added
 - Admin panel (`/admin`): analytics, API monitor, credit management
 - Playground Teams Hub (`/playground`): team chat, widget grid, live data
 - Coordinator mode: full COORDINATOR_INTRO prompt, delegation wired, plans wired
@@ -24,47 +24,48 @@ App is **healthy** at `https://app.agentplayground.net`
 - Telegram: bidirectional DMs → coordinator, group notifications, settings UI
 - PWA: manifest, icons, installable
 - Design System v3: charcoal `#1a1a1a`, rust logo `#D4715A`, neutral palette
+- **Actions system**: PendingAction model, `/actions` page, create/dismiss/list tools
+- **Personal OS pages**: `/cv`, `/learn`, `/notes` — Brain-indexed context
+- **Admin system**: Seed Context, Index Docs, Overnight Knowledge Build
+- **Local LLM flywheel**: task classifier → Ollama routing → Brain archive → protocol writer
+- **SensorGuard demo**: API routes for playground-chat, seed-team, telegram
 
-### Last Session (Session 18 — 2026-05-27)
-- Documentation restructure (S17): slim CLAUDE.md, PLAN.md, PROTOCOLS.md, architecture.md
-- `generate_session_report` tool, research/task auto-archive to Brain (P1/P2)
-- 4-step onboarding wizard, `lib/seed-personal-teams.ts`, `POST /api/admin/index-docs`
-- `lib/agents/local-runner.ts`: Ollama batch runner (no tool loop)
-- `app/api/admin/overnight/route.ts`: queues dev docs + business docs tasks via qwen2.5:7b
-- `/admin/system`: Overnight Knowledge Build UI (run + select groups)
-- `/notes` page: dump CV/business/education context → Brain (Notes & Context page)
-- `UserNote` model added to prisma schema (`prisma db push` needed on VPS)
-- Notes API: GET/POST/DELETE notes + `POST /api/notes/[noteId]/brain` to index note
-- Sidebar: Notes link added to brain tab
+### Last Session (Session 19 — 2026-06-08)
+- **DEPLOYED**: All sessions 17-18-19 changes (101 files) to VPS + container rebuilt
+- Local LLM flywheel fully connected: runner.ts classifies → routes to Ollama (confidence ≥72%) → fallback to Claude → archive to Brain → evaluateAndWriteProtocol
+- `delegated.ts`: delegated tasks archive to Brain + evaluate for local protocol
+- `dispatch.ts`: plan completion generates Ollama report → docs/reports/plans/ + Brain
+- Overnight: 3 new Ollama documentation tasks (local-llm-catalog, team-capabilities, workflow-patterns)
+- `lib/providers/anthropic.ts`: extended thinking support (budget_tokens)
+- SensorGuard API routes: playground-chat, seed-team, telegram
+- `app/(app)/overview/page.tsx`: system flow overview page
+- `components/SystemFlowDiagram.tsx`: visual flow diagram
 
 ---
 
 ## Next Session Priorities
 
-See `docs/PLAN.md` for full detail. Short version:
-
-**FIRST THING: Deploy + Schema Push**
-```bash
-# 1. scp all session 18 files to VPS
-# 2. prisma db push — new models: UserNote, PendingAction
-docker compose exec dashboard npx prisma db push
-# 3. Restart dashboard
-```
-
-**Then run these in order from /admin/system:**
-1. "Seed Context Now" — loads brain context docs + creates 8 pending actions for coordinator
+**Run these in order from /admin/system:**
+1. "Seed Context Now" — loads brain context docs + creates 8 pending actions
 2. "Index Docs Now" — indexes all project docs into Brain
-3. "Run Overnight Tasks" — qwen2.5:7b documents codebase + writes business docs (runs in background)
+3. "Run Overnight Tasks" — qwen2.5:7b documents codebase + writes protocols (runs in background)
 
-**After that, open Chat** — the coordinator will see pending actions and walk you through: CV info, ARQ account, Monotributo details, learning preferences.
+**Then open Chat** — coordinator will show pending actions and walk you through: CV info, ARQ account, Monotributo details.
 
-**Next session priorities:**
+**Feature work (priority order):**
 1. Blog auto-generation page (`/blog/generate`)
-2. CV subdomain (public-facing `cv.agentplayground.net`)
-3. Crypto billing agents (depends on ARQ account info from user)
-4. Job application agents (`/jobs` page + Application Package flow)
-5. LLM Provider Settings UI
-6. Admin Monitoring Panel (DB size, SSE, Ollama status)
+2. CV subdomain (`cv.agentplayground.net` or `/public/cv/[username]`)
+3. Crypto billing agents (blocked on ARQ account info from user)
+4. Job application agents (`/jobs` page)
+5. LLM Provider Settings UI (`/settings/providers`)
+6. Admin Monitoring Panel (DB size, task volumes, Ollama status)
+
+See `docs/PLAN.md` for full detail.
+
+**Deploy (already done this session):**
+```bash
+# No pending deploy — VPS is up to date as of 2026-06-08
+```
 
 ---
 
