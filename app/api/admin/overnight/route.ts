@@ -216,6 +216,99 @@ For each tier include:
 
 Also write: a one-paragraph elevator pitch per tier for a sales page.`,
   },
+  {
+    id: "ops_protocol_catalog",
+    title: "Ops: Local LLM Protocol Catalog",
+    group: "dev",
+    outputDoc: "docs/protocols/local-llm-catalog.md",
+    systemPrompt: `You are documenting AI task protocols for an agent platform.
+Write a clear markdown catalog that both developers and local AI agents can use as a reference.
+Focus on: what task types can run locally, which model to use, and what the expected output looks like.`,
+    userPrompt: `Document the local LLM optimization system for AgentPlayground.
+
+## System Context
+AgentPlayground runs two types of LLM calls:
+1. Claude API (Sonnet/Haiku) — expensive, for complex reasoning, multi-tool orchestration
+2. Ollama local LLMs (qwen2.5:0.5b, 1.5b, 7b) — free, for routine/structured tasks
+
+## Task Classification Rules
+Tasks that go to LOCAL (from lib/optimizer/classifier.ts):
+${readFileSafe("lib/optimizer/classifier.ts", 4000)}
+
+## Protocol Writer (auto-learns from usage):
+${readFileSafe("lib/optimizer/protocol-writer.ts", 3000)}
+
+Write a catalog covering:
+1. Which task types can reliably run on each local model (with examples)
+2. Task types that REQUIRE the API and why
+3. How the classifier makes decisions (explain the signals)
+4. How to write a good system prompt for a local model
+5. Common mistakes that cause local tasks to fail
+6. Decision guide: "should I use local or API for this task?"
+
+Format as a practical reference that an AI agent can consult before routing a task.`,
+  },
+  {
+    id: "ops_team_capabilities",
+    title: "Ops: Agent Team Capabilities Reference",
+    group: "dev",
+    outputDoc: "docs/protocols/team-capabilities.md",
+    systemPrompt: `You are documenting agent team capabilities for a multi-agent AI platform.
+Write practical documentation for both human developers and AI agents routing tasks between teams.`,
+    userPrompt: `Document all agent teams and their capabilities in AgentPlayground.
+
+## Runner Tool Subsets (which tools each team category has access to):
+${readFileSafe("lib/agents/runner.ts", 2000)}
+
+## Delegated Runner Tool Subsets:
+${readFileSafe("lib/agents/delegated.ts", 1500)}
+
+Team categories and their tool access:
+- dev: vps_exec, write_file, read_file, list_files, vault_write/search, web_search/browse
+- research: web_search, web_browse, vault_write/search, read_file, list_files
+- content: write_file, vault_write/search, web_search/browse
+- ops: schedule_task, delegate_to_team, vault_write, web_search, query_data
+- default: vault_search/write, web_search/browse, write_file, read_file
+- all get: council_reason, save_memory, recall_memories
+
+Write:
+1. What each team category is good at (with concrete task examples)
+2. What each team CANNOT do (missing tools = failed task)
+3. How to phrase a task for each team to get the best result
+4. When to use delegate_to_team vs create_plan+run_plan
+5. A routing guide: "given this type of work, send it to X team"
+
+Keep it actionable and specific — this is read by the Coordinator agent before routing.`,
+  },
+  {
+    id: "ops_workflow_patterns",
+    title: "Ops: Workflow Patterns & Best Practices",
+    group: "dev",
+    outputDoc: "docs/protocols/workflow-patterns.md",
+    systemPrompt: `You are documenting proven workflow patterns for an AI agent coordinator platform.
+Write practical, example-heavy documentation.`,
+    userPrompt: `Document workflow patterns for AgentPlayground — a coordinator AI that delegates to specialist teams.
+
+## Coordinator Flow:
+${readFileSafe("app/api/chat/route.ts", 3000)}
+
+## Council System (for decisions):
+${readFileSafe("lib/council/index.ts", 3000)}
+
+## Planner/Dispatcher:
+${readFileSafe("lib/planner/dispatch.ts", 2000)}
+
+Write documentation covering:
+1. **Single delegation pattern**: when to use delegate_to_team (quick, one team, clear output)
+2. **Multi-team plan pattern**: when to use create_plan (multiple teams, dependencies, parallel work)
+3. **Research-then-act pattern**: web_search → vault_search → analyze → delegate
+4. **Council-before-plan pattern**: council_reason → create_plan → run_plan
+5. **Fast local pattern**: classify task → use local LLM → only escalate if fails
+6. Example coordinator prompts for each pattern
+7. Common failure patterns and how to avoid them
+
+Format as a cookbook with concrete examples the coordinator can follow.`,
+  },
 ];
 
 // ── Background execution ───────────────────────────────────────────────────────

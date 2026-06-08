@@ -1,9 +1,13 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import http from "http";
+import https from "https";
+import { URL } from "url";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
 import { auth } from "@/auth";
+import { editDemoFile } from "@/lib/sensorguard-demo";
 
 type Params = { params: Promise<{ id: string; threadId: string }> };
 
@@ -29,7 +33,38 @@ type AgentInfo = {
   role: string | null;
 };
 
-// Build routing prompt for the coordinator
+// ── Ollama helper ─────────────────────────────────────────────────────────────
+
+function httpPost(urlStr: string, payload: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(urlStr);
+    const isHttps = parsed.protocol === "https:";
+    const lib = isHttps ? https : http;
+    const options = {
+      hostname: parsed.hostname,
+      port: parseInt(parsed.port || (isHttps ? "443" : "80")),
+      path: parsed.pathname + parsed.search,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(payload),
+        Connection: "close",
+      },
+    };
+    const req = lib.request(options, (res) => {
+      let data = "";
+      res.on("data", (chunk: Buffer) => { data += chunk.toString(); });
+      res.on("end", () => resolve(data));
+    });
+    req.setTimeout(120000, () => { req.destroy(); reject(new Error("Ollama timeout")); });
+    req.on("error", reject);
+    req.write(payload);
+    req.end();
+  });
+}
+
+// ── Routing ───────────────────────────────────────────────────────────────────
+
 function buildRoutingPrompt(team: { name: string; config: TeamConfig }, agents: AgentInfo[], userMessage: string): string {
   const agentList = agents
     .map((a, i) => `${i + 1}. [${a.name}] (id: ${a.id})${a.role ? ` — role: ${a.role}` : ""}${a.description ? ` — ${a.description}` : ""}`)
@@ -40,8 +75,7 @@ function buildRoutingPrompt(team: { name: string; config: TeamConfig }, agents: 
 ## Team Members
 ${agentList}
 
-${team.config.routingRules ? `## Routing Rules\n${team.config.routingRules}\n` : ""}
-## Instructions
+${team.config.routingRules ? `## Routing Rules\n${team.config.routingRules}\n` : ""}## Instructions
 - Return a JSON array of agent IDs that should respond, e.g. ["id1"] or ["id1", "id2"]
 - Pick 1 agent for simple questions, 2-3 for multi-domain tasks
 - If no specific agent fits, pick the most general one
@@ -72,11 +106,29 @@ async function routeMessage(team: { name: string; config: TeamConfig }, agents: 
   }
 }
 
-async function callAgent(
+// ── Agent call — Anthropic ────────────────────────────────────────────────────
+
+const EDIT_DEMO_TOOL: Anthropic.Tool = {
+  name: "edit_demo_file",
+  description: "Edit the SensorGuard demo HTML file on the VPS. Use this to change user names, sensor data, alerts, or any content in the demo dashboard.",
+  input_schema: {
+    type: "object" as const,
+    properties: {
+      search: { type: "string", description: "Exact text to find in the file" },
+      replace: { type: "string", description: "Text to replace it with" },
+      description: { type: "string", description: "Short description of what this change does" },
+    },
+    required: ["search", "replace", "description"],
+  },
+};
+
+async function callAnthropic(
   agent: AgentInfo,
   team: { name: string; config: TeamConfig },
   history: Message[],
-  userMessage: string
+  userMessage: string,
+  model: string,
+  fileContext?: string,
 ): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return `[${agent.name}]: No API key configured.`;
@@ -85,6 +137,7 @@ async function callAgent(
     agent.systemPrompt ?? `You are ${agent.name}.`,
     team.config.systemPrompt ? `\n\nTeam context: ${team.config.systemPrompt}` : "",
     `\n\nYou are part of the "${team.name}" team. Respond as ${agent.name}${agent.role ? ` (${agent.role})` : ""}.`,
+    fileContext ? `\n\n---\nDocument shared by user:\n${fileContext}` : "",
   ].join("");
 
   const historyMessages = history.slice(-10).map((m) => ({
@@ -94,12 +147,31 @@ async function callAgent(
 
   try {
     const client = new Anthropic({ apiKey });
+
+    // Use tool use so agents can edit the demo
     const response = await client.messages.create({
-      model: agent.model,
+      model,
       max_tokens: 2048,
       system: systemPrompt,
+      tools: [EDIT_DEMO_TOOL],
+      tool_choice: { type: "auto" },
       messages: [...historyMessages, { role: "user", content: userMessage }],
     });
+
+    // If agent wants to use the edit_demo_file tool
+    const toolUse = response.content.find((b) => b.type === "tool_use");
+    if (toolUse && toolUse.type === "tool_use" && toolUse.name === "edit_demo_file") {
+      const input = toolUse.input as { search: string; replace: string; description: string };
+
+      // Apply the edit via our API endpoint
+      const editData = await editDemoFile(input.search, input.replace);
+      if (editData.ok) {
+        return `Edicion aplicada: ${input.description}\n\nBuscado: "${input.search}"\nReemplazado por: "${input.replace}"`;
+      } else {
+        return `No pude aplicar el cambio: ${editData.error ?? "Error desconocido"}.\n\nPodés aplicarlo manualmente:\n\nBuscar: "${input.search}"\nReemplazar con: "${input.replace}"`;
+      }
+    }
+
     const text = response.content.find((b) => b.type === "text")?.text ?? "";
     return text;
   } catch (err) {
@@ -107,7 +179,52 @@ async function callAgent(
   }
 }
 
-// POST /api/playground/teams/[id]/threads/[threadId]/messages
+// ── Agent call — Ollama ───────────────────────────────────────────────────────
+
+async function callOllama(
+  agent: AgentInfo,
+  team: { name: string; config: TeamConfig },
+  history: Message[],
+  userMessage: string,
+  model: string,
+  fileContext?: string,
+): Promise<string> {
+  const systemPrompt = [
+    agent.systemPrompt ?? `Sos ${agent.name}.`,
+    team.config.systemPrompt ? `\n\nContexto del equipo: ${team.config.systemPrompt}` : "",
+    `\n\nSos parte del equipo "${team.name}". Respondé como ${agent.name}${agent.role ? ` (${agent.role})` : ""}.`,
+    fileContext ? `\n\n---\nDocumento compartido por el usuario:\n${fileContext}` : "",
+  ].join("");
+
+  const historyMessages = history.slice(-10).map((m) => ({
+    role: m.role,
+    content: m.agentName ? `[${m.agentName}]: ${m.content}` : m.content,
+  }));
+
+  const ollamaUrl = process.env.OLLAMA_BASE_URL || "http://ollama:11434";
+  const payload = JSON.stringify({
+    model,
+    messages: [
+      { role: "system", content: systemPrompt },
+      ...historyMessages,
+      { role: "user", content: userMessage },
+    ],
+    stream: false,
+    options: { temperature: 0.7, num_predict: 1024 },
+  });
+
+  try {
+    const raw = await httpPost(`${ollamaUrl}/api/chat`, payload);
+    const data = JSON.parse(raw) as { message?: { content: string }; error?: string };
+    if (data.error) throw new Error(data.error);
+    return data.message?.content ?? "Sin respuesta.";
+  } catch (err) {
+    return `[${agent.name}]: Error Ollama — ${err instanceof Error ? err.message : "Unknown error"}`;
+  }
+}
+
+// ── POST handler ──────────────────────────────────────────────────────────────
+
 export async function POST(req: NextRequest, { params }: Params) {
   try {
     const session = await auth();
@@ -136,9 +253,25 @@ export async function POST(req: NextRequest, { params }: Params) {
     const thread = await prisma.playgroundThread.findUnique({ where: { id: threadId } });
     if (!thread || thread.teamId !== id) return NextResponse.json({ error: "Thread not found" }, { status: 404 });
 
-    const body = await req.json();
+    const body = await req.json() as {
+      content: string;
+      provider?: "anthropic" | "ollama";
+      model?: string;
+      fileContext?: string;
+    };
+
     const userMessage: string = body.content;
     if (!userMessage?.trim()) return NextResponse.json({ error: "Missing content" }, { status: 400 });
+
+    const provider = body.provider ?? "anthropic";
+    const fileContext = body.fileContext;
+
+    // Resolve model: use request model, or agent.model (anthropic only), or sensible default
+    const resolveModel = (agent: AgentInfo) => {
+      if (body.model) return body.model;
+      if (provider === "anthropic") return agent.model ?? "claude-haiku-4-5-20251001";
+      return "qwen2.5:3b";
+    };
 
     const history = (thread.messages as Message[]) ?? [];
     const config = (team.config as TeamConfig) ?? {};
@@ -147,18 +280,15 @@ export async function POST(req: NextRequest, { params }: Params) {
       role: m.role,
     }));
 
-    // Append user message to history
     const updatedHistory: Message[] = [
       ...history,
       { role: "user", content: userMessage },
     ];
 
-    // Stream the response
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          // Route to appropriate agents
           const selectedAgents = await routeMessage({ name: team.name, config }, agents, userMessage);
           const responseStyle = config.responseStyle ?? "individual";
           const responses: { agent: AgentInfo; text: string }[] = [];
@@ -166,7 +296,9 @@ export async function POST(req: NextRequest, { params }: Params) {
           if (responseStyle === "individual" || selectedAgents.length === 1) {
             for (const agent of selectedAgents) {
               controller.enqueue(encoder.encode(`**[${agent.name}]**\n\n`));
-              const text = await callAgent(agent, { name: team.name, config }, history, userMessage);
+              const text = provider === "ollama"
+                ? await callOllama(agent, { name: team.name, config }, history, userMessage, resolveModel(agent), fileContext)
+                : await callAnthropic(agent, { name: team.name, config }, history, userMessage, resolveModel(agent), fileContext);
               controller.enqueue(encoder.encode(text));
               if (selectedAgents.indexOf(agent) < selectedAgents.length - 1) {
                 controller.enqueue(encoder.encode("\n\n---\n\n"));
@@ -174,9 +306,10 @@ export async function POST(req: NextRequest, { params }: Params) {
               responses.push({ agent, text });
             }
           } else {
-            // Synthesized: call all agents then summarize
             for (const agent of selectedAgents) {
-              const text = await callAgent(agent, { name: team.name, config }, history, userMessage);
+              const text = provider === "ollama"
+                ? await callOllama(agent, { name: team.name, config }, history, userMessage, resolveModel(agent), fileContext)
+                : await callAnthropic(agent, { name: team.name, config }, history, userMessage, resolveModel(agent), fileContext);
               responses.push({ agent, text });
             }
             const synthesized = responses
@@ -185,13 +318,9 @@ export async function POST(req: NextRequest, { params }: Params) {
             controller.enqueue(encoder.encode(synthesized));
           }
 
-          // Build assistant reply for storage
-          const assistantContent = responses
-            .map((r) => `[${r.agent.name}]: ${r.text}`)
-            .join("\n\n");
+          const assistantContent = responses.map((r) => `[${r.agent.name}]: ${r.text}`).join("\n\n");
           const primaryAgent = responses[0]?.agent;
 
-          // Save updated thread
           const finalHistory: Message[] = [
             ...updatedHistory,
             {

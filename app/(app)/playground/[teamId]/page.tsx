@@ -7,6 +7,7 @@ import {
   Trash2, Send, Loader2, ChevronLeft,
   Pencil, Check, X, UserPlus, LayoutDashboard,
   Users, MessageCircle, Wallet, RefreshCw, ArrowUpDown,
+  Cpu, Zap, Paperclip,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -420,7 +421,14 @@ export default function PlaygroundWorkspacePage() {
   const [widgets, setWidgets] = useState<PlaygroundWidget[]>(DEFAULT_WIDGETS);
   const [savingWidgets, setSavingWidgets] = useState(false);
 
+  // Chat provider / model
+  const [chatProvider, setChatProvider] = useState<"anthropic" | "ollama">("anthropic");
+  const [chatModel, setChatModel] = useState("claude-haiku-4-5-20251001");
+  const [fileContext, setFileContext] = useState<{ name: string; content: string } | null>(null);
+  const [fileLoading, setFileLoading] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const accent = team?.color ?? "var(--color-brand)";
 
@@ -456,6 +464,23 @@ export default function PlaygroundWorkspacePage() {
 
   useEffect(() => { loadTeam(); }, [loadTeam]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  // ── File attachment ───────────────────────────────────────────────────────────
+
+  const handleFileAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileLoading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/files/extract", { method: "POST", body: form });
+      const data = await res.json() as { text?: string };
+      if (data.text) setFileContext({ name: file.name, content: data.text.slice(0, 20000) });
+    } catch { /* silent */ }
+    setFileLoading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   // ── Chat actions ──────────────────────────────────────────────────────────────
 
@@ -505,7 +530,12 @@ export default function PlaygroundWorkspacePage() {
       const res = await fetch(`/api/playground/teams/${team.id}/threads/${thread!.id}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: userMsg.content }),
+        body: JSON.stringify({
+          content: userMsg.content,
+          provider: chatProvider,
+          model: chatModel,
+          fileContext: fileContext?.content,
+        }),
       });
       if (!res.body) throw new Error("No stream");
       const reader = res.body.getReader();
@@ -963,10 +993,73 @@ export default function PlaygroundWorkspacePage() {
             </div>
 
             <div className="p-3 border-t flex-shrink-0" style={{ borderColor: "var(--color-border)" }}>
+              {/* Provider / model toolbar */}
+              <div className="flex items-center gap-1.5 mb-2">
+                <button
+                  onClick={() => { setChatProvider("anthropic"); setChatModel("claude-haiku-4-5-20251001"); }}
+                  className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-colors"
+                  style={{
+                    background: chatProvider === "anthropic" ? `${accent}20` : "var(--color-surface-3)",
+                    color: chatProvider === "anthropic" ? accent : "var(--color-muted)",
+                    border: `1px solid ${chatProvider === "anthropic" ? `${accent}50` : "var(--color-border)"}`,
+                  }}
+                >
+                  <Zap size={10} /> API
+                </button>
+                <button
+                  onClick={() => { setChatProvider("ollama"); setChatModel("qwen2.5:3b"); }}
+                  className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-colors"
+                  style={{
+                    background: chatProvider === "ollama" ? "rgba(34,197,94,0.12)" : "var(--color-surface-3)",
+                    color: chatProvider === "ollama" ? "#22c55e" : "var(--color-muted)",
+                    border: `1px solid ${chatProvider === "ollama" ? "rgba(34,197,94,0.3)" : "var(--color-border)"}`,
+                  }}
+                >
+                  <Cpu size={10} /> Local
+                </button>
+                <select
+                  value={chatModel}
+                  onChange={(e) => setChatModel(e.target.value)}
+                  className="text-[11px] rounded px-1.5 py-1 outline-none cursor-pointer"
+                  style={{ background: "var(--color-surface-3)", color: "var(--color-muted)", border: "1px solid var(--color-border)" }}
+                >
+                  {chatProvider === "anthropic" ? (
+                    <>
+                      <option value="claude-haiku-4-5-20251001">Haiku 4.5</option>
+                      <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="qwen2.5:3b">qwen2.5:3b</option>
+                      <option value="llama3.2:3b">llama3.2:3b</option>
+                      <option value="mistral:7b">mistral:7b</option>
+                    </>
+                  )}
+                </select>
+                {fileContext && (
+                  <div className="flex items-center gap-1 ml-auto px-2 py-1 rounded text-[11px]"
+                    style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6", border: "1px solid rgba(59,130,246,0.2)" }}>
+                    <Paperclip size={10} />
+                    <span className="max-w-[120px] truncate">{fileContext.name}</span>
+                    <button onClick={() => setFileContext(null)} className="ml-1 opacity-60 hover:opacity-100"><X size={10} /></button>
+                  </div>
+                )}
+              </div>
+              {/* Input row */}
               <div
                 className="flex items-end gap-2 rounded-xl px-3 py-2"
                 style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)" }}
               >
+                <input ref={fileInputRef} type="file" accept=".pdf,.txt,.md,.docx" onChange={handleFileAttach} className="hidden" />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={fileLoading}
+                  title="Adjuntar PDF / documento"
+                  className="p-1 rounded transition-opacity disabled:opacity-40"
+                  style={{ color: "var(--color-muted)" }}
+                >
+                  {fileLoading ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />}
+                </button>
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}

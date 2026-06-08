@@ -8,7 +8,7 @@ import {
   Globe, Brain, Workflow, Link2, CreditCard, Sun, Moon,
   FolderOpen, BookOpen, ClipboardList, Plus, Layers,
   MessageSquare, Calendar, ChevronLeft, ChevronRight,
-  Search, Menu, Clock, PanelLeftClose, StickyNote, AlertCircle, FileText,
+  Search, Menu, Clock, PanelLeftClose, StickyNote, AlertCircle, FileText, Network,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { UserMenu } from "@/components/UserMenu";
@@ -25,6 +25,7 @@ const TAB_NAV: Record<Tab, Array<{ href: string; label: string; icon: React.Comp
     { href: "/plans",      label: "Plans",       icon: ClipboardList },
     { href: "/playground", label: "Playground",  icon: Layers },
     { href: "/pipeline",   label: "Work Queue",  icon: Workflow },
+    { href: "/overview",   label: "How It Works",icon: Network },
   ],
   teams: [
     { href: "/agent-lab",  label: "Agent Lab",   icon: Users },
@@ -130,6 +131,7 @@ export function Sidebar() {
     } else {
       setActiveTab("chat");
     }
+    // /overview, /actions, /plans, /playground, /pipeline all stay in "chat" tab (default)
   }, [pathname]);
 
   useEffect(() => {

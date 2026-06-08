@@ -16,6 +16,8 @@ export interface CompletionParams {
   temperature?: number;
   maxTokens?: number;
   tools?: Tool[];
+  /** Anthropic extended thinking. When set, temperature is forced to 1. */
+  thinking?: { type: "enabled"; budget_tokens: number };
 }
 
 export interface CompletionResult {

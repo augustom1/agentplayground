@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { ingestPlanToBrain } from "@/lib/brain/ingest";
+import { ingestPlanToBrain, ingestToBrain } from "@/lib/brain/ingest";
 import { notifyPlanEvent } from "@/lib/notify/sse";
+import fs from "fs";
+import path from "path";
 
 /**
  * Topological sort of PlanTasks by their dependency graph.
@@ -105,6 +107,94 @@ export async function dispatchPlan(planId: string): Promise<void> {
       ? `Plan "${plan.title}" completed successfully.`
       : `Plan "${plan.title}" is blocked — check task details.`,
   });
+
+  // Generate plan execution report via local Ollama (fire-and-forget)
+  generatePlanReport(planId, plan.title).catch(() => {});
+}
+
+/**
+ * Generate a structured plan execution report using local Ollama.
+ * Writes to docs/reports/plans/ and indexes to Brain — zero API cost.
+ */
+async function generatePlanReport(planId: string, planTitle: string): Promise<void> {
+  const ollamaUrl = process.env.OLLAMA_BASE_URL || "http://ollama:11434";
+  const model = process.env.OLLAMA_OVERNIGHT_MODEL || "qwen2.5:7b";
+
+  // Fetch completed tasks with results
+  const tasks = await prisma.planTask.findMany({
+    where: { planId },
+    select: { title: true, status: true, result: true, team: { select: { name: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (tasks.length === 0) return;
+
+  const taskSummary = tasks
+    .map((t) => `### ${t.title} [${t.status}] — Team: ${t.team.name}\n${(t.result ?? "No result recorded").slice(0, 600)}`)
+    .join("\n\n---\n\n");
+
+  const prompt = `You are documenting the execution of an AI agent plan for a knowledge base.
+
+Write a concise execution report in markdown. Include:
+1. What the plan accomplished (2-3 sentences)
+2. What each team delivered (bullet points)
+3. Key outcomes and deliverables
+4. Any notable issues or blockers
+5. Next logical steps (if any)
+
+Keep the report factual, under 400 words.
+
+## Plan: ${planTitle}
+
+## Task Results:
+${taskSummary}`;
+
+  try {
+    const res = await fetch(`${ollamaUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        stream: false,
+        messages: [
+          { role: "system", content: "You are a technical documentation writer. Write clear, structured markdown reports." },
+          { role: "user", content: prompt },
+        ],
+        options: { temperature: 0.2 },
+      }),
+      signal: AbortSignal.timeout(120_000),
+    });
+
+    if (!res.ok) return;
+
+    type OllamaResp = { message?: { content?: string } };
+    const data = await res.json() as OllamaResp;
+    const content = data.message?.content?.trim();
+    if (!content) return;
+
+    const date = new Date().toISOString().split("T")[0];
+    const slug = planTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
+    const reportPath = `docs/reports/plans/${date}-${slug}.md`;
+    const fullReport = `# Plan Report: ${planTitle}\n> Generated ${date} via ${model}\n\n${content}`;
+
+    // Write to filesystem
+    const dir = path.join(process.cwd(), "docs/reports/plans");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(process.cwd(), reportPath), fullReport, "utf-8");
+
+    // Index to Brain
+    await ingestToBrain({
+      content: fullReport,
+      title: `Plan Report: ${planTitle}`,
+      source: `plan-report:${planId}`,
+      sourceType: "session-report",
+      metadata: { planId, date, model },
+    });
+
+    console.log(`[dispatch] Plan report written: ${reportPath}`);
+  } catch (err) {
+    console.error("[dispatch] Plan report generation failed:", err);
+  }
 }
 
 async function executeTask(taskId: string, planId: string): Promise<void> {

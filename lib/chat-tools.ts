@@ -672,7 +672,12 @@ export const CHAT_TOOLS: ToolDefinition[] = [
           items: { type: "string" },
           description: "Specific team IDs to include as council participants (up to 4). Omit to use all active teams.",
         },
-        rounds: { type: "number", description: "Number of debate rounds (default: 2, max: 3)" },
+        rounds: { type: "number", description: "Number of debate rounds (default: 2, max: 3). Overrides thinkingPreset default." },
+        thinkingPreset: {
+          type: "string",
+          enum: ["fast", "balanced", "deep"],
+          description: "Reasoning depth. fast=1 round via Ollama local (zero API cost, good for quick checks). balanced=2 rounds via Claude API (default, general decisions). deep=3 rounds with extended thinking enabled (reserved for critical decisions, architecture choices, high-stakes plans).",
+        },
       },
       required: ["question"],
     },
@@ -2230,9 +2235,9 @@ async function toolCouncilReason(input: Record<string, unknown>): Promise<string
 
   const question = input.question as string;
   const context = input.context as string | undefined;
-  const rounds = Math.min((input.rounds as number) || 2, 3);
+  const thinkingPreset = (input.thinkingPreset as "fast" | "balanced" | "deep" | undefined) ?? "balanced";
+  const rounds = input.rounds ? Math.min(input.rounds as number, 3) : undefined;
 
-  // Resolve participant teams
   let teamIds = (input.participantTeamIds as string[]) ?? [];
   if (!teamIds.length) {
     const allTeams = await prisma.agentTeam.findMany({
@@ -2256,13 +2261,16 @@ async function toolCouncilReason(input: Record<string, unknown>): Promise<string
     topic: question,
     participants: teamIds.slice(0, 4),
     rounds,
+    thinkingPreset,
   });
 
   return JSON.stringify({
     success: true,
+    preset: thinkingPreset,
     consensusScore: output.consensusScore,
     amendments: output.amendments,
     riskFlags: output.riskFlags,
+    taskRouting: output.taskRouting,
     transcript: output.transcript.slice(0, 4000),
   });
 }

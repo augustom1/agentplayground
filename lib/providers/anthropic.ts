@@ -21,17 +21,37 @@ export class AnthropicProvider implements LLMProvider {
   }
 
   async complete(params: CompletionParams): Promise<CompletionResult> {
-    const response = await this.client.messages.create({
-      model: params.model || "claude-sonnet-4-6",
-      max_tokens: params.maxTokens || 4096,
-      temperature: params.temperature,
-      system: params.system,
-      messages: params.messages.map((m) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content,
-      })),
-      tools: params.tools as Anthropic.Tool[] | undefined,
-    });
+    const useThinking = !!params.thinking;
+    const maxTokens = useThinking
+      ? Math.max(params.maxTokens || 4096, params.thinking!.budget_tokens + 2000)
+      : (params.maxTokens || 4096);
+
+    // Two explicit calls so TypeScript can resolve the non-streaming overload correctly.
+    // When thinking is enabled: temperature must be 1 (API requirement).
+    const response: Anthropic.Message = useThinking
+      ? (await this.client.messages.create({
+          model: params.model || "claude-sonnet-4-6",
+          max_tokens: maxTokens,
+          thinking: params.thinking,
+          temperature: 1,
+          system: params.system,
+          messages: params.messages.map((m) => ({
+            role: m.role as "user" | "assistant",
+            content: m.content,
+          })),
+          tools: params.tools as Anthropic.Tool[] | undefined,
+        })) as Anthropic.Message
+      : await this.client.messages.create({
+          model: params.model || "claude-sonnet-4-6",
+          max_tokens: maxTokens,
+          temperature: params.temperature,
+          system: params.system,
+          messages: params.messages.map((m) => ({
+            role: m.role as "user" | "assistant",
+            content: m.content,
+          })),
+          tools: params.tools as Anthropic.Tool[] | undefined,
+        });
 
     const textBlock = response.content.find((b) => b.type === "text");
     const toolUseBlocks = response.content.filter((b) => b.type === "tool_use");

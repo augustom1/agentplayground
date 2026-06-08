@@ -142,5 +142,28 @@ Write results to the vault when done. Return a clear summary of what you accompl
   const content = fullText.trim() || "Task completed.";
   const summary = content.slice(0, 200).replace(/\n+/g, " ");
 
+  // Archive result to Brain (fire-and-forget)
+  import("@/lib/brain/ingest").then(({ ingestToBrain }) =>
+    ingestToBrain({
+      content: `# Delegated Task: ${task.title}\nTeam: ${teamName}\n\n${content}`,
+      title: `Task Result: ${task.title}`,
+      source: `delegated-task:${taskId}`,
+      sourceType: "task-result",
+      metadata: { taskId, teamName, teamId: task.teamId, completedAt: new Date().toISOString() },
+    })
+  ).catch(() => {});
+
+  // Evaluate for protocol (fire-and-forget via Ollama qwen2.5:7b)
+  import("@/lib/optimizer/protocol-writer").then(({ evaluateAndWriteProtocol }) =>
+    evaluateAndWriteProtocol({
+      userId: "system",
+      userPrompt: userMessage,
+      assistantResponse: content,
+      toolsUsed: [],
+      inputTokens: totalInput,
+      outputTokens: totalOutput,
+    })
+  ).catch(() => {});
+
   return { taskId, content, summary, inputTokens: totalInput, outputTokens: totalOutput, provider: "anthropic", model: "claude-haiku-4-5-20251001" };
 }
