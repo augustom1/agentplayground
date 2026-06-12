@@ -416,7 +416,11 @@ footer.site{border-top:1px solid var(--border);padding:36px 0;font-size:14px;col
    reverse-proxyear a Ollama (http://127.0.0.1:11434/api/chat).
    NO exponer Ollama directo a internet. Ver INSTRUCCIONES_DEPLOY.md  */
 const CHATBOT_CONFIG = {
-  endpoint: "/api/chat",
+  // Relativo en el sitio publicado; absoluto al VPS si la página se abre
+  // local (file:// o localhost) — el vhost permite CORS solo en /api/chat.
+  endpoint: location.hostname === "guardtech.agentplayground.net"
+    ? "/api/chat"
+    : "https://guardtech.agentplayground.net/api/chat",
   model: "qwen2.5:3b",
   systemPrompt: [
     "Sos el asistente comercial de GuardTech Solutions, la empresa que desarrolla SensorGuard.",
