@@ -1,5 +1,5 @@
 # HANDOFF.md — Session State
-> Last updated: 2026-06-08 (Session 19)
+> Last updated: 2026-06-12 (Session 20)
 > Read this FIRST at every session start, before CLAUDE.md.
 > See `docs/PLAN.md` for the full open work list.
 > See `docs/SESSION-HISTORY.md` for full session archive.
@@ -29,8 +29,17 @@ App is **healthy** at `https://app.agentplayground.net`
 - **Admin system**: Seed Context, Index Docs, Overnight Knowledge Build
 - **Local LLM flywheel**: task classifier → Ollama routing → Brain archive → protocol writer
 - **SensorGuard demo**: API routes for playground-chat, seed-team, telegram
+- **GuardTech site**: `guardtech.agentplayground.net` — static company page + Ollama chatbot (qwen2.5:3b). CLEANUP after 2026-06-19 with sensorguard (branch `feature/sensorguard-demo`)
 
-### Last Session (Session 19 — 2026-06-08)
+### Last Session (Session 20 — 2026-06-12)
+- Deployed GuardTech Solutions company site (`web-empresa-sensorguard/` design) to `guardtech.agentplayground.net`
+- `sites/guardtech.conf`: vhost + `/api/chat` POST-only proxy → `ollama:11434` (Ollama never exposed via the vhost)
+- `docker-compose.prod.yml`: guardtech Traefik routers (mirrors sensorguard block)
+- Chatbot model set to `qwen2.5:3b` (llama3.2:3b not installed on VPS)
+- Verified: HTTPS + cert OK, HTTP→HTTPS redirect, chat responds in Spanish, GET /api/chat → 405, demo link → sensorguard
+- All committed to `feature/sensorguard-demo` — delete branch + `sites/guardtech.conf` + `webroot/guardtech/` + compose labels after semester (2026-06-19)
+
+### Session 19 — 2026-06-08
 - **DEPLOYED**: All sessions 17-18-19 changes (101 files) to VPS + container rebuilt
 - Local LLM flywheel fully connected: runner.ts classifies → routes to Ollama (confidence ≥72%) → fallback to Claude → archive to Brain → evaluateAndWriteProtocol
 - `delegated.ts`: delegated tasks archive to Brain + evaluate for local protocol
