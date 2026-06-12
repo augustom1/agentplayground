@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GuardTech Solutions — Mantenimiento predictivo IoT | SensorGuard</title>
+<meta name="description" content="GuardTech Solutions desarrolla SensorGuard: monitoreo IoT en tiempo real, alertas automáticas y gestión de mantenimiento para plantas industriales.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0D1117; --bg-alt:#161B22; --border:#21262D;
+  --accent:#00E083; --accent-2:#00B4D8; --danger:#FF4444; --warn:#F0B429;
+  --text:#F0F6FC; --text-dim:#9BA7B4;
+  --radius:12px; --container:1120px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.01ms !important;transition-duration:.01ms !important}
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.container{max-width:var(--container);margin:0 auto;padding:0 20px}
+a{color:var(--accent-2)}
+h1,h2,h3{line-height:1.2;font-weight:700}
+section{padding:72px 0}
+.section-tag{display:inline-block;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+.section-title{font-size:clamp(26px,4vw,38px);margin-bottom:14px;font-weight:800}
+.section-sub{color:var(--text-dim);max-width:640px;margin-bottom:40px}
+.icon{width:24px;height:24px;stroke:var(--accent);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+
+/* ===== Nav ===== */
+.nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(13,17,23,.88);backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;height:64px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;color:var(--text);text-decoration:none}
+.logo-mark{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center}
+.logo-mark svg{width:18px;height:18px;stroke:#0D1117;stroke-width:2.5;fill:none}
+.nav-links{display:none;gap:28px;list-style:none}
+.nav-links a{color:var(--text-dim);text-decoration:none;font-size:15px;font-weight:500;transition:color .2s}
+.nav-links a:hover,.nav-links a:focus-visible{color:var(--text)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:12px 24px;border-radius:10px;font-weight:600;font-size:15px;text-decoration:none;cursor:pointer;border:1px solid transparent;transition:transform .15s,background .2s,border-color .2s}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--accent);color:#04150C}
+.btn-primary:hover{background:#19F59B}
+.btn-ghost{border-color:var(--border);color:var(--text)}
+.btn-ghost:hover{border-color:var(--text-dim)}
+a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--accent-2);outline-offset:2px}
+@media(min-width:768px){.nav-links{display:flex}}
+
+/* ===== Hero ===== */
+.hero{padding:140px 0 80px}
+.hero-grid{display:grid;gap:48px;align-items:center}
+@media(min-width:1024px){.hero-grid{grid-template-columns:1.1fr 1fr}}
+.hero h1{font-size:clamp(34px,5.5vw,56px);font-weight:800;margin-bottom:18px}
+.hero h1 .hl{color:var(--accent)}
+.hero p{color:var(--text-dim);font-size:18px;max-width:540px;margin-bottom:30px}
+.hero-ctas{display:flex;flex-wrap:wrap;gap:14px}
+.hero-note{margin-top:18px;font-size:14px;color:var(--text-dim)}
+/* Dashboard mockup */
+.mock{background:var(--bg-alt);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:0 24px 60px rgba(0,0,0,.45)}
+.mock-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.mock-title{font-size:14px;font-weight:600}
+.mock-live{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--accent);font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.mock-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:480px){.mock-grid{grid-template-columns:repeat(3,1fr)}}
+.machine{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px}
+.machine .m-name{font-size:12px;color:var(--text-dim);margin-bottom:6px}
+.machine .m-val{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+.machine .m-state{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;margin-top:6px;padding:2px 8px;border-radius:99px}
+.st-ok{color:var(--accent);background:rgba(0,224,131,.1)}
+.st-warn{color:var(--warn);background:rgba(240,180,41,.12)}
+.st-crit{color:var(--danger);background:rgba(255,68,68,.12)}
+
+/* ===== Stats bar ===== */
+.stats{background:var(--bg-alt);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:36px 0}
+.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:28px;text-align:center}
+@media(min-width:768px){.stats-grid{grid-template-columns:repeat(4,1fr)}}
+.stat-num{font-size:clamp(26px,3.5vw,36px);font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums}
+.stat-label{font-size:14px;color:var(--text-dim);margin-top:4px}
+
+/* ===== Cards ===== */
+.cards{display:grid;gap:20px}
+@media(min-width:768px){.cards-3{grid-template-columns:repeat(3,1fr)}.cards-2{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1024px){.cards-6{grid-template-columns:repeat(3,1fr)}}
+.card{background:var(--bg-alt);border:1px solid var(--border);border-radius:var(--radius);padding:26px;transition:border-color .2s,transform .2s}
+.card:hover{border-color:#30363D;transform:translateY(-3px)}
+.card h3{font-size:18px;margin:14px 0 8px}
+.card p{color:var(--text-dim);font-size:15px}
+.card .icon-wrap{width:44px;height:44px;border-radius:10px;background:rgba(0,224,131,.08);display:flex;align-items:center;justify-content:center}
+
+/* ===== Steps ===== */
+.steps{display:grid;gap:18px;counter-reset:step}
+@media(min-width:768px){.steps{grid-template-columns:repeat(4,1fr)}}
+.step{background:var(--bg-alt);border:1px solid var(--border);border-radius:var(--radius);padding:24px;position:relative}
+.step-num{display:inline-flex;width:32px;height:32px;border-radius:50%;background:var(--accent);color:#04150C;font-weight:800;font-size:15px;align-items:center;justify-content:center;margin-bottom:12px}
+.step h3{font-size:16px;margin-bottom:6px}
+.step p{font-size:14px;color:var(--text-dim)}
+
+/* ===== ROI ===== */
+.roi-grid{display:grid;gap:20px}
+@media(min-width:768px){.roi-grid{grid-template-columns:1fr 1fr}}
+.roi-col{border-radius:var(--radius);padding:28px;border:1px solid var(--border)}
+.roi-before{background:rgba(255,68,68,.05)}
+.roi-after{background:rgba(0,224,131,.05);border-color:rgba(0,224,131,.25)}
+.roi-col h3{font-size:16px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.roi-col ul{list-style:none}
+.roi-col li{padding:9px 0;border-bottom:1px solid var(--border);font-size:15px;color:var(--text-dim)}
+.roi-col li:last-child{border-bottom:none}
+.roi-col li strong{color:var(--text)}
+.quote{margin-top:36px;background:var(--bg-alt);border-left:3px solid var(--accent);border-radius:0 var(--radius) var(--radius) 0;padding:24px 28px;font-size:17px;color:var(--text)}
+.quote footer{margin-top:10px;font-size:14px;color:var(--text-dim)}
+
+/* ===== Team ===== */
+.team-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+@media(min-width:768px){.team-grid{grid-template-columns:repeat(4,1fr)}}
+.member{text-align:center;background:var(--bg-alt);border:1px solid var(--border);border-radius:var(--radius);padding:26px 16px}
+.avatar{width:64px;height:64px;border-radius:50%;margin:0 auto 12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:#04150C}
+.member h3{font-size:15px}
+.member p{font-size:13px;color:var(--text-dim);margin-top:4px}
+
+/* ===== Contact ===== */
+.contact-box{background:var(--bg-alt);border:1px solid var(--border);border-radius:16px;padding:40px 28px;display:grid;gap:36px}
+@media(min-width:1024px){.contact-box{grid-template-columns:1fr 1fr;padding:48px}}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:14px;font-weight:500;margin-bottom:6px}
+.field input,.field textarea{width:100%;min-height:48px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:12px 14px;font:inherit;font-size:15px}
+.field textarea{min-height:110px;resize:vertical}
+.field input:focus,.field textarea:focus{border-color:var(--accent-2)}
+.form-msg{font-size:14px;margin-top:10px;min-height:20px}
+.form-msg.ok{color:var(--accent)}
+
+/* ===== Footer ===== */
+footer.site{border-top:1px solid var(--border);padding:36px 0;font-size:14px;color:var(--text-dim)}
+.footer-inner{display:flex;flex-wrap:wrap;gap:18px;justify-content:space-between;align-items:center}
+
+/* ===== Chatbot ===== */
+.chat-fab{position:fixed;right:20px;bottom:20px;z-index:200;width:60px;height:60px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 28px rgba(0,224,131,.35);transition:transform .15s}
+.chat-fab:hover{transform:scale(1.06)}
+.chat-fab svg{width:26px;height:26px;stroke:#04150C;stroke-width:2;fill:none}
+.chat-panel{position:fixed;right:20px;bottom:92px;z-index:200;width:min(360px,calc(100vw - 40px));height:480px;max-height:calc(100dvh - 120px);background:var(--bg-alt);border:1px solid var(--border);border-radius:16px;display:none;flex-direction:column;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.55)}
+.chat-panel.open{display:flex}
+.chat-head{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg)}
+.chat-head .t{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px}
+.chat-close{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:22px;line-height:1;padding:6px;min-width:36px;min-height:36px}
+.chat-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:85%;padding:10px 14px;border-radius:14px;font-size:14px;line-height:1.5;white-space:pre-wrap}
+.msg.bot{background:var(--bg);border:1px solid var(--border);align-self:flex-start;border-bottom-left-radius:4px}
+.msg.user{background:var(--accent);color:#04150C;align-self:flex-end;border-bottom-right-radius:4px;font-weight:500}
+.msg.typing{color:var(--text-dim);font-style:italic}
+.chat-input{display:flex;gap:8px;padding:12px;border-top:1px solid var(--border);background:var(--bg)}
+.chat-input input{flex:1;min-height:44px;background:var(--bg-alt);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:10px 14px;font:inherit;font-size:14px}
+.chat-input button{min-width:44px;min-height:44px;border-radius:10px;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.chat-input button:disabled{opacity:.45;cursor:default}
+.chat-input button svg{width:20px;height:20px;stroke:#04150C;stroke-width:2;fill:none}
+</style>
+</head>
+<body>
+
+<!-- ===== NAV ===== -->
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="logo" href="#top" aria-label="GuardTech Solutions — inicio">
+      <span class="logo-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="M8 12l3 3 5-6"/></svg></span>
+      GuardTech
+    </a>
+    <nav aria-label="Principal">
+      <ul class="nav-links">
+        <li><a href="#producto">Producto</a></li>
+        <li><a href="#como-funciona">Cómo funciona</a></li>
+        <li><a href="#resultados">Resultados</a></li>
+        <li><a href="#empresa">Empresa</a></li>
+        <li><a href="#contacto">Contacto</a></li>
+      </ul>
+    </nav>
+    <a class="btn btn-primary" href="https://sensorguard.agentplayground.net" target="_blank" rel="noopener">Ver demo en vivo</a>
+  </div>
+</header>
+
+<!-- ===== HERO ===== -->
+<main id="top">
+<section class="hero">
+  <div class="container hero-grid">
+    <div>
+      <h1>Sus máquinas <span class="hl">avisan antes de fallar</span>. SensorGuard escucha.</h1>
+      <p>Plataforma web de mantenimiento predictivo IoT: monitoreo en tiempo real, alertas automáticas en menos de 30 segundos y órdenes de mantenimiento integradas. Sin hardware adicional — funciona con los sensores que su planta ya tiene.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="https://sensorguard.agentplayground.net" target="_blank" rel="noopener">Probar la demo</a>
+        <a class="btn btn-ghost" href="#contacto">Agendar un piloto de 30 días</a>
+      </div>
+      <p class="hero-note">Implementación en horas, no en semanas · Solo requiere un navegador</p>
+    </div>
+    <div class="mock" role="img" aria-label="Vista del dashboard de SensorGuard con máquinas en estado normal, advertencia y crítico">
+      <div class="mock-head">
+        <span class="mock-title">SensorGuard · Planta MetalTech</span>
+        <span class="mock-live"><span class="dot" aria-hidden="true"></span> EN VIVO</span>
+      </div>
+      <div class="mock-grid">
+        <div class="machine"><div class="m-name">Torno CNC-01</div><div class="m-val">62.3°C</div><span class="m-state st-ok">● Normal</span></div>
+        <div class="machine"><div class="m-name">Fresadora F-04</div><div class="m-val">78.9°C</div><span class="m-state st-warn">▲ Advertencia</span></div>
+        <div class="machine"><div class="m-name">Prensa P-02</div><div class="m-val">91.5°C</div><span class="m-state st-crit">✕ Crítico</span></div>
+        <div class="machine"><div class="m-name">Torno CNC-02</div><div class="m-val">58.1°C</div><span class="m-state st-ok">● Normal</span></div>
+        <div class="machine"><div class="m-name">Soldadora S-01</div><div class="m-val">64.7°C</div><span class="m-state st-ok">● Normal</span></div>
+        <div class="machine"><div class="m-name">Plegadora PL-3</div><div class="m-val">60.2°C</div><span class="m-state st-ok">● Normal</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== STATS ===== -->
+<div class="stats">
+  <div class="container stats-grid">
+    <div><div class="stat-num">15%</div><div class="stat-label">del tiempo productivo se pierde por fallas imprevistas</div></div>
+    <div><div class="stat-num">$2.8M</div><div class="stat-label">pérdidas anuales típicas en una planta mediana</div></div>
+    <div><div class="stat-num">≤30s</div><div class="stat-label">desde la anomalía hasta la alerta al supervisor</div></div>
+    <div><div class="stat-num">99.5%</div><div class="stat-label">de disponibilidad garantizada, 24/7</div></div>
+  </div>
+</div>
+
+<!-- ===== PROBLEMA ===== -->
+<section id="problema">
+  <div class="container">
+    <span class="section-tag">El problema</span>
+    <h2 class="section-title">Las fallas no avisan. Hasta ahora.</h2>
+    <p class="section-sub">Relevamos plantas metalúrgicas reales: la mayoría sigue monitoreando máquinas críticas con planillas de papel y avisos por WhatsApp cuando ya es tarde.</p>
+    <div class="cards cards-3">
+      <div class="card">
+        <div class="icon-wrap"><svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/><line x1="2" y1="2" x2="22" y2="22"/></svg></div>
+        <h3>Cero visibilidad en tiempo real</h3>
+        <p>El estado de las máquinas se registra a mano al final de cada turno. Cuando alguien lee la planilla, el dato ya tiene horas de atraso.</p>
+      </div>
+      <div class="card">
+        <div class="icon-wrap"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="12"/><line x1="11" y1="15" x2="11.01" y2="15"/></svg></div>
+        <h3>Averías sin causa raíz</h3>
+        <p>Sin historial de lecturas no hay forma de analizar por qué falló una máquina ni de anticipar la próxima falla del mismo tipo.</p>
+      </div>
+      <div class="card">
+        <div class="icon-wrap"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <h3>Alertas que llegan tarde</h3>
+        <p>El aviso a mantenimiento llega por teléfono cuando la máquina ya se detuvo. Cada minuto de parada imprevista es dinero perdido.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== PRODUCTO ===== -->
+<section id="producto" style="background:var(--bg-alt);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+  <div class="container">
+    <span class="section-tag">El producto</span>
+    <h2 class="section-title">SensorGuard: datos que se convierten en decisiones</h2>
+    <p class="section-sub">Todo lo que el equipo de planta necesita para pasar del mantenimiento reactivo al predictivo, en una sola plataforma web.</p>
+    <div class="cards cards-6">
+      <div class="card" style="background:var(--bg)">
+        <div class="icon-wrap"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><polyline points="6 11 9 8 12 11 17 6"/></svg></div>
+        <h3>Dashboard en tiempo real</h3>
+        <p>Temperatura y vibración de cada máquina, actualizadas cada 10 segundos con semáforo verde / amarillo / rojo.</p>
+      </div>
+      <div class="card" style="background:var(--bg)">
+        <div class="icon-wrap"><svg class="icon" viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg></div>
+        <h3>Alertas automáticas</h3>
+        <p>Email al supervisor en menos de 30 segundos, con severidad clasificada: advertencia (80–95% del umbral) o crítico (≥95%).</p>
+      </div>
+      <div class="card" style="background:var(--bg)">
+        <div class="icon-wrap"><svg class="icon" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div>
+        <h3>Órdenes de mantenimiento</h3>
+        <p>Cada alerta puede convertirse en una orden de trabajo: creación, asignación de técnico y cierre con trazabilidad completa.</p>
+      </div>
+      <div class="card" style="background:var(--bg)">
+        <div class="icon-wrap"><svg class="icon" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 13l3-3 4 4 5-6"/></svg></div>
+        <h3>Historial y tendencias</h3>
+        <p>Historial completo de lecturas y fallas por máquina, filtrable por fechas. La base del análisis de causa raíz.</p>
+      </div>
+      <div class="card" style="background:var(--bg)">
+        <div class="icon-wrap"><svg class="icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></div>
+        <h3>Roles y permisos</h3>
+        <p>Operario (lectura), Supervisor (alertas y órdenes) y Gerente (reportes y configuración). Cada uno ve lo que necesita.</p>
+      </div>
+      <div class="card" style="background:var(--bg)">
+        <div class="icon-wrap"><svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="12" y2="11"/></svg></div>
+        <h3>Umbrales y reportes PDF</h3>
+        <p>Umbrales configurables por máquina sin programar, y reportes de fallas e inactividad exportables en un clic.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CÓMO FUNCIONA ===== -->
+<section id="como-funciona">
+  <div class="container">
+    <span class="section-tag">Cómo funciona</span>
+    <h2 class="section-title">De la lectura del sensor a la acción, en segundos</h2>
+    <p class="section-sub">Arquitectura simple sobre la infraestructura existente. Los sensores se integran vía HTTP REST, los datos viajan cifrados por HTTPS y se almacenan con AES-256.</p>
+    <div class="steps">
+      <div class="step"><span class="step-num">1</span><h3>El sensor mide</h3><p>Los sensores IoT de temperatura y vibración ya instalados envían sus lecturas a la API de SensorGuard.</p></div>
+      <div class="step"><span class="step-num">2</span><h3>La plataforma analiza</h3><p>Cada lectura se compara contra el umbral configurado para esa máquina y se almacena en el historial.</p></div>
+      <div class="step"><span class="step-num">3</span><h3>El sistema alerta</h3><p>Ante una anomalía, se clasifica la severidad y se notifica por email al supervisor en menos de 30 segundos.</p></div>
+      <div class="step"><span class="step-num">4</span><h3>El equipo actúa</h3><p>La alerta se convierte en orden de mantenimiento, se asigna a un técnico y queda trazada hasta su cierre.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== RESULTADOS ===== -->
+<section id="resultados" style="background:var(--bg-alt);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+  <div class="container">
+    <span class="section-tag">Resultados</span>
+    <h2 class="section-title">El retorno se ve en el primer trimestre</h2>
+    <div class="roi-grid">
+      <div class="roi-col roi-before">
+        <h3><svg class="icon" style="stroke:var(--danger)" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Mantenimiento reactivo</h3>
+        <ul>
+          <li><strong>4 a 6 fallas imprevistas</strong> por mes</li>
+          <li><strong>15% del tiempo productivo</strong> perdido en paradas</li>
+          <li>Aviso telefónico <strong>cuando la máquina ya falló</strong></li>
+          <li>Registro en papel, <strong>sin historial analizable</strong></li>
+        </ul>
+      </div>
+      <div class="roi-col roi-after">
+        <h3><svg class="icon" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Con SensorGuard</h3>
+        <ul>
+          <li>Anomalías detectadas <strong>24–72 h antes del fallo</strong></li>
+          <li>Reducción estimada del <strong>70% en fallas imprevistas</strong></li>
+          <li>Alerta clasificada por severidad <strong>en ≤30 segundos</strong></li>
+          <li>Historial completo para <strong>análisis de causa raíz</strong></li>
+        </ul>
+      </div>
+    </div>
+    <blockquote class="quote">
+      "Detectar una falla con 48 horas de anticipación cuesta cero. Detenerla cuando ya ocurrió cuesta miles en parada, reparación urgente y piezas rechazadas."
+      <footer>— Caso de implementación: MetalTech Argentina S.A., 18 máquinas monitoreadas</footer>
+    </blockquote>
+  </div>
+</section>
+
+<!-- ===== EMPRESA ===== -->
+<section id="empresa">
+  <div class="container">
+    <span class="section-tag">La empresa</span>
+    <h2 class="section-title">Quiénes somos</h2>
+    <p class="section-sub">GuardTech Solutions es un equipo de analistas de sistemas especializado en software para la industria. Creemos que el mantenimiento predictivo no puede ser un lujo de las grandes corporaciones: SensorGuard lo hace accesible para las PyMEs industriales.</p>
+    <div class="team-grid">
+      <div class="member"><div class="avatar" aria-hidden="true">YM</div><h3>Y. Marcano</h3><p>Análisis funcional y requerimientos</p></div>
+      <div class="member"><div class="avatar" aria-hidden="true">AM</div><h3>A. Meyer</h3><p>Backend e integración IoT</p></div>
+      <div class="member"><div class="avatar" aria-hidden="true">MT</div><h3>M. Tolaba</h3><p>UX, frontend y testing</p></div>
+      <div class="member"><div class="avatar" aria-hidden="true">SD</div><h3>S. De Vicenzo</h3><p>Documentación y gestión de proyecto</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CONTACTO ===== -->
+<section id="contacto" style="padding-bottom:90px">
+  <div class="container">
+    <div class="contact-box">
+      <div>
+        <span class="section-tag">Contacto</span>
+        <h2 class="section-title" style="font-size:clamp(24px,3.5vw,32px)">SensorGuard está listo. ¿Su planta también?</h2>
+        <p style="color:var(--text-dim);margin-bottom:20px">Si su planta tiene sensores instalados, podemos tener un piloto funcionando en menos de 30 días, con capacitación incluida y reportes de ROI a los 90 días.</p>
+        <p style="color:var(--text-dim);font-size:15px">
+          Email: <a href="mailto:augustojmeyer@gmail.com">augustojmeyer@gmail.com</a><br>
+          Demo: <a href="https://sensorguard.agentplayground.net" target="_blank" rel="noopener">sensorguard.agentplayground.net</a>
+        </p>
+      </div>
+      <form id="contact-form" novalidate>
+        <div class="field">
+          <label for="f-name">Nombre <span aria-hidden="true" style="color:var(--danger)">*</span></label>
+          <input id="f-name" name="name" type="text" autocomplete="name" required>
+        </div>
+        <div class="field">
+          <label for="f-email">Email <span aria-hidden="true" style="color:var(--danger)">*</span></label>
+          <input id="f-email" name="email" type="email" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="f-company">Empresa</label>
+          <input id="f-company" name="company" type="text" autocomplete="organization">
+        </div>
+        <div class="field">
+          <label for="f-msg">¿Qué necesita monitorear?</label>
+          <textarea id="f-msg" name="message"></textarea>
+        </div>
+        <button class="btn btn-primary" type="submit" style="width:100%">Solicitar piloto</button>
+        <p class="form-msg" id="form-msg" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="site">
+  <div class="container footer-inner">
+    <span>© 2026 GuardTech Solutions · SensorGuard® es un producto de GuardTech Solutions</span>
+    <span>Buenos Aires, Argentina · <a href="mailto:augustojmeyer@gmail.com">augustojmeyer@gmail.com</a></span>
+  </div>
+</footer>
+
+<!-- ===== CHATBOT ===== -->
+<button class="chat-fab" id="chat-fab" aria-label="Abrir chat de consultas" aria-expanded="false" aria-controls="chat-panel">
+  <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8z"/></svg>
+</button>
+<div class="chat-panel" id="chat-panel" role="dialog" aria-label="Asistente de GuardTech" aria-modal="false">
+  <div class="chat-head">
+    <span class="t"><span class="dot" aria-hidden="true"></span> Asistente GuardTech</span>
+    <button class="chat-close" id="chat-close" aria-label="Cerrar chat">×</button>
+  </div>
+  <div class="chat-body" id="chat-body" aria-live="polite"></div>
+  <form class="chat-input" id="chat-form">
+    <input id="chat-text" type="text" placeholder="Escribí tu consulta…" aria-label="Mensaje" autocomplete="off" maxlength="500">
+    <button type="submit" id="chat-send" aria-label="Enviar mensaje"><svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+  </form>
+</div>
+
+<script>
+/* ================= CONFIG DEL CHATBOT (OLLAMA) =================
+   El frontend llama a CHATBOT_CONFIG.endpoint, que el servidor debe
+   reverse-proxyear a Ollama (http://127.0.0.1:11434/api/chat).
+   NO exponer Ollama directo a internet. Ver INSTRUCCIONES_DEPLOY.md  */
+const CHATBOT_CONFIG = {
+  endpoint: "/api/chat",
+  model: "qwen2.5:3b",
+  systemPrompt: [
+    "Sos el asistente comercial de GuardTech Solutions, la empresa que desarrolla SensorGuard.",
+    "SensorGuard es un sistema web de mantenimiento predictivo IoT para plantas industriales:",
+    "- Dashboard en tiempo real (temperatura y vibración, actualización cada 10 segundos, semáforo verde/amarillo/rojo).",
+    "- Alertas automáticas por email al supervisor en menos de 30 segundos, con severidad ADVERTENCIA (80-95% del umbral) o CRÍTICO (>=95%).",
+    "- Gestión de órdenes de mantenimiento vinculadas a cada alerta.",
+    "- Historial de lecturas y fallas filtrable por fechas, 3 roles (Operario/Supervisor/Gerente), umbrales configurables por máquina y reportes PDF.",
+    "- Funciona con los sensores que la planta ya tiene, integrados vía HTTP REST. Solo requiere navegador. HTTPS y cifrado AES-256.",
+    "- Disponibilidad 99.5% garantizada. Soporta hasta 100 sensores.",
+    "Demo en vivo: sensorguard.agentplayground.net. Contacto: augustojmeyer@gmail.com.",
+    "Ofrecemos un piloto de 30 días con los sensores existentes del cliente.",
+    "Respondé SIEMPRE en español, en 2-4 oraciones, tono profesional y cordial.",
+    "Si preguntan por precios, explicá que se cotiza según cantidad de máquinas y ofrecé agendar una reunión por email.",
+    "Si no sabés algo, decilo y derivá al email de contacto. No inventes funcionalidades."
+  ].join("\n")
+};
+
+/* ===== Fallback sin conexión a Ollama ===== */
+function fallbackReply(text){
+  const t = text.toLowerCase();
+  if (/(precio|costo|cuanto|cuánto|tarifa|plan)/.test(t))
+    return "Los planes se cotizan según la cantidad de máquinas y sensores de su planta. Escribinos a augustojmeyer@gmail.com y coordinamos una reunión con una propuesta a medida.";
+  if (/(demo|prueba|probar|ver el sistema)/.test(t))
+    return "Podés ver la demo en vivo ahora mismo en sensorguard.agentplayground.net — es el sistema real funcionando. Y si tu planta tiene sensores instalados, ofrecemos un piloto de 30 días.";
+  if (/(sensor|hardware|instala|integra|plc|máquina|maquina)/.test(t))
+    return "SensorGuard funciona con los sensores de temperatura y vibración que tu planta ya tiene: se integran vía HTTP REST y solo necesitás un navegador. No vendemos hardware adicional.";
+  if (/(alerta|email|notifica)/.test(t))
+    return "Cuando una lectura supera el umbral configurado, SensorGuard clasifica la severidad y envía un email al supervisor en menos de 30 segundos. Cada alerta puede convertirse en una orden de mantenimiento.";
+  if (/(contacto|hablar|reunion|reunión|llamar)/.test(t))
+    return "Escribinos a augustojmeyer@gmail.com o dejá tus datos en el formulario de contacto y te respondemos a la brevedad.";
+  return "Gracias por tu consulta. SensorGuard es nuestra plataforma de mantenimiento predictivo IoT: monitoreo en tiempo real, alertas en ≤30s y gestión de mantenimiento. ¿Querés saber sobre la demo, la integración de sensores o los planes? También podés escribirnos a augustojmeyer@gmail.com.";
+}
+
+/* ===== Lógica del widget ===== */
+(function(){
+  const fab = document.getElementById("chat-fab");
+  const panel = document.getElementById("chat-panel");
+  const closeBtn = document.getElementById("chat-close");
+  const body = document.getElementById("chat-body");
+  const form = document.getElementById("chat-form");
+  const input = document.getElementById("chat-text");
+  const sendBtn = document.getElementById("chat-send");
+  const history = [];
+  let greeted = false;
+
+  function addMsg(text, who){
+    const div = document.createElement("div");
+    div.className = "msg " + who;
+    div.textContent = text;
+    body.appendChild(div);
+    body.scrollTop = body.scrollHeight;
+    return div;
+  }
+  function toggle(open){
+    panel.classList.toggle("open", open);
+    fab.setAttribute("aria-expanded", String(open));
+    if (open){
+      if (!greeted){
+        addMsg("¡Hola! Soy el asistente de GuardTech. Preguntame lo que quieras sobre SensorGuard: cómo funciona, la demo, la integración con tus sensores o cómo arrancar un piloto.", "bot");
+        greeted = true;
+      }
+      input.focus();
+    }
+  }
+  fab.addEventListener("click", () => toggle(!panel.classList.contains("open")));
+  closeBtn.addEventListener("click", () => toggle(false));
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && panel.classList.contains("open")) toggle(false); });
+
+  async function askOllama(userText){
+    history.push({ role: "user", content: userText });
+    const res = await fetch(CHATBOT_CONFIG.endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: CHATBOT_CONFIG.model,
+        stream: false,
+        messages: [{ role: "system", content: CHATBOT_CONFIG.systemPrompt }, ...history.slice(-8)]
+      })
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    const reply = data && data.message && data.message.content ? data.message.content.trim() : "";
+    if (!reply) throw new Error("empty");
+    history.push({ role: "assistant", content: reply });
+    return reply;
+  }
+
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = "";
+    addMsg(text, "user");
+    sendBtn.disabled = true;
+    const typing = addMsg("Escribiendo…", "bot typing");
+    try {
+      const reply = await askOllama(text);
+      typing.remove();
+      addMsg(reply, "bot");
+    } catch (err) {
+      typing.remove();
+      addMsg(fallbackReply(text), "bot");
+    } finally {
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  });
+})();
+
+/* ===== Formulario de contacto (placeholder: mailto) ===== */
+document.getElementById("contact-form").addEventListener("submit", function(e){
+  e.preventDefault();
+  const name = document.getElementById("f-name").value.trim();
+  const email = document.getElementById("f-email").value.trim();
+  const msgEl = document.getElementById("form-msg");
+  if (!name || !email || !/.+@.+\..+/.test(email)){
+    msgEl.textContent = "Completá tu nombre y un email válido.";
+    msgEl.className = "form-msg";
+    return;
+  }
+  const company = document.getElementById("f-company").value.trim();
+  const message = document.getElementById("f-msg").value.trim();
+  const subject = encodeURIComponent("Solicitud de piloto SensorGuard — " + (company || name));
+  const bodyTxt = encodeURIComponent("Nombre: " + name + "\nEmail: " + email + "\nEmpresa: " + company + "\n\n" + message);
+  window.location.href = "mailto:augustojmeyer@gmail.com?subject=" + subject + "&body=" + bodyTxt;
+  msgEl.textContent = "¡Gracias! Se abrió tu cliente de correo para enviar la solicitud.";
+  msgEl.className = "form-msg ok";
+});
+</script>
+</body>
+</html>

@@ -165,6 +165,16 @@ services:
       - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
       - traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true
       - traefik.http.routers.sensorguard-http.middlewares=redirect-to-https
+      # guardtech.DOMAIN router (empresa SensorGuard) — CLEANUP after 2026-06-19
+      - traefik.http.routers.guardtech.rule=Host(`guardtech.${DOMAIN}`)
+      - traefik.http.routers.guardtech.entrypoints=websecure
+      - traefik.http.routers.guardtech.tls=true
+      - traefik.http.routers.guardtech.tls.certresolver=le
+      - traefik.http.routers.guardtech.service=nginx
+      - traefik.http.routers.guardtech-http.rule=Host(`guardtech.${DOMAIN}`)
+      - traefik.http.routers.guardtech-http.entrypoints=web
+      - traefik.http.routers.guardtech-http.service=nginx
+      - traefik.http.routers.guardtech-http.middlewares=redirect-to-https
     networks:
       - default
       - proxy
