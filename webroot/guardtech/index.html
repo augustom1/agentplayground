@@ -26,6 +26,12 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 a{color:var(--accent-2)}
 h1,h2,h3{line-height:1.2;font-weight:700}
 section{padding:72px 0}
+section[id],#producto,#como-funciona,#resultados,#empresa,#contacto{scroll-margin-top:76px}
+@media(max-width:767px){
+  section{padding:52px 0}
+  .hero{padding:104px 0 52px}
+  .section-sub{margin-bottom:28px}
+}
 .section-tag{display:inline-block;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
 .section-title{font-size:clamp(26px,4vw,38px);margin-bottom:14px;font-weight:800}
 .section-sub{color:var(--text-dim);max-width:640px;margin-bottom:40px}
@@ -40,6 +46,19 @@ section{padding:72px 0}
 .nav-links{display:none;gap:28px;list-style:none}
 .nav-links a{color:var(--text-dim);text-decoration:none;font-size:15px;font-weight:500;transition:color .2s}
 .nav-links a:hover,.nav-links a:focus-visible{color:var(--text)}
+.nav-actions{display:flex;align-items:center;gap:10px}
+.nav-toggle{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;background:none;border:1px solid var(--border);border-radius:10px;cursor:pointer;color:var(--text)}
+.nav-toggle svg{width:22px;height:22px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round}
+.nav-toggle .ico-close{display:none}
+.nav-toggle[aria-expanded="true"] .ico-open{display:none}
+.nav-toggle[aria-expanded="true"] .ico-close{display:block}
+@media(max-width:767px){
+  .nav-links.open{display:flex;flex-direction:column;gap:0;position:absolute;top:64px;left:0;right:0;background:rgba(13,17,23,.97);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:8px 20px 14px}
+  .nav-links.open a{display:block;padding:13px 0;font-size:16px;border-bottom:1px solid var(--border)}
+  .nav-links.open li:last-child a{border-bottom:none}
+  .nav .btn{min-height:44px;padding:10px 12px;font-size:13px;white-space:nowrap}
+  .nav .logo{font-size:16px}
+}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:12px 24px;border-radius:10px;font-weight:600;font-size:15px;text-decoration:none;cursor:pointer;border:1px solid transparent;transition:transform .15s,background .2s,border-color .2s}
 .btn:active{transform:scale(.97)}
 .btn-primary{background:var(--accent);color:#04150C}
@@ -47,7 +66,7 @@ section{padding:72px 0}
 .btn-ghost{border-color:var(--border);color:var(--text)}
 .btn-ghost:hover{border-color:var(--text-dim)}
 a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--accent-2);outline-offset:2px}
-@media(min-width:768px){.nav-links{display:flex}}
+@media(min-width:768px){.nav-links{display:flex}.nav-toggle{display:none}}
 
 /* ===== Hero ===== */
 .hero{padding:140px 0 80px}
@@ -58,6 +77,11 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{
 .hero p{color:var(--text-dim);font-size:18px;max-width:540px;margin-bottom:30px}
 .hero-ctas{display:flex;flex-wrap:wrap;gap:14px}
 .hero-note{margin-top:18px;font-size:14px;color:var(--text-dim)}
+@media(max-width:480px){
+  .hero-ctas{flex-direction:column}
+  .hero-ctas .btn{width:100%}
+  .hero p{font-size:16px}
+}
 /* Dashboard mockup */
 .mock{background:var(--bg-alt);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:0 24px 60px rgba(0,0,0,.45)}
 .mock-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
@@ -156,6 +180,10 @@ footer.site{border-top:1px solid var(--border);padding:36px 0;font-size:14px;col
 .chat-input button{min-width:44px;min-height:44px;border-radius:10px;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .chat-input button:disabled{opacity:.45;cursor:default}
 .chat-input button svg{width:20px;height:20px;stroke:#04150C;stroke-width:2;fill:none}
+@media(max-width:480px){
+  .chat-fab{right:14px;bottom:14px}
+  .chat-panel{left:12px;right:12px;bottom:86px;width:auto;height:min(480px,calc(100dvh - 104px))}
+}
 </style>
 </head>
 <body>
@@ -168,7 +196,7 @@ footer.site{border-top:1px solid var(--border);padding:36px 0;font-size:14px;col
       GuardTech
     </a>
     <nav aria-label="Principal">
-      <ul class="nav-links">
+      <ul class="nav-links" id="nav-menu">
         <li><a href="#producto">Producto</a></li>
         <li><a href="#como-funciona">Cómo funciona</a></li>
         <li><a href="#resultados">Resultados</a></li>
@@ -176,7 +204,13 @@ footer.site{border-top:1px solid var(--border);padding:36px 0;font-size:14px;col
         <li><a href="#contacto">Contacto</a></li>
       </ul>
     </nav>
-    <a class="btn btn-primary" href="https://sensorguard.agentplayground.net" target="_blank" rel="noopener">Ver demo en vivo</a>
+    <div class="nav-actions">
+      <a class="btn btn-primary" href="https://sensorguard.agentplayground.net" target="_blank" rel="noopener">Ver demo en vivo</a>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="nav-menu">
+        <svg class="ico-open" viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        <svg class="ico-close" viewBox="0 0 24 24" aria-hidden="true"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+      </button>
+    </div>
   </div>
 </header>
 
@@ -411,6 +445,23 @@ footer.site{border-top:1px solid var(--border);padding:36px 0;font-size:14px;col
 </div>
 
 <script>
+/* ===== Menú móvil ===== */
+(function(){
+  const toggle = document.getElementById("nav-toggle");
+  const menu = document.getElementById("nav-menu");
+  function setOpen(open){
+    menu.classList.toggle("open", open);
+    toggle.setAttribute("aria-expanded", String(open));
+    toggle.setAttribute("aria-label", open ? "Cerrar menú" : "Abrir menú");
+  }
+  toggle.addEventListener("click", () => setOpen(!menu.classList.contains("open")));
+  menu.addEventListener("click", e => { if (e.target.closest("a")) setOpen(false); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") setOpen(false); });
+  document.addEventListener("click", e => {
+    if (menu.classList.contains("open") && !e.target.closest(".nav")) setOpen(false);
+  });
+})();
+
 /* ================= CONFIG DEL CHATBOT (OLLAMA) =================
    El frontend llama a CHATBOT_CONFIG.endpoint, que el servidor debe
    reverse-proxyear a Ollama (http://127.0.0.1:11434/api/chat).
