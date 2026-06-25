@@ -5,12 +5,21 @@
  * Admin-only.
  */
 export const dynamic = "force-dynamic";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { auth } from "@/auth";
 import { apiError } from "@/lib/api-error";
 import { ingestToBrain } from "@/lib/brain/ingest";
+
+async function isAuthorized(request: NextRequest): Promise<boolean> {
+  const authHeader = request.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ") && process.env.CRON_SECRET) {
+    return authHeader === `Bearer ${process.env.CRON_SECRET}`;
+  }
+  const session = await auth();
+  return !!(session?.user && (session.user as { role?: string }).role === "admin");
+}
 
 // Docs to index relative to project root
 const DOC_PATHS = [
@@ -27,6 +36,11 @@ const DOC_PATHS = [
 const DOC_DIRS = [
   "docs/reports",
   "docs/features",
+  "docs/context",
+  "docs/context/business",
+  "docs/context/dev",
+  "docs/context/agents",
+  "docs/context/personal",
 ];
 
 const PROJECT_ROOT = process.cwd();
@@ -39,11 +53,8 @@ function collectMarkdownFiles(dir: string): string[] {
     .map((f) => path.join(dir, f));
 }
 
-export async function POST() {
-  const session = await auth();
-  if (!session?.user || (session.user as { role?: string }).role !== "admin") {
-    return apiError("Admin access required", 403);
-  }
+export async function POST(request: NextRequest) {
+  if (!(await isAuthorized(request))) return apiError("Admin access required", 403);
 
   const results: Array<{ path: string; status: "indexed" | "skipped" | "error"; docId?: string; error?: string }> = [];
 
@@ -104,11 +115,8 @@ export async function POST() {
   });
 }
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user || (session.user as { role?: string }).role !== "admin") {
-    return apiError("Admin access required", 403);
-  }
+export async function GET(request: NextRequest) {
+  if (!(await isAuthorized(request))) return apiError("Admin access required", 403);
 
   // Return what would be indexed, without actually doing it
   const allPaths = [

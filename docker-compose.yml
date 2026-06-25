@@ -77,7 +77,6 @@ services:
       - filedata:/app/data/files
       - vaultdata:/var/syncthing/vault
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./webroot/sensorguard:/data/sensorguard
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
       interval: 30s

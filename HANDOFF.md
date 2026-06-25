@@ -1,5 +1,5 @@
 # HANDOFF.md — Session State
-> Last updated: 2026-06-12 (Session 20)
+> Last updated: 2026-06-25 (Session 21 — SensorGuard cleanup + desktop pivot start)
 > Read this FIRST at every session start, before CLAUDE.md.
 > See `docs/PLAN.md` for the full open work list.
 > See `docs/SESSION-HISTORY.md` for full session archive.
@@ -28,16 +28,18 @@ App is **healthy** at `https://app.agentplayground.net`
 - **Personal OS pages**: `/cv`, `/learn`, `/notes` — Brain-indexed context
 - **Admin system**: Seed Context, Index Docs, Overnight Knowledge Build
 - **Local LLM flywheel**: task classifier → Ollama routing → Brain archive → protocol writer
-- **SensorGuard demo**: API routes for playground-chat, seed-team, telegram
-- **GuardTech site**: `guardtech.agentplayground.net` — static company page + Ollama chatbot (qwen2.5:3b). CLEANUP after 2026-06-19 with sensorguard (branch `feature/sensorguard-demo`)
 
-### Last Session (Session 20 — 2026-06-12)
-- Deployed GuardTech Solutions company site (`web-empresa-sensorguard/` design) to `guardtech.agentplayground.net`
-- `sites/guardtech.conf`: vhost + `/api/chat` POST-only proxy → `ollama:11434` (Ollama never exposed via the vhost)
-- `docker-compose.prod.yml`: guardtech Traefik routers (mirrors sensorguard block)
-- Chatbot model set to `qwen2.5:3b` (llama3.2:3b not installed on VPS)
-- Verified: HTTPS + cert OK, HTTP→HTTPS redirect, chat responds in Spanish, GET /api/chat → 405, demo link → sensorguard
-- All committed to `feature/sensorguard-demo` — delete branch + `sites/guardtech.conf` + `webroot/guardtech/` + compose labels after semester (2026-06-19)
+### Last Session (Session 21 — 2026-06-25) — SensorGuard Cleanup
+- Cleaned up `feature/sensorguard-demo` branch and merged to master
+- Deleted: `app/api/sensorguard/`, `lib/sensorguard-demo.ts`, `web-empresa-sensorguard/`, `webroot/sensorguard/`, `webroot/guardtech/`, `sites/sensorguard.conf`, `sites/guardtech.conf`
+- Removed GuardTech/SensorGuard Traefik labels from `docker-compose.prod.yml`
+- Removed sensorguard volume mount from `docker-compose.yml`
+- Removed sensorguard auth bypass from `middleware.ts`
+- Removed `edit_demo_file` tool from playground messages route
+- VPS cleanup: removed guardtech.conf, webroot/guardtech/, webroot/sensorguard/, sensorguard.conf via SSH
+- Rebuilt dashboard container with `--no-cache`
+- Branch `feature/sensorguard-demo` deleted locally and remotely
+- **Desktop app pivot begins** — see `docs/pivot/` for the 8-session plan
 
 ### Session 19 — 2026-06-08
 - **DEPLOYED**: All sessions 17-18-19 changes (101 files) to VPS + container rebuilt
@@ -54,20 +56,26 @@ App is **healthy** at `https://app.agentplayground.net`
 
 ## Next Session Priorities
 
-**Run these in order from /admin/system:**
-1. "Seed Context Now" — loads brain context docs + creates 8 pending actions
-2. "Index Docs Now" — indexes all project docs into Brain
-3. "Run Overnight Tasks" — qwen2.5:7b documents codebase + writes protocols (runs in background)
+### ⚡ PIVOT IN PROGRESS — Desktop App (Session 1 next)
+Full pivot plan at `docs/pivot/` (8 files). Summary: AgentPlayground becomes a downloadable open-source desktop app. Read `docs/pivot/00-OVERVIEW.md` first.
 
-**Then open Chat** — coordinator will show pending actions and walk you through: CV info, ARQ account, Monotributo details.
+**Pre-requisite DONE:** SensorGuard cleanup complete (Session 21). Master is clean.
 
-**Feature work (priority order):**
-1. Blog auto-generation page (`/blog/generate`)
-2. CV subdomain (`cv.agentplayground.net` or `/public/cv/[username]`)
-3. Crypto billing agents (blocked on ARQ account info from user)
-4. Job application agents (`/jobs` page)
-5. LLM Provider Settings UI (`/settings/providers`)
-6. Admin Monitoring Panel (DB size, task volumes, Ollama status)
+**Revised approach (simpler):** VPS app IS the desktop app — same codebase, packaged for Docker download. No separate repo yet. Addons + monetization come after public launch + traction.
+
+**Prompt schedule** (exact prompts to paste each session): `docs/pivot/PROMPT-SCHEDULE.md`
+
+**Session order:**
+1. ~~Session 0 — Sensorguard cleanup~~ ✅ Done (Session 21)
+2. Session 1 — Nav cleanup + hub endpoints + License schema (2-3 hrs)
+3. Session 2 — First-run wizard /setup (2-3 hrs)
+4. Session 3A — Multi-workspace tabs: data layer (2-3 hrs)
+5. Session 3B — Multi-workspace tabs: live status + agent awareness (2-3 hrs)
+6. Session 4 — Docker packaging + installer scripts (2-3 hrs)
+7. Session 5 — Download page on agentplayground.net (2-3 hrs)
+8. Session 6 — Polish + GitHub release (1-2 hrs)
+
+See `docs/pivot/07-SESSIONS.md` for rationale + scope.
 
 See `docs/PLAN.md` for full detail.
 
@@ -147,5 +155,7 @@ User → Coordinator (25 tool iterations)
 | 15 | Project status dashboard, Telegram bidirectional + group notifications, live widget data |
 | 16 | Hotfix: slug conflict `[teamId]`→`[id]`; deploy protocol doc |
 | 17 | Documentation restructure, session reports system, generate_session_report tool |
+| 18–20 | Personal OS pages (CV/learn/notes), Local LLM flywheel, SensorGuard demo, GuardTech site |
+| 21 | SensorGuard cleanup: deleted demo code, VPS cleanup, merged to master, desktop pivot begins |
 
 Full history → `docs/SESSION-HISTORY.md`

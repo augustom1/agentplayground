@@ -7,7 +7,6 @@ import { URL } from "url";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
 import { auth } from "@/auth";
-import { editDemoFile } from "@/lib/sensorguard-demo";
 
 type Params = { params: Promise<{ id: string; threadId: string }> };
 
@@ -108,20 +107,6 @@ async function routeMessage(team: { name: string; config: TeamConfig }, agents: 
 
 // ── Agent call — Anthropic ────────────────────────────────────────────────────
 
-const EDIT_DEMO_TOOL: Anthropic.Tool = {
-  name: "edit_demo_file",
-  description: "Edit the SensorGuard demo HTML file on the VPS. Use this to change user names, sensor data, alerts, or any content in the demo dashboard.",
-  input_schema: {
-    type: "object" as const,
-    properties: {
-      search: { type: "string", description: "Exact text to find in the file" },
-      replace: { type: "string", description: "Text to replace it with" },
-      description: { type: "string", description: "Short description of what this change does" },
-    },
-    required: ["search", "replace", "description"],
-  },
-};
-
 async function callAnthropic(
   agent: AgentInfo,
   team: { name: string; config: TeamConfig },
@@ -147,31 +132,12 @@ async function callAnthropic(
 
   try {
     const client = new Anthropic({ apiKey });
-
-    // Use tool use so agents can edit the demo
     const response = await client.messages.create({
       model,
       max_tokens: 2048,
       system: systemPrompt,
-      tools: [EDIT_DEMO_TOOL],
-      tool_choice: { type: "auto" },
       messages: [...historyMessages, { role: "user", content: userMessage }],
     });
-
-    // If agent wants to use the edit_demo_file tool
-    const toolUse = response.content.find((b) => b.type === "tool_use");
-    if (toolUse && toolUse.type === "tool_use" && toolUse.name === "edit_demo_file") {
-      const input = toolUse.input as { search: string; replace: string; description: string };
-
-      // Apply the edit via our API endpoint
-      const editData = await editDemoFile(input.search, input.replace);
-      if (editData.ok) {
-        return `Edicion aplicada: ${input.description}\n\nBuscado: "${input.search}"\nReemplazado por: "${input.replace}"`;
-      } else {
-        return `No pude aplicar el cambio: ${editData.error ?? "Error desconocido"}.\n\nPodés aplicarlo manualmente:\n\nBuscar: "${input.search}"\nReemplazar con: "${input.replace}"`;
-      }
-    }
-
     const text = response.content.find((b) => b.type === "text")?.text ?? "";
     return text;
   } catch (err) {

@@ -24,8 +24,15 @@ Thumbs.db
 .env.*.local
 
 # ── Docs ──
+# Exclude root-level .md files (dev docs, not needed at runtime)
 *.md
 !README.md
+# Re-include docs/ directory — needed by index-docs endpoint at runtime
+!docs/
+!docs/**
+# Re-include root context files read by index-docs
+!CLAUDE.md
+!HANDOFF.md
 
 # ── Docker ──
 Dockerfile

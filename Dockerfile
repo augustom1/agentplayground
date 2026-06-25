@@ -56,8 +56,13 @@ COPY --from=builder /app/node_modules    ./node_modules
 COPY --from=builder /app/prisma          ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 
-# Create writable data directories
-RUN mkdir -p /app/data/files /app/data/protocols && \
+# Copy docs + root context files so index-docs can read them at runtime
+COPY --from=builder --chown=nextjs:nodejs /app/docs ./docs
+COPY --from=builder --chown=nextjs:nodejs /app/CLAUDE.md ./CLAUDE.md
+COPY --from=builder --chown=nextjs:nodejs /app/HANDOFF.md ./HANDOFF.md
+
+# Create writable data directories (blog needed for future blog post writes)
+RUN mkdir -p /app/data/files /app/data/protocols /app/data/blog && \
     chown -R nextjs:nodejs /app/data
 
 # Copy entrypoint — runs as root so it can fix volume permissions at startup
