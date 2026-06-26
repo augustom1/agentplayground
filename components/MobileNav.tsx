@@ -54,7 +54,7 @@ export function MobileNav() {
         { href: "/server",    label: "Server",          icon: Server },
         { href: "/websites",  label: "Websites",        icon: Globe },
         { href: "/tools",     label: "Apps & Tools",    icon: Wrench },
-        { href: "/connect",   label: "Integrations",    icon: Link2 },
+        ...(isAdmin ? [{ href: "/connect", label: "Integrations", icon: Link2 }] : []),
         { href: "/blog",      label: "Blog",            icon: BookOpen },
       ],
     },

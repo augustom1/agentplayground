@@ -974,6 +974,21 @@ model PendingAction {
   @@map("pending_actions")
 }
 
+// ─── Licenses ─────────────────────────────────────────
+// Desktop app license keys. plan: "community" | "custom-build" | "vps-hosted"
+
+model License {
+  id        String    @id @default(cuid())
+  key       String    @unique
+  plan      String    // community | custom-build | vps-hosted
+  userEmail String
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userEmail])
+  @@map("licenses")
+}
+
 // ─── User Notes (Context Dumps) ──────────────────────
 // User-created notes with categories. Indexed into Brain on demand.
 // Categories map to agent teams: cv → CV Advisory, business → Business, etc.

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BarChart3, Activity, Users, Bot, Server, ChevronRight,
+  BarChart3, Activity, Users, Bot, Server, ChevronRight, Key,
 } from "lucide-react";
 
 const NAV = [
@@ -12,6 +12,7 @@ const NAV = [
   { href: "/admin/users",       label: "Users",       icon: Users,     live: false },
   { href: "/admin/agents",      label: "Agents",      icon: Bot,       live: false },
   { href: "/admin/system",      label: "System",      icon: Server,    live: false },
+  { href: "/admin/licenses",    label: "Licenses",    icon: Key,       live: true  },
 ];
 
 export default function AdminSidebar() {

@@ -19,6 +19,8 @@ import { useTheme } from "@/components/ThemeProvider";
 type Conversation = { id: string; title: string; updatedAt: string };
 type Tab = "chat" | "teams" | "brain";
 
+const ADMIN_ONLY_PATHS = new Set(["/overview", "/notes", "/cv", "/learn", "/connect"]);
+
 const TAB_NAV: Record<Tab, Array<{ href: string; label: string; icon: React.ComponentType<{ size?: number }> }>> = {
   chat: [
     { href: "/actions",    label: "Actions",     icon: AlertCircle },
@@ -424,7 +426,7 @@ export function Sidebar() {
           padding: collapsed ? "0 6px 8px" : "0 8px 8px",
         }}
       >
-        {TAB_NAV[activeTab].map(item => (
+        {TAB_NAV[activeTab].filter(item => !ADMIN_ONLY_PATHS.has(item.href) || isAdmin).map(item => (
           <NavItem
             key={item.href}
             href={item.href}

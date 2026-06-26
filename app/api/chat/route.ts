@@ -11,6 +11,17 @@ import { evaluateAndWriteProtocol } from "@/lib/optimizer/protocol-writer";
 import { searchVault, getDailyNotes, writeVaultNote } from "@/lib/brain";
 import { getUserCredits, deductCredits } from "@/lib/credits";
 
+// ─── API key resolver — env first, then AgentMemory ──────────────────────────
+async function getEffectiveApiKey(name: string): Promise<string | undefined> {
+  const envVal = process.env[name];
+  if (envVal) return envVal;
+  const mem = await prisma.agentMemory.findFirst({
+    where: { ownerType: "system", ownerId: name },
+    select: { content: true },
+  });
+  return mem?.content ?? undefined;
+}
+
 // ─── System Prompts ────────────────────────────────────────────────────────────
 
 const BASE_SYSTEM = `You are the AgentPlayground AI — the core intelligence of a self-improving autonomous agent platform.
@@ -279,9 +290,9 @@ async function streamAnthropic(
   controller: ReadableStreamDefaultController,
   encoder: TextEncoder
 ): Promise<{ inputTokens: number; outputTokens: number; webSearchCalls: number; webBrowseCalls: number; responseText: string; toolsUsed: string[] }> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = await getEffectiveApiKey("ANTHROPIC_API_KEY");
   if (!apiKey) {
-    controller.enqueue(encoder.encode("ANTHROPIC_API_KEY is not set. Add it to .env.local."));
+    controller.enqueue(encoder.encode("ANTHROPIC_API_KEY is not set. Add it in Settings → API Keys or .env.local."));
     return { inputTokens: 0, outputTokens: 0, webSearchCalls: 0, webBrowseCalls: 0, responseText: "", toolsUsed: [] };
   }
 
@@ -372,11 +383,11 @@ async function streamOpenAI(
   controller: ReadableStreamDefaultController,
   encoder: TextEncoder
 ) {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = await getEffectiveApiKey("OPENAI_API_KEY");
   if (!apiKey) {
     controller.enqueue(
       encoder.encode(
-        "OPENAI_API_KEY is not set. Add it to .env.local.\n\nSwitch to Anthropic or configure your OpenAI key to use GPT models."
+        "OPENAI_API_KEY is not set. Add it in Settings → API Keys or .env.local.\n\nSwitch to Anthropic or configure your OpenAI key to use GPT models."
       )
     );
     return;

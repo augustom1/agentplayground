@@ -4,6 +4,7 @@ import { BillingSection } from "@/components/BillingSection";
 import { ApiKeySection } from "@/components/ApiKeySection";
 import { CreditsAdminPanel } from "@/components/CreditsAdminPanel";
 import { TelegramSettings } from "@/components/TelegramSettings";
+import { UserApiKeysSection } from "@/components/UserApiKeysSection";
 import { auth } from "@/auth";
 
 function EnvRow({
@@ -242,6 +243,9 @@ export default async function SettingsPage() {
           ))}
         </div>
       </div>
+
+      {/* User API Keys */}
+      <UserApiKeysSection />
 
       {/* MCP API Key */}
       <ApiKeySection appUrl={process.env.NEXT_PUBLIC_APP_URL || "https://app.agentplayground.net"} />

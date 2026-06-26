@@ -1,5 +1,5 @@
 # HANDOFF.md — Session State
-> Last updated: 2026-06-25 (Session 21 — SensorGuard cleanup + desktop pivot start)
+> Last updated: 2026-06-26 (Session 22 — Nav gating, API Keys settings, License model, version endpoint)
 > Read this FIRST at every session start, before CLAUDE.md.
 > See `docs/PLAN.md` for the full open work list.
 > See `docs/SESSION-HISTORY.md` for full session archive.
@@ -25,11 +25,26 @@ App is **healthy** at `https://app.agentplayground.net`
 - PWA: manifest, icons, installable
 - Design System v3: charcoal `#1a1a1a`, rust logo `#D4715A`, neutral palette
 - **Actions system**: PendingAction model, `/actions` page, create/dismiss/list tools
-- **Personal OS pages**: `/cv`, `/learn`, `/notes` — Brain-indexed context
+- **Personal OS pages**: `/cv`, `/learn`, `/notes` — Brain-indexed context, admin-only nav links
+- **Nav gating**: `/overview`, `/notes`, `/cv`, `/learn`, `/connect` hidden for non-admin users
+- **API Keys settings**: Users can set ANTHROPIC_API_KEY / OPENAI_API_KEY in Settings UI (stored in AgentMemory)
+- **License model**: `licenses` table — plan, userEmail, key (UUID), expiresAt
+- **Version endpoint**: `GET /api/version` — public, no auth — `{ version, downloadUrl, changelog }`
+- **Admin Licenses**: `/admin/licenses` — create/revoke license keys
 - **Admin system**: Seed Context, Index Docs, Overnight Knowledge Build
 - **Local LLM flywheel**: task classifier → Ollama routing → Brain archive → protocol writer
 
-### Last Session (Session 21 — 2026-06-25) — SensorGuard Cleanup
+### Last Session (Session 22 — 2026-06-26) — Desktop App Session 1
+- **Nav gating**: `/overview`, `/notes`, `/cv`, `/learn`, `/connect` hidden from non-admin users in Sidebar + MobileNav
+- **API Keys settings**: `UserApiKeysSection` component + `GET/POST /api/settings/api-keys` → stores keys in AgentMemory (ownerType=system)
+- **Chat route**: Falls back to AgentMemory for ANTHROPIC_API_KEY + OPENAI_API_KEY when env vars not set
+- **License model**: Added to `prisma/schema.prisma`, table created on VPS (`licenses`)
+- **Version endpoint**: `GET /api/version` → `{ version, downloadUrl, changelog }` — no auth required
+- **Admin Licenses page**: `/admin/licenses` — list, create (auto-UUID key), revoke. API at `/api/admin/licenses`
+- **AdminSidebar**: Added Licenses nav item with Key icon
+- Deploy: SCP + no-cache rebuild + db push (docker cp schema workaround needed — cached layer issue)
+
+### Session 21 (2026-06-25) — SensorGuard Cleanup
 - Cleaned up `feature/sensorguard-demo` branch and merged to master
 - Deleted: `app/api/sensorguard/`, `lib/sensorguard-demo.ts`, `web-empresa-sensorguard/`, `webroot/sensorguard/`, `webroot/guardtech/`, `sites/sensorguard.conf`, `sites/guardtech.conf`
 - Removed GuardTech/SensorGuard Traefik labels from `docker-compose.prod.yml`
@@ -56,10 +71,8 @@ App is **healthy** at `https://app.agentplayground.net`
 
 ## Next Session Priorities
 
-### ⚡ PIVOT IN PROGRESS — Desktop App (Session 1 next)
+### ⚡ PIVOT IN PROGRESS — Desktop App (Session 2 next)
 Full pivot plan at `docs/pivot/` (8 files). Summary: AgentPlayground becomes a downloadable open-source desktop app. Read `docs/pivot/00-OVERVIEW.md` first.
-
-**Pre-requisite DONE:** SensorGuard cleanup complete (Session 21). Master is clean.
 
 **Revised approach (simpler):** VPS app IS the desktop app — same codebase, packaged for Docker download. No separate repo yet. Addons + monetization come after public launch + traction.
 
@@ -67,7 +80,7 @@ Full pivot plan at `docs/pivot/` (8 files). Summary: AgentPlayground becomes a d
 
 **Session order:**
 1. ~~Session 0 — Sensorguard cleanup~~ ✅ Done (Session 21)
-2. Session 1 — Nav cleanup + hub endpoints + License schema (2-3 hrs)
+2. ~~Session 1 — Nav cleanup + hub endpoints + License schema~~ ✅ Done (Session 22)
 3. Session 2 — First-run wizard /setup (2-3 hrs)
 4. Session 3A — Multi-workspace tabs: data layer (2-3 hrs)
 5. Session 3B — Multi-workspace tabs: live status + agent awareness (2-3 hrs)
