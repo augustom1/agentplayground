@@ -1,0 +1,46 @@
+services:
+  app:
+    image: augustojmd/agentplayground:latest
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file:
+      - .env.local
+    environment:
+      DATABASE_URL: postgresql://agentplayground:agentplayground@postgres:5432/agentplayground
+      REDIS_URL: redis://redis:6379
+      NEXTAUTH_URL: http://localhost:3000
+      AUTH_TRUST_HOST: "true"
+    volumes:
+      - app_data:/app/data
+    restart: unless-stopped
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: agentplayground
+      POSTGRES_PASSWORD: agentplayground
+      POSTGRES_DB: agentplayground
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentplayground"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  app_data:
+  postgres_data:
+  redis_data:

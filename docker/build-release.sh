@@ -1,0 +1,17 @@
+#!/bin/bash
+# Image: augustojmd/agentplayground
+VERSION="0.1.0"
+FOLDER="agentplayground-v${VERSION}"
+mkdir -p "$FOLDER"
+cp docker/docker-compose.yml "$FOLDER/"
+cp docker/docker-compose.ollama.yml "$FOLDER/"
+cp docker/.env.example "$FOLDER/"
+cp docker/start.bat "$FOLDER/"
+cp docker/start.sh "$FOLDER/"
+cp docker/stop.bat "$FOLDER/"
+cp docker/stop.sh "$FOLDER/"
+cp INSTALL.md "$FOLDER/"
+chmod +x "$FOLDER/start.sh" "$FOLDER/stop.sh"
+zip -r "${FOLDER}.zip" "$FOLDER"
+rm -rf "$FOLDER"
+echo "Created ${FOLDER}.zip"
