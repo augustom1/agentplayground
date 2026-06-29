@@ -31,10 +31,11 @@ model User {
   updatedAt DateTime @updatedAt
 
   // ── Billing relations (inactive — ready to wire up) ───────────
-  apiUsage  ApiUsage[]
-  credits   UserCredits?
-  invoices  Invoice[]
-  notes     UserNote[]
+  apiUsage    ApiUsage[]
+  credits     UserCredits?
+  invoices    Invoice[]
+  notes       UserNote[]
+  playgrounds Playground[]
 
   @@map("users")
 }
@@ -987,6 +988,26 @@ model License {
 
   @@index([userEmail])
   @@map("licenses")
+}
+
+// ─── Playgrounds (Organizational Containers) ─────────
+// Groups AgentTeams by context (Personal Life, Business, Education).
+// teamIds stores IDs of AgentTeam rows included in this playground.
+
+model Playground {
+  id        String   @id @default(cuid())
+  name      String
+  icon      String?
+  color     String?
+  teamIds   String[]
+  brainTags String[] @default([])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("playgrounds")
 }
 
 // ─── User Notes (Context Dumps) ──────────────────────

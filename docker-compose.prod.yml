@@ -92,6 +92,15 @@ services:
       - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
       - traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true
       - traefik.http.routers.dashboard-http.middlewares=redirect-to-https
+      # Marketing router — agentplayground.net (bare domain + www)
+      - traefik.http.routers.marketing.rule=Host(`agentplayground.net`) || Host(`www.agentplayground.net`)
+      - traefik.http.routers.marketing.entrypoints=websecure
+      - traefik.http.routers.marketing.tls=true
+      - traefik.http.routers.marketing.tls.certresolver=lehttp
+      - traefik.http.routers.marketing.service=dashboard
+      - traefik.http.routers.marketing-http.rule=Host(`agentplayground.net`) || Host(`www.agentplayground.net`)
+      - traefik.http.routers.marketing-http.entrypoints=web
+      - traefik.http.routers.marketing-http.middlewares=redirect-to-https
     networks:
       - default
       - proxy
@@ -129,19 +138,9 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=traefik-proxy
-      # Main router — HTTPS (uses HTTP-01 resolver, cert already exists)
-      - traefik.http.routers.nginx.rule=Host(`${DOMAIN}`)
-      - traefik.http.routers.nginx.entrypoints=websecure
-      - traefik.http.routers.nginx.tls=true
-      - traefik.http.routers.nginx.tls.certresolver=lehttp
       - traefik.http.services.nginx.loadbalancer.server.port=80
-      # Main router — HTTP (serves ACME challenge OR redirects to HTTPS)
-      - traefik.http.routers.nginx-http.rule=Host(`${DOMAIN}`)
-      - traefik.http.routers.nginx-http.entrypoints=web
-      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
-      - traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true
-      - traefik.http.routers.nginx-http.middlewares=redirect-to-https
       # ar.DOMAIN router (same nginx container, separate virtual host in sites/ar.conf)
+      # Root domain (agentplayground.net) moved to dashboard marketing router above
       - traefik.http.routers.ar.rule=Host(`ar.${DOMAIN}`)
       - traefik.http.routers.ar.entrypoints=websecure
       - traefik.http.routers.ar.tls=true

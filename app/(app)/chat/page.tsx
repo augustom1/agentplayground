@@ -412,6 +412,9 @@ export default function ChatPage() {
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [ollamaModels, setOllamaModels] = useState(PROVIDERS.ollama.models);
 
+  type PlaygroundChip = { id: string; name: string; icon: string | null };
+  const [playgroundChips, setPlaygroundChips] = useState<PlaygroundChip[]>([]);
+
   type MeetingReminder = { id: string; title: string; scheduledFor: string; reminderMins: number };
   const [meetingReminders, setMeetingReminders] = useState<MeetingReminder[]>([]);
   const [dismissedMeetings, setDismissedMeetings] = useState<Set<string>>(new Set());
@@ -425,8 +428,21 @@ export default function ChatPage() {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, streamingContent]);
 
+  // Pre-fill input from ?q= query param (used by Overview quick chat)
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) setInput(q);
+  }, []);
+
   useEffect(() => {
     fetch("/api/teams").then(r => r.json()).then((data: Team[]) => setTeams(data.filter(t => !(t as unknown as { isSystemTeam?: boolean }).isSystemTeam))).catch(() => {}).finally(() => setTeamsLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/playgrounds")
+      .then(r => r.ok ? r.json() : [])
+      .then((data: unknown) => { if (Array.isArray(data)) setPlaygroundChips((data as PlaygroundChip[]).slice(0, 3)); })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -605,11 +621,16 @@ export default function ChatPage() {
       {isEmptyState ? (
         <div className="flex-1 flex flex-col items-center justify-center animate-fade-in" style={{ gap: 24, padding: "16px 16px 32px" }}>
           {/* Greeting row */}
-          <div className="flex items-center gap-3">
-            <LogoMark size={36} />
-            <h1 style={{ fontSize: "clamp(22px, 5vw, 30px)", fontWeight: 400, color: "var(--color-text)", letterSpacing: "-0.025em", lineHeight: 1, margin: 0 }}>
-              {getTimeGreeting()}, {firstName}
-            </h1>
+          <div style={{ textAlign: "center" }}>
+            <div className="flex items-center justify-center gap-3" style={{ marginBottom: 8 }}>
+              <LogoMark size={36} />
+              <h1 style={{ fontSize: "clamp(22px, 5vw, 30px)", fontWeight: 400, color: "var(--color-text)", letterSpacing: "-0.025em", lineHeight: 1, margin: 0 }}>
+                {getTimeGreeting()}, {firstName}
+              </h1>
+            </div>
+            <p style={{ fontSize: 15, color: "var(--color-text-secondary)", margin: 0 }}>
+              What would you like to work on today?
+            </p>
           </div>
 
           {/* Centered input box */}
@@ -624,19 +645,35 @@ export default function ChatPage() {
             />
           </div>
 
-          {/* Quick action chips */}
+          {/* Playground quick-access chips (if any), else default suggestions */}
           <div className="flex flex-wrap gap-2 justify-center" style={{ maxWidth: 640, padding: "0 8px" }}>
-            {suggestions.map(s => (
-              <button
-                key={s.label} onClick={() => send(s.label)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all"
-                style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)", fontSize: 12, cursor: "pointer" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--color-border-light)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--color-border)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text-secondary)"; }}
-              >
-                {s.icon}{s.label}
-              </button>
-            ))}
+            {playgroundChips.length > 0 ? (
+              playgroundChips.map(pg => (
+                <a
+                  key={pg.id}
+                  href={`/playground/${pg.id}`}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all"
+                  style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)", fontSize: 12, cursor: "pointer", textDecoration: "none" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--color-border-light)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--color-border)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text-secondary)"; }}
+                >
+                  {pg.icon && <span style={{ fontSize: 13 }}>{pg.icon}</span>}
+                  {pg.name}
+                </a>
+              ))
+            ) : (
+              suggestions.map(s => (
+                <button
+                  key={s.label} onClick={() => send(s.label)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all"
+                  style={{ background: "var(--color-surface-2)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)", fontSize: 12, cursor: "pointer" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--color-border-light)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--color-border)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text-secondary)"; }}
+                >
+                  {s.icon}{s.label}
+                </button>
+              ))
+            )}
           </div>
         </div>
       ) : (

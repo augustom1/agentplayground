@@ -5,7 +5,9 @@ import { ApiKeySection } from "@/components/ApiKeySection";
 import { CreditsAdminPanel } from "@/components/CreditsAdminPanel";
 import { TelegramSettings } from "@/components/TelegramSettings";
 import { UserApiKeysSection } from "@/components/UserApiKeysSection";
+import { ProviderModelSection } from "@/components/ProviderModelSection";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
 
 function EnvRow({
   name,
@@ -72,10 +74,10 @@ const providers = [
   {
     id: "openai",
     name: "OpenAI",
-    description: "GPT-4o, GPT-4 Turbo — Coming soon",
+    description: "GPT-4o, GPT-4o mini",
     icon: Cpu,
     color: "var(--color-green)",
-    status: "planned",
+    status: "active",
   },
   {
     id: "ollama",
@@ -90,6 +92,13 @@ const providers = [
 export default async function SettingsPage() {
   const session = await auth();
   const isAdmin = (session?.user as { role?: string })?.role === "admin";
+
+  // Check DB-stored keys (from wizard / Settings UI) in addition to env vars
+  const [anthropicKeyMem, openaiKeyMem] = await Promise.all([
+    prisma.agentMemory.findFirst({ where: { ownerType: "system", ownerId: "ANTHROPIC_API_KEY" }, select: { content: true } }),
+    prisma.agentMemory.findFirst({ where: { ownerType: "system", ownerId: "OPENAI_API_KEY" }, select: { content: true } }),
+  ]);
+
   const vars = [
     {
       name: "ANTHROPIC_API_KEY",
@@ -159,10 +168,11 @@ export default async function SettingsPage() {
     },
   ];
 
-  const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY;
+  const hasAnthropicKey = !!(process.env.ANTHROPIC_API_KEY || anthropicKeyMem?.content);
+  const hasOpenAIKey = !!(process.env.OPENAI_API_KEY || openaiKeyMem?.content);
   const hasOllamaUrl = !!process.env.OLLAMA_BASE_URL;
   const hasDatabaseUrl = !!process.env.DATABASE_URL;
-  const allRequiredSet = hasDatabaseUrl && (hasAnthropicKey || hasOllamaUrl);
+  const allRequiredSet = hasDatabaseUrl && (hasAnthropicKey || hasOpenAIKey || hasOllamaUrl);
 
   return (
     <div className="flex flex-col gap-5 p-4 md:p-6 max-w-3xl animate-fade-in">
@@ -171,7 +181,7 @@ export default async function SettingsPage() {
           Settings
         </h1>
         <p className="text-xs mt-0.5" style={{ color: "var(--color-muted)" }}>
-          Configuration — edit <code style={{ color: "var(--color-text)" }}>.env.local</code> then restart
+          Manage your API keys and configuration
         </p>
       </div>
 
@@ -246,6 +256,9 @@ export default async function SettingsPage() {
 
       {/* User API Keys */}
       <UserApiKeysSection />
+
+      {/* Default Provider & Model */}
+      <ProviderModelSection />
 
       {/* MCP API Key */}
       <ApiKeySection appUrl={process.env.NEXT_PUBLIC_APP_URL || "https://app.agentplayground.net"} />
@@ -394,9 +407,8 @@ export default async function SettingsPage() {
         <div className="flex flex-col gap-2">
           {[
             { label: "Get Anthropic API Key", href: "https://console.anthropic.com/settings/keys" },
-            { label: "Marketing Agent Docs (:8001)", href: "http://localhost:8001/docs" },
-            { label: "Accounting Agent Docs (:8002)", href: "http://localhost:8002/docs" },
-            { label: "Messaging Agent Docs (:8003)", href: "http://localhost:8003/docs" },
+            { label: "Get OpenAI API Key", href: "https://platform.openai.com/api-keys" },
+            { label: "Download Ollama (local AI, free)", href: "https://ollama.com/download" },
           ].map((link) => (
             <a
               key={link.href}

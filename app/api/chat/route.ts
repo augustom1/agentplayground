@@ -292,7 +292,7 @@ async function streamAnthropic(
 ): Promise<{ inputTokens: number; outputTokens: number; webSearchCalls: number; webBrowseCalls: number; responseText: string; toolsUsed: string[] }> {
   const apiKey = await getEffectiveApiKey("ANTHROPIC_API_KEY");
   if (!apiKey) {
-    controller.enqueue(encoder.encode("ANTHROPIC_API_KEY is not set. Add it in Settings → API Keys or .env.local."));
+    controller.enqueue(encoder.encode("No Anthropic API key found. Go to **Settings → API Keys** to add yours, or select a different model."));
     return { inputTokens: 0, outputTokens: 0, webSearchCalls: 0, webBrowseCalls: 0, responseText: "", toolsUsed: [] };
   }
 
@@ -367,7 +367,7 @@ async function streamAnthropic(
         "⚠️ **Insufficient Anthropic credits.**\n\nPlease add credits at [console.anthropic.com → Billing](https://console.anthropic.com/settings/billing).\n\nOr switch to **Ollama** in the model selector to run models locally for free."
       ));
     } else if (msg.includes("invalid_api_key") || msg.includes("authentication")) {
-      controller.enqueue(encoder.encode("⚠️ Invalid API key. Check your `ANTHROPIC_API_KEY` in `.env.local`."));
+      controller.enqueue(encoder.encode("⚠️ Your Anthropic API key appears to be invalid. Go to **Settings → API Keys** to update it."));
     } else {
       controller.enqueue(encoder.encode(`❌ ${msg}`));
     }
@@ -387,7 +387,7 @@ async function streamOpenAI(
   if (!apiKey) {
     controller.enqueue(
       encoder.encode(
-        "OPENAI_API_KEY is not set. Add it in Settings → API Keys or .env.local.\n\nSwitch to Anthropic or configure your OpenAI key to use GPT models."
+        "No OpenAI API key found. Go to **Settings → API Keys** to add yours, or switch to Anthropic Claude."
       )
     );
     return;
@@ -475,7 +475,7 @@ async function streamOpenAI(
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes("invalid_api_key") || msg.includes("Incorrect API key")) {
-      controller.enqueue(encoder.encode("⚠️ Invalid OpenAI API key. Check your `OPENAI_API_KEY` in `.env.local`."));
+      controller.enqueue(encoder.encode("⚠️ Your OpenAI API key appears to be invalid. Go to **Settings → API Keys** to update it."));
     } else if (msg.includes("rate_limit_exceeded") || msg.includes("Rate limit")) {
       controller.enqueue(encoder.encode("⚠️ OpenAI rate limit exceeded. Please wait a moment and try again."));
     } else if (msg.includes("model_not_found") || msg.includes("does not exist")) {
@@ -622,16 +622,32 @@ export async function POST(req: Request) {
   let teamId: string | undefined;
   let attachments: AttachmentPayload[] | undefined;
 
+  let bodyProviderSet = false;
+  let bodyModelSet = false;
   try {
     const body = await req.json();
     messages = body.messages ?? [];
     systemContext = body.systemContext;
+    bodyProviderSet = !!body.provider;
+    bodyModelSet = !!body.model;
     provider = body.provider ?? "anthropic";
     model = body.model;
     teamId = body.teamId;
     attachments = body.attachments;
   } catch {
     return new Response("Invalid JSON body", { status: 400 });
+  }
+
+  // Apply user's DEFAULT_PROVIDER / DEFAULT_MODEL from settings when not overridden per-request
+  if (!bodyProviderSet || !bodyModelSet) {
+    try {
+      const [defProv, defModel] = await Promise.all([
+        !bodyProviderSet ? prisma.agentMemory.findFirst({ where: { ownerType: "system", ownerId: "DEFAULT_PROVIDER" }, select: { content: true } }) : Promise.resolve(null),
+        !bodyModelSet ? prisma.agentMemory.findFirst({ where: { ownerType: "system", ownerId: "DEFAULT_MODEL" }, select: { content: true } }) : Promise.resolve(null),
+      ]);
+      if (!bodyProviderSet && defProv?.content) provider = defProv.content;
+      if (!bodyModelSet && defModel?.content) model = defModel.content;
+    } catch { /* non-fatal */ }
   }
 
   // Inject attachments into the last user message (Anthropic multi-modal format)

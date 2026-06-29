@@ -1,0 +1,19 @@
+# Optional: local AI models via Ollama
+# To use: docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d
+# Requires ~4GB extra RAM and ~5GB disk per model downloaded
+
+services:
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+  app:
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+
+volumes:
+  ollama_data:

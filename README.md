@@ -1,92 +1,36 @@
 # AgentPlayground
 
-> Self-hosted AI operations platform. Build and manage agent teams through conversation.
-> Deploy on your own VPS in one command.
+Run your own AI agent teams, locally and for free.
 
----
+[screenshot placeholder — add a screenshot of the main UI]
 
-## What it is
+## What is it?
 
-AgentPlayground is a Next.js app that runs on your VPS and lets you:
-- Chat with Claude (or local Ollama models) as an AI coordinator
-- Create and manage teams of AI agents
-- Schedule and automate tasks
-- Manage files with vector search
-- Monitor usage and billing
+AgentPlayground is a local AI agent platform. You set up agent teams (a coordinator delegates work to specialized agents), build a knowledge Brain, and organize everything into Playgrounds by context.
 
-The core idea: **Problem → Agent System → Reusable Tool → Local Optimization**. Every repeated workflow becomes a permanent skill.
+Works with OpenAI (GPT-4o), Anthropic (Claude), or free local models via Ollama.
 
----
+## Quick Start
 
-## Quick Deploy (VPS)
+1. Install Docker Desktop (docker.com)
+2. Download the latest release from [agentplayground.net/download](https://agentplayground.net/download)
+3. Run `start.bat` (Windows) or `./start.sh` (Mac/Linux)
+4. Open http://localhost:3000 — the setup wizard will guide you
 
-```bash
-# 1. Clone the repo
-git clone https://github.com/augustom1/agentplayground-vpsinstall /opt/vps
-cd /opt/vps
+You'll enter your API key inside the wizard. No config file editing needed.
 
-# 2. Create your env file
-cp .env.example .env.local
-nano .env.local   # fill in passwords, API keys
+## Features
 
-# 3. Generate required secrets
-openssl rand -hex 32   # use for AUTH_SECRET, CRON_SECRET, N8N_ENCRYPTION_KEY
+- Coordinator that delegates to specialized agent teams
+- Knowledge Brain with semantic search
+- Playgrounds: organize agents by context (work, personal, education)
+- Plans: create a goal, council reviews it, agents execute
+- Works with OpenAI, Anthropic, and Ollama
 
-# 4. Deploy
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-```
+## Requirements
 
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for the full guide including domain setup and SSL.
+Docker Desktop 4.x+, 4GB RAM minimum.
 
----
+## License
 
-## Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 15 (App Router) |
-| Database | PostgreSQL 16 + pgvector |
-| ORM | Prisma 7 |
-| AI | Anthropic Claude + Ollama (local) |
-| Auth | NextAuth v5 |
-| Styling | Tailwind CSS v4 |
-| Deployment | Docker Compose + Traefik |
-
----
-
-## Services (after deploy)
-
-| URL | Service |
-|-----|---------|
-| `https://app.DOMAIN` | Agent Dashboard (this app) |
-| `https://n8n.DOMAIN` | n8n workflow automation |
-| `https://files.DOMAIN` | FileBrowser |
-| `https://manage.DOMAIN` | Portainer |
-| `https://DOMAIN` | Static website (Nginx) |
-
----
-
-## Key docs
-
-| File | Purpose |
-|------|---------|
-| [CLAUDE.md](./CLAUDE.md) | Full project context for AI sessions |
-| [ROADMAP.md](./ROADMAP.md) | What to build next — phased plan |
-| [DEPLOYMENT.md](./DEPLOYMENT.md) | VPS deploy guide |
-| [CLOUDFLARE_SETUP.md](./CLOUDFLARE_SETUP.md) | DNS and SSL setup |
-| [VPS_SERVER.md](./VPS_SERVER.md) | Server specs and access |
-| [BUSINESS-ROADMAP.md](./BUSINESS-ROADMAP.md) | Go-to-market strategy |
-| [VISION.md](./VISION.md) | Product vision and Claude Code rules |
-
----
-
-## Development
-
-```bash
-npm install
-npm run dev        # dev server at localhost:3000
-npm run test       # Vitest (20 tests)
-npx prisma studio  # DB browser at localhost:5555
-```
-
-Requires a running PostgreSQL instance. Use `docker compose -f docker-compose.dev.yml up -d` for a local DB only.
+MIT

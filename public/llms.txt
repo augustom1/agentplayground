@@ -1,0 +1,23 @@
+# AgentPlayground
+
+Free, open-source AI agent platform. Runs locally via Docker.
+
+## What it does
+
+- Coordinator delegates to structured agent teams
+- Brain: vector memory, semantic search, document indexing
+- Playgrounds: organize agents by context (Personal, Business, Education)
+- Supports Claude (Anthropic) + OpenAI + Ollama (free local models)
+- First-run wizard: set up in under 5 minutes
+
+## Download
+
+https://agentplayground.net/download
+
+## GitHub
+
+https://github.com/agentplayground/app
+
+## Contact
+
+hello@agentplayground.net

@@ -4,11 +4,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import {
-  Settings, Users, Wrench, Sparkles, Server,
-  Globe, Brain, Workflow, Link2, CreditCard, Sun, Moon,
-  FolderOpen, BookOpen, ClipboardList, Plus, Layers,
-  MessageSquare, Calendar, ChevronLeft, ChevronRight,
-  Search, Menu, Clock, PanelLeftClose, StickyNote, AlertCircle, FileText, Network,
+  Settings, Users, Plus, MessageSquare,
+  LayoutGrid, Loader2, X,
+  ChevronLeft, ChevronRight, Search, Menu,
+  PanelLeftClose, Sun, Moon, Shield, Send,
+  ArrowRight, Check,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { UserMenu } from "@/components/UserMenu";
@@ -16,37 +16,19 @@ import { LogoMark } from "@/components/Logo";
 import { useLanguage } from "@/components/LanguageProvider";
 import { useTheme } from "@/components/ThemeProvider";
 
-type Conversation = { id: string; title: string; updatedAt: string };
-type Tab = "chat" | "teams" | "brain";
+type PlaygroundItem = { id: string; name: string; icon: string | null; color: string | null };
 
-const ADMIN_ONLY_PATHS = new Set(["/overview", "/notes", "/cv", "/learn", "/connect"]);
-
-const TAB_NAV: Record<Tab, Array<{ href: string; label: string; icon: React.ComponentType<{ size?: number }> }>> = {
-  chat: [
-    { href: "/actions",    label: "Actions",     icon: AlertCircle },
-    { href: "/plans",      label: "Plans",       icon: ClipboardList },
-    { href: "/playground", label: "Playground",  icon: Layers },
-    { href: "/pipeline",   label: "Work Queue",  icon: Workflow },
-    { href: "/overview",   label: "How It Works",icon: Network },
-  ],
-  teams: [
-    { href: "/agent-lab",  label: "Agent Lab",   icon: Users },
-    { href: "/tools",      label: "Apps & Tools", icon: Wrench },
-    { href: "/connect",    label: "Integrations", icon: Link2 },
-    { href: "/optimize",   label: "AI Efficiency",icon: Sparkles },
-  ],
-  brain: [
-    { href: "/notes",      label: "Notes",        icon: StickyNote },
-    { href: "/cv",         label: "CV Builder",   icon: FileText },
-    { href: "/learn",      label: "Learning",     icon: BookOpen },
-    { href: "/files",      label: "Brain & Files",icon: Brain },
-    { href: "/projects",   label: "Projects",     icon: FolderOpen },
-    { href: "/schedule",   label: "Schedule",     icon: Calendar },
-    { href: "/server",     label: "Server",       icon: Server },
-    { href: "/websites",   label: "Websites",     icon: Globe },
-    { href: "/blog",       label: "Blog",         icon: BookOpen },
-  ],
+type PlaygroundConfig = {
+  name: string;
+  icon: string;
+  description: string;
+  suggestedTeamIds: string[];
+  suggestedBrainTags: string[];
+  newTeamsNeeded: { name: string; role: string; description: string }[];
 };
+
+type PanelMessage = { role: "user" | "assistant"; content: string };
+type PanelState = "chatting" | "proposing" | "creating" | "done";
 
 function NavItem({
   href, label, icon: Icon, collapsed, active,
@@ -85,6 +67,14 @@ const ICON_BTN: React.CSSProperties = {
   color: "var(--color-muted)", flexShrink: 0,
 };
 
+const SECTION_LABEL: React.CSSProperties = {
+  fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em",
+  textTransform: "uppercase", color: "var(--color-muted)",
+  padding: "4px 10px 2px", margin: 0,
+};
+
+const OPENING_MESSAGE = "Hi! I'll help you set up your playground. What would you like to use it for? For example: 'A marketing workspace with content and social media agents' or 'A dev environment for my backend projects'.";
+
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -93,63 +83,34 @@ export function Sidebar() {
   const { locale, toggle: toggleLocale } = useLanguage();
   const { theme, toggle: toggleTheme } = useTheme();
 
-  const [activeTab, setActiveTab] = useState<Tab>("chat");
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loadingConvs, setLoadingConvs] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [showRecents, setShowRecents] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [pendingCount, setPendingCount] = useState(0);
+
+  const [playgrounds, setPlaygrounds] = useState<PlaygroundItem[]>([]);
+  const [showPlaygrounds, setShowPlaygrounds] = useState(true);
+
+  // ── Playground creation panel ────────────────────────
+  const [showPanel, setShowPanel] = useState(false);
+  const [panelState, setPanelState] = useState<PanelState>("chatting");
+  const [panelMessages, setPanelMessages] = useState<PanelMessage[]>([]);
+  const [panelInput, setPanelInput] = useState("");
+  const [panelLoading, setPanelLoading] = useState(false);
+  const [proposedConfig, setProposedConfig] = useState<PlaygroundConfig | null>(null);
+  const [createdPgId, setCreatedPgId] = useState<string | null>(null);
+  const [createdPgName, setCreatedPgName] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const panelInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch("/api/actions?status=open")
-      .then((r) => r.json())
-      .then((data: unknown) => { if (Array.isArray(data)) setPendingCount(data.length); })
-      .catch(() => {});
-    // Refresh every 60s
-    const iv = setInterval(() => {
-      fetch("/api/actions?status=open")
-        .then((r) => r.json())
-        .then((data: unknown) => { if (Array.isArray(data)) setPendingCount(data.length); })
-        .catch(() => {});
-    }, 60_000);
-    return () => clearInterval(iv);
-  }, []);
-
-  useEffect(() => {
-    if (
-      pathname.startsWith("/agent-lab") || pathname.startsWith("/optimize") ||
-      pathname.startsWith("/tools") || pathname.startsWith("/connect")
-    ) {
-      setActiveTab("teams");
-    } else if (
-      pathname.startsWith("/files") || pathname.startsWith("/brain") ||
-      pathname.startsWith("/server") || pathname.startsWith("/websites") ||
-      pathname.startsWith("/blog") || pathname.startsWith("/projects") ||
-      pathname.startsWith("/notes") || pathname.startsWith("/cv") || pathname.startsWith("/learn")
-    ) {
-      setActiveTab("brain");
-    } else {
-      setActiveTab("chat");
+    if (showPanel) {
+      setTimeout(() => panelInputRef.current?.focus(), 100);
     }
-    // /overview, /actions, /plans, /playground, /pipeline all stay in "chat" tab (default)
-  }, [pathname]);
+  }, [showPanel]);
 
   useEffect(() => {
-    async function load() {
-      setLoadingConvs(true);
-      try {
-        const res = await fetch("/api/conversations");
-        if (res.ok) setConversations((await res.json() as Conversation[]).slice(0, 8));
-      } catch {
-        // ignore
-      } finally {
-        setLoadingConvs(false);
-      }
-    }
-    load();
-  }, []);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [panelMessages, panelLoading]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -161,17 +122,138 @@ export function Sidebar() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [menuOpen]);
 
+  useEffect(() => {
+    fetch("/api/playgrounds")
+      .then(r => r.ok ? r.json() : [])
+      .then((data: unknown) => { if (Array.isArray(data)) setPlaygrounds(data as PlaygroundItem[]); })
+      .catch(() => {});
+  }, []);
+
+  function openCreatePlayground() {
+    setPanelState("chatting");
+    setPanelMessages([{ role: "assistant", content: OPENING_MESSAGE }]);
+    setPanelInput("");
+    setProposedConfig(null);
+    setCreatedPgId(null);
+    setCreatedPgName(null);
+    setShowPanel(true);
+  }
+
+  async function handlePanelSend() {
+    if (!panelInput.trim() || panelLoading) return;
+    const userContent = panelInput.trim();
+    setPanelInput("");
+
+    const newMessages: PanelMessage[] = [...panelMessages, { role: "user", content: userContent }];
+    setPanelMessages(newMessages);
+    setPanelLoading(true);
+
+    try {
+      const res = await fetch("/api/playground-assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: newMessages }),
+      });
+
+      if (!res.ok) throw new Error();
+
+      const data = await res.json() as {
+        text: string;
+        proposedConfig?: PlaygroundConfig;
+        done?: boolean;
+        playgroundId?: string;
+        playgroundName?: string;
+      };
+
+      const updatedMessages: PanelMessage[] = [...newMessages, { role: "assistant", content: data.text }];
+      setPanelMessages(updatedMessages);
+
+      if (data.done && data.playgroundId) {
+        setCreatedPgId(data.playgroundId);
+        setCreatedPgName(data.playgroundName ?? "New Playground");
+        const icon = data.proposedConfig?.icon ?? proposedConfig?.icon ?? null;
+        setPlaygrounds(prev => [...prev, { id: data.playgroundId!, name: data.playgroundName!, icon, color: null }]);
+        setPanelState("done");
+      } else if (data.proposedConfig) {
+        setProposedConfig(data.proposedConfig);
+        setPanelState("proposing");
+      }
+    } catch {
+      setPanelMessages(prev => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
+    } finally {
+      setPanelLoading(false);
+    }
+  }
+
+  async function handleLooksGood() {
+    if (!proposedConfig) return;
+    setPanelState("creating");
+    const confirmMsg: PanelMessage = { role: "user", content: "Looks good! Please create it." };
+    setPanelMessages(prev => [...prev, confirmMsg]);
+
+    try {
+      const res = await fetch("/api/playground-assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [...panelMessages, confirmMsg],
+          confirmedConfig: proposedConfig,
+        }),
+      });
+
+      if (!res.ok) throw new Error();
+
+      const data = await res.json() as {
+        text: string;
+        done?: boolean;
+        playgroundId?: string;
+        playgroundName?: string;
+      };
+
+      setPanelMessages(prev => [...prev, { role: "assistant", content: data.text }]);
+
+      if (data.done && data.playgroundId) {
+        setCreatedPgId(data.playgroundId);
+        setCreatedPgName(data.playgroundName ?? proposedConfig.name);
+        setPlaygrounds(prev => [...prev, {
+          id: data.playgroundId!,
+          name: data.playgroundName ?? proposedConfig.name,
+          icon: proposedConfig.icon ?? null,
+          color: null,
+        }]);
+        setPanelState("done");
+      } else {
+        setPanelState("chatting");
+      }
+    } catch {
+      setPanelMessages(prev => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
+      setPanelState("chatting");
+    }
+  }
+
+  function handleChangeSomething() {
+    setProposedConfig(null);
+    setPanelState("chatting");
+    setPanelMessages(prev => [...prev, { role: "assistant", content: "Of course! What would you like to change?" }]);
+    setTimeout(() => panelInputRef.current?.focus(), 100);
+  }
+
+  function closePanel() {
+    setShowPanel(false);
+  }
+
+  function openCreatedPlayground() {
+    if (createdPgId) {
+      setShowPanel(false);
+      router.push(`/playground/${createdPgId}`);
+    }
+  }
+
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(href + "/");
   }
 
   const w = collapsed ? 56 : 260;
-
-  const tabs: { id: Tab; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
-    { id: "chat",  label: "Chat",  icon: MessageSquare },
-    { id: "teams", label: "Teams", icon: Users },
-    { id: "brain", label: "Brain", icon: Brain },
-  ];
 
   return (
     <aside
@@ -193,7 +275,6 @@ export function Sidebar() {
       >
         {!collapsed && (
           <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
-            {/* Back */}
             <button
               onClick={() => router.back()}
               style={ICON_BTN}
@@ -204,7 +285,6 @@ export function Sidebar() {
               <ChevronLeft size={14} />
             </button>
 
-            {/* Search */}
             <button
               style={ICON_BTN}
               title="Search"
@@ -214,7 +294,7 @@ export function Sidebar() {
               <Search size={13} />
             </button>
 
-            {/* Hamburger — language + theme dropdown */}
+            {/* Hamburger ⋯ — Settings, Admin, Users, language, theme */}
             <div style={{ position: "relative" }} ref={menuRef}>
               <button
                 onClick={() => setMenuOpen(v => !v)}
@@ -234,11 +314,10 @@ export function Sidebar() {
                   borderRadius: "10px", padding: "4px", minWidth: "180px",
                   boxShadow: "var(--shadow-md)",
                 }}>
-                  {/* Navigation links */}
                   {[
-                    { href: "/billing",  label: "Billing",  icon: CreditCard },
-                    ...(isAdmin ? [{ href: "/users", label: "Users", icon: Users }] : []),
                     { href: "/settings", label: "Settings", icon: Settings },
+                    ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: Shield }] : []),
+                    ...(isAdmin ? [{ href: "/users", label: "Users", icon: Users }] : []),
                   ].map(({ href, label, icon: Icon }) => (
                     <Link
                       key={href}
@@ -252,15 +331,13 @@ export function Sidebar() {
                         background: isActive(href) ? "var(--color-surface-3)" : "transparent",
                       }}
                       onMouseEnter={e => { if (!isActive(href)) (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; }}
-                      onMouseLeave={e => { if (!isActive(href)) (e.currentTarget as HTMLElement).style.background = isActive(href) ? "var(--color-surface-3)" : "transparent"; }}
+                      onMouseLeave={e => { if (!isActive(href)) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                     >
                       <span style={{ opacity: 0.7, display: "inline-flex" }}><Icon size={13} /></span>
                       {label}
                     </Link>
                   ))}
-                  {/* Divider */}
                   <div style={{ height: "1px", background: "var(--color-border)", margin: "4px 6px" }} />
-                  {/* Language toggle */}
                   <button
                     onClick={() => { toggleLocale(); setMenuOpen(false); }}
                     style={{
@@ -277,7 +354,6 @@ export function Sidebar() {
                     </span>
                     {locale === "en" ? "Switch to Spanish" : "Switch to English"}
                   </button>
-                  {/* Theme toggle */}
                   <button
                     onClick={() => { toggleTheme(); setMenuOpen(false); }}
                     style={{
@@ -298,7 +374,6 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed(v => !v)}
           style={{ ...ICON_BTN, marginLeft: collapsed ? 0 : "auto" }}
@@ -316,7 +391,7 @@ export function Sidebar() {
         justifyContent: collapsed ? "center" : "flex-start",
         padding: collapsed ? "10px 0" : "10px 14px",
       }}>
-        <Link href="/dashboard" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }} title={collapsed ? "Home" : undefined}>
+        <Link href="/chat" style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none" }} title={collapsed ? "Home" : undefined}>
           <LogoMark size={18} />
           {!collapsed && (
             <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text)", letterSpacing: "-0.01em" }}>
@@ -326,77 +401,8 @@ export function Sidebar() {
         </Link>
       </div>
 
-      {/* ── Tab pill box ─────────────────────────────────── */}
-      <div style={{ padding: collapsed ? "0 6px 8px" : "0 8px 8px" }}>
-        <div style={{
-          background: "var(--color-background)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "10px",
-          padding: "3px",
-          display: "flex",
-          flexDirection: collapsed ? "column" : "row",
-          gap: "2px",
-        }}>
-          {tabs.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => {
-                setActiveTab(id);
-                if (id === "chat") router.push("/chat");
-                else if (id === "teams") router.push("/agent-lab");
-                else router.push("/files");
-              }}
-              title={collapsed ? label : undefined}
-              style={{
-                flex: collapsed ? undefined : 1,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                gap: collapsed ? 0 : "5px",
-                padding: collapsed ? "7px 0" : "5px 8px",
-                borderRadius: "7px", border: "none", cursor: "pointer",
-                background: activeTab === id ? "var(--color-surface-3)" : "transparent",
-                color: activeTab === id ? "var(--color-text)" : "var(--color-muted)",
-                fontSize: "12px", fontWeight: activeTab === id ? 500 : 400,
-                transition: "background 0.12s, color 0.12s",
-              }}
-              onMouseEnter={e => {
-                if (activeTab !== id) {
-                  (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)";
-                  (e.currentTarget as HTMLElement).style.color = "var(--color-text-secondary)";
-                }
-              }}
-              onMouseLeave={e => {
-                if (activeTab !== id) {
-                  (e.currentTarget as HTMLElement).style.background = "transparent";
-                  (e.currentTarget as HTMLElement).style.color = "var(--color-muted)";
-                }
-              }}
-            >
-              <Icon size={13} />
-              {!collapsed && label}
-              {/* ! badge on Chat tab when there are pending actions */}
-              {id === "chat" && pendingCount > 0 && (
-                <span style={{
-                  marginLeft: collapsed ? 0 : "auto",
-                  background: "#e05252",
-                  color: "#fff",
-                  fontSize: "10px",
-                  fontWeight: 700,
-                  borderRadius: "99px",
-                  padding: "1px 5px",
-                  lineHeight: "14px",
-                  minWidth: 16,
-                  textAlign: "center",
-                }}>
-                  {pendingCount > 9 ? "9+" : pendingCount}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* ── New chat button ──────────────────────────────── */}
-      <div style={{ padding: collapsed ? "0 6px 4px" : "0 8px 4px" }}>
+      <div style={{ padding: collapsed ? "0 6px 6px" : "0 8px 6px" }}>
         <Link
           href="/chat"
           title={collapsed ? "New chat" : undefined}
@@ -426,70 +432,395 @@ export function Sidebar() {
           padding: collapsed ? "0 6px 8px" : "0 8px 8px",
         }}
       >
-        {TAB_NAV[activeTab].filter(item => !ADMIN_ONLY_PATHS.has(item.href) || isAdmin).map(item => (
-          <NavItem
-            key={item.href}
-            href={item.href}
-            label={item.label}
-            icon={item.icon}
-            collapsed={collapsed}
-            active={isActive(item.href)}
-          />
-        ))}
+        {/* SECTION: Main */}
+        {!collapsed && <p style={SECTION_LABEL}>Main</p>}
 
-        {/* Recents — chat tab, expanded only */}
-        {activeTab === "chat" && !collapsed && (
-          <div style={{ marginTop: "12px" }}>
-            <button
-              onClick={() => setShowRecents(v => !v)}
-              style={{
-                display: "flex", alignItems: "center", gap: "4px", width: "100%",
-                padding: "4px 10px", border: "none", background: "transparent",
-                cursor: "pointer",
-              }}
-            >
-              <span style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-muted)" }}>
-                Recents
-              </span>
-              <ChevronRight
-                size={10}
+        <NavItem href="/chat" label="Chat" icon={MessageSquare} collapsed={collapsed} active={isActive("/chat")} />
+        <NavItem href="/overview" label="Overview" icon={LayoutGrid} collapsed={collapsed} active={isActive("/overview")} />
+
+        {/* SECTION: Playgrounds */}
+        {!collapsed && (
+          <div style={{ marginTop: "16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "4px", padding: "2px 10px 4px" }}>
+              <button
+                onClick={() => setShowPlaygrounds(v => !v)}
+                style={{ display: "flex", alignItems: "center", gap: "4px", flex: 1, border: "none", background: "transparent", cursor: "pointer", padding: 0 }}
+              >
+                <span style={{ ...SECTION_LABEL, padding: 0 }}>Playgrounds</span>
+                <ChevronRight
+                  size={10}
+                  style={{
+                    color: "var(--color-muted)",
+                    transform: showPlaygrounds ? "rotate(90deg)" : "rotate(0deg)",
+                    transition: "transform 0.15s",
+                  }}
+                />
+              </button>
+              <button
+                onClick={openCreatePlayground}
+                title="New playground"
                 style={{
-                  color: "var(--color-muted)",
-                  transform: showRecents ? "rotate(90deg)" : "rotate(0deg)",
-                  transition: "transform 0.15s",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  width: 18, height: 18, borderRadius: 4, border: "none",
+                  background: "transparent", cursor: "pointer", color: "var(--color-muted)",
+                  flexShrink: 0,
                 }}
-              />
-            </button>
-            {showRecents && (
-              loadingConvs ? (
-                <p style={{ padding: "4px 10px", fontSize: "12px", color: "var(--color-muted)" }}>Loading…</p>
-              ) : conversations.length === 0 ? (
-                <p style={{ padding: "4px 10px", fontSize: "12px", color: "var(--color-muted)" }}>No recent chats</p>
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text-secondary)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--color-muted)"; }}
+              >
+                <Plus size={11} />
+              </button>
+            </div>
+
+            {showPlaygrounds && (
+              playgrounds.length === 0 ? (
+                <button
+                  onClick={openCreatePlayground}
+                  style={{
+                    display: "block", width: "100%", padding: "5px 10px",
+                    fontSize: "12px", color: "var(--color-muted)", background: "none",
+                    border: "none", cursor: "pointer", textAlign: "left",
+                  }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "var(--color-text-secondary)"}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "var(--color-muted)"}
+                >
+                  + Create your first Playground
+                </button>
               ) : (
-                conversations.map(c => (
-                  <Link
-                    key={c.id}
-                    href={`/chat?conversation=${c.id}`}
-                    style={{
-                      display: "flex", alignItems: "center", gap: "8px",
-                      padding: "5px 10px", borderRadius: "8px", textDecoration: "none",
-                      color: isActive(`/chat?conversation=${c.id}`) ? "var(--color-text)" : "var(--color-text-secondary)",
-                      fontSize: "12px", transition: "background 0.12s",
-                    }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
-                  >
-                    <Clock size={11} style={{ opacity: 0.6, flexShrink: 0 }} />
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {c.title || "Untitled"}
-                    </span>
-                  </Link>
-                ))
+                playgrounds.map(pg => {
+                  const active = isActive(`/playground/${pg.id}`);
+                  return (
+                    <Link
+                      key={pg.id}
+                      href={`/playground/${pg.id}`}
+                      style={{
+                        display: "flex", alignItems: "center", gap: "8px",
+                        padding: "5px 10px", borderRadius: "8px", textDecoration: "none",
+                        background: active ? "var(--color-surface-3)" : "transparent",
+                        color: active ? "var(--color-text)" : "var(--color-text-secondary)",
+                        fontSize: "12px", fontWeight: active ? 500 : 400,
+                        transition: "background 0.12s",
+                      }}
+                      onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; }}
+                      onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                    >
+                      {pg.icon ? (
+                        <span style={{ fontSize: "13px", lineHeight: 1, flexShrink: 0 }}>{pg.icon}</span>
+                      ) : (
+                        <LayoutGrid size={12} style={{ opacity: 0.6, flexShrink: 0 }} />
+                      )}
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {pg.name}
+                      </span>
+                    </Link>
+                  );
+                })
               )
             )}
           </div>
         )}
+
+        {/* Collapsed — show playground icons */}
+        {collapsed && playgrounds.length > 0 && (
+          <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "2px" }}>
+            {playgrounds.slice(0, 5).map(pg => {
+              const active = isActive(`/playground/${pg.id}`);
+              return (
+                <Link
+                  key={pg.id}
+                  href={`/playground/${pg.id}`}
+                  title={pg.name}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    padding: "7px 0", borderRadius: "8px", textDecoration: "none",
+                    background: active ? "var(--color-surface-3)" : "transparent",
+                    fontSize: "13px",
+                    transition: "background 0.12s",
+                  }}
+                  onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; }}
+                  onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                >
+                  {pg.icon ? pg.icon : <LayoutGrid size={14} style={{ opacity: 0.6 }} />}
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </nav>
+
+      {/* ── Playground creation panel ─────────────────────── */}
+      {showPanel && (
+        <>
+          {/* Backdrop */}
+          <div
+            style={{
+              position: "fixed", inset: 0, zIndex: 200,
+              background: "rgba(0,0,0,0.45)",
+            }}
+            onClick={panelState !== "creating" ? closePanel : undefined}
+          />
+
+          {/* Slide-in panel */}
+          <div
+            style={{
+              position: "fixed", right: 0, top: 0, bottom: 0,
+              width: 440, zIndex: 201,
+              background: "var(--color-surface)",
+              borderLeft: "1px solid var(--color-border)",
+              display: "flex", flexDirection: "column",
+              boxShadow: "-12px 0 40px rgba(0,0,0,0.25)",
+            }}
+          >
+            {/* Panel header */}
+            <div style={{
+              padding: "14px 20px",
+              borderBottom: "1px solid var(--color-border)",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              flexShrink: 0,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 16 }}>✨</span>
+                <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
+                  Create a Playground
+                </h2>
+              </div>
+              {panelState !== "creating" && (
+                <button
+                  onClick={closePanel}
+                  style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--color-muted)", display: "flex", padding: 4, borderRadius: 6 }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "var(--color-text-secondary)"}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "var(--color-muted)"}
+                >
+                  <X size={15} />
+                </button>
+              )}
+            </div>
+
+            {/* Messages list */}
+            <div style={{
+              flex: 1, overflowY: "auto", padding: "16px 20px",
+              display: "flex", flexDirection: "column", gap: 10,
+            }}>
+              {panelMessages.map((msg, i) => (
+                <div
+                  key={i}
+                  style={{
+                    alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
+                    maxWidth: "88%",
+                    padding: "10px 14px",
+                    borderRadius: msg.role === "user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+                    background: msg.role === "user" ? "var(--color-brand)" : "var(--color-surface-2)",
+                    color: msg.role === "user" ? "#fff" : "var(--color-text)",
+                    fontSize: 13, lineHeight: 1.55,
+                    border: msg.role === "assistant" ? "1px solid var(--color-border)" : "none",
+                  }}
+                >
+                  {msg.content}
+                </div>
+              ))}
+
+              {/* Thinking indicator */}
+              {panelLoading && (
+                <div style={{
+                  alignSelf: "flex-start",
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "8px 12px", borderRadius: "14px 14px 14px 4px",
+                  background: "var(--color-surface-2)",
+                  border: "1px solid var(--color-border)",
+                  color: "var(--color-muted)", fontSize: 12,
+                }}>
+                  <Loader2 size={11} className="animate-spin" />
+                  Thinking…
+                </div>
+              )}
+
+              {/* Proposing state: config card */}
+              {panelState === "proposing" && proposedConfig && !panelLoading && (
+                <div style={{
+                  background: "var(--color-surface-2)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 12, padding: "14px 16px",
+                  display: "flex", flexDirection: "column", gap: 10,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 22 }}>{proposedConfig.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>{proposedConfig.name}</div>
+                      <div style={{ fontSize: 12, color: "var(--color-muted)" }}>{proposedConfig.description}</div>
+                    </div>
+                  </div>
+
+                  {proposedConfig.suggestedTeamIds.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--color-muted)", marginBottom: 4 }}>Teams</div>
+                      <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                        {proposedConfig.suggestedTeamIds.length} existing team{proposedConfig.suggestedTeamIds.length !== 1 ? "s" : ""} included
+                      </div>
+                    </div>
+                  )}
+
+                  {proposedConfig.newTeamsNeeded.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--color-muted)", marginBottom: 4 }}>New teams to create</div>
+                      {proposedConfig.newTeamsNeeded.map((t, i) => (
+                        <div key={i} style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>+ {t.name}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  {proposedConfig.suggestedBrainTags.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--color-muted)", marginBottom: 4 }}>Brain tags</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {proposedConfig.suggestedBrainTags.map(tag => (
+                          <span key={tag} style={{
+                            fontSize: 11, padding: "2px 8px", borderRadius: 20,
+                            background: "var(--color-surface-3)", color: "var(--color-text-secondary)",
+                            border: "1px solid var(--color-border)",
+                          }}>{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
+                    <button
+                      onClick={handleLooksGood}
+                      style={{
+                        flex: 1, padding: "8px 14px", borderRadius: 8, border: "none",
+                        background: "var(--color-brand)", color: "#0a1628",
+                        cursor: "pointer", fontSize: 13, fontWeight: 600,
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                      }}
+                    >
+                      <Check size={13} /> Looks good
+                    </button>
+                    <button
+                      onClick={handleChangeSomething}
+                      style={{
+                        padding: "8px 14px", borderRadius: 8,
+                        border: "1px solid var(--color-border)",
+                        background: "transparent", color: "var(--color-text-secondary)",
+                        cursor: "pointer", fontSize: 13,
+                      }}
+                    >
+                      Change something
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Creating state */}
+              {panelState === "creating" && (
+                <div style={{
+                  alignSelf: "flex-start",
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "10px 14px", borderRadius: "14px 14px 14px 4px",
+                  background: "var(--color-surface-2)", border: "1px solid var(--color-border)",
+                  color: "var(--color-muted)", fontSize: 13,
+                }}>
+                  <Loader2 size={13} className="animate-spin" />
+                  Creating your playground…
+                </div>
+              )}
+
+              {/* Done state */}
+              {panelState === "done" && (
+                <div style={{
+                  background: "rgba(212,113,90,0.08)",
+                  border: "1px solid rgba(212,113,90,0.25)",
+                  borderRadius: 12, padding: "14px 16px",
+                  display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start",
+                }}>
+                  <div style={{ fontSize: 13, color: "var(--color-text)", fontWeight: 500 }}>
+                    ✅ <strong>{createdPgName}</strong> is ready!
+                  </div>
+                  <button
+                    onClick={openCreatedPlayground}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 6,
+                      padding: "7px 14px", borderRadius: 8, border: "none",
+                      background: "var(--color-brand)", color: "#0a1628",
+                      cursor: "pointer", fontSize: 13, fontWeight: 600,
+                    }}
+                  >
+                    Open Playground <ArrowRight size={13} />
+                  </button>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input area */}
+            {(panelState === "chatting" || (panelState === "proposing" && !panelLoading)) && (
+              <div style={{
+                padding: "12px 20px",
+                borderTop: "1px solid var(--color-border)",
+                flexShrink: 0,
+              }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                  <input
+                    ref={panelInputRef}
+                    value={panelInput}
+                    onChange={e => setPanelInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && !e.shiftKey && !panelLoading && panelInput.trim()) {
+                        e.preventDefault();
+                        handlePanelSend();
+                      }
+                    }}
+                    placeholder={panelState === "proposing" ? "Ask for changes…" : "Describe what you want…"}
+                    disabled={panelLoading}
+                    style={{
+                      flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13,
+                      background: "var(--color-surface-2)", border: "1px solid var(--color-border)",
+                      color: "var(--color-text)", outline: "none",
+                      opacity: panelLoading ? 0.5 : 1,
+                    }}
+                  />
+                  <button
+                    onClick={handlePanelSend}
+                    disabled={panelLoading || !panelInput.trim()}
+                    style={{
+                      width: 34, height: 34, borderRadius: 8, border: "none",
+                      background: panelInput.trim() && !panelLoading ? "var(--color-brand)" : "var(--color-surface-3)",
+                      color: panelInput.trim() && !panelLoading ? "#0a1628" : "var(--color-muted)",
+                      cursor: panelInput.trim() && !panelLoading ? "pointer" : "not-allowed",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0, transition: "background 0.1s",
+                    }}
+                  >
+                    <Send size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Footer for done/creating states */}
+            {(panelState === "done") && (
+              <div style={{
+                padding: "10px 20px",
+                borderTop: "1px solid var(--color-border)",
+                display: "flex", justifyContent: "flex-end",
+                flexShrink: 0,
+              }}>
+                <button
+                  onClick={closePanel}
+                  style={{
+                    padding: "6px 14px", borderRadius: 8,
+                    border: "1px solid var(--color-border)",
+                    background: "transparent", color: "var(--color-text-secondary)",
+                    cursor: "pointer", fontSize: 13,
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {/* ── Bottom — user menu only ───────────────────────── */}
       <div style={{ borderTop: "1px solid var(--color-border)", padding: collapsed ? "6px 6px 10px" : "6px 8px 10px" }}>
