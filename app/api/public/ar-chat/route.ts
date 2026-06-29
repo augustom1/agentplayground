@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
+import { prisma } from "@/lib/prisma";
 
 // In-memory rate limiter: 20 requests per IP per hour
 const ipWindows = new Map<string, number[]>();
@@ -78,34 +79,55 @@ export async function POST(req: NextRequest) {
   // Keep conversation bounded
   const trimmed = messages.slice(-20);
 
-  // Try Anthropic first, fall back to OpenAI
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  const openaiKey = process.env.OPENAI_API_KEY;
+  // Resolve API keys: AgentMemory preferred (env as fallback with trim to handle whitespace)
+  async function getKey(name: string): Promise<string | undefined> {
+    const mem = await prisma.agentMemory.findFirst({
+      where: { ownerType: "system", ownerId: name },
+      select: { content: true },
+    });
+    if (mem?.content) return mem.content.trim();
+    const envVal = process.env[name];
+    return envVal?.trim() || undefined;
+  }
 
-  let reply: string;
+  const [anthropicKey, openaiKey] = await Promise.all([
+    getKey("ANTHROPIC_API_KEY"),
+    getKey("OPENAI_API_KEY"),
+  ]);
+
+  let reply = "El asesor no está disponible en este momento. Escribinos a hello@agentplayground.net.";
 
   if (anthropicKey) {
-    const client = new Anthropic({ apiKey: anthropicKey });
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 512,
-      system: SYSTEM_PROMPT,
-      messages: trimmed,
-    });
-    reply = response.content[0].type === "text" ? response.content[0].text : "Lo siento, hubo un problema.";
-  } else if (openaiKey) {
-    const client = new OpenAI({ apiKey: openaiKey });
-    const response = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      max_tokens: 512,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        ...trimmed,
-      ],
-    });
-    reply = response.choices[0]?.message?.content ?? "Lo siento, hubo un problema.";
-  } else {
-    reply = "El asesor no está disponible en este momento. Escribinos a hello@agentplayground.net.";
+    try {
+      const client = new Anthropic({ apiKey: anthropicKey });
+      const response = await client.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 512,
+        system: SYSTEM_PROMPT,
+        messages: trimmed,
+      });
+      reply = response.content[0].type === "text" ? response.content[0].text : reply;
+    } catch (err) {
+      console.error("ar-chat anthropic error:", err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  // Fall through to OpenAI if Anthropic didn't set a real reply
+  if (reply.includes("hello@agentplayground.net") && openaiKey) {
+    try {
+      const client = new OpenAI({ apiKey: openaiKey });
+      const response = await client.chat.completions.create({
+        model: "gpt-4o-mini",
+        max_tokens: 512,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          ...trimmed,
+        ],
+      });
+      reply = response.choices[0]?.message?.content ?? reply;
+    } catch (err) {
+      console.error("ar-chat openai error:", err instanceof Error ? err.message : String(err));
+    }
   }
 
   return NextResponse.json({ message: reply }, { headers: corsHeaders() });
