@@ -58,6 +58,7 @@ COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 
 # Copy docs + root context files so index-docs can read them at runtime
 COPY --from=builder --chown=nextjs:nodejs /app/docs ./docs
+COPY --from=builder --chown=nextjs:nodejs /app/business ./business
 COPY --from=builder --chown=nextjs:nodejs /app/CLAUDE.md ./CLAUDE.md
 COPY --from=builder --chown=nextjs:nodejs /app/HANDOFF.md ./HANDOFF.md
 

@@ -64,6 +64,12 @@ pre-redesign feel in a 4-section layout is the next session, fully specced in `d
   historical banner added to the other 9 business files. AR site = lead-gen, no MercadoPago checkout.
 - **`CLAUDE.md`:** new read order (HANDOFF → docs/VISION.md → docs/PLAN.md), repo structure map,
   no-emoji + LLM-routing constraints added.
+- **`docs/WALKTHROUGH.md`:** new plain-language guide to the entire codebase (folder map, chat/tool/
+  agent/Brain flows, DB models, how agents make changes, deploy, current goals) — written so agents
+  can read it from the Brain and derive work from it.
+- **Brain indexing expanded:** `index-docs` route + setup background indexer now include
+  `docs/VISION.md`, `docs/WALKTHROUGH.md`, `docs/ops/`, and the whole `business/` folder;
+  Dockerfile copies `business/` into the runtime image so production indexing sees it.
 
 ### Previous Session (Session 31 — 2026-06-29) — Overview Dashboard + AR Rebuild ✅ Phase 2 Session 10 COMPLETE
 

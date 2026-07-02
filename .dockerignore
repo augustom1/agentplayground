@@ -30,6 +30,9 @@ Thumbs.db
 # Re-include docs/ directory — needed by index-docs endpoint at runtime
 !docs/
 !docs/**
+# Re-include business/ — indexed into the Brain at runtime
+!business/
+!business/**
 # Re-include root context files read by index-docs
 !CLAUDE.md
 !HANDOFF.md

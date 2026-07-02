@@ -132,7 +132,7 @@ export default function AdminSystemPage() {
           <div>
             <p className="font-medium text-sm" style={{ color: "var(--color-text)" }}>Index Documentation into Brain</p>
             <p className="text-[12px] mt-0.5" style={{ color: "var(--color-muted)" }}>
-              Indexes CLAUDE.md, HANDOFF.md, docs/PLAN.md, docs/PROTOCOLS.md, docs/architecture.md, and all session reports
+              Indexes CLAUDE.md, HANDOFF.md, docs/VISION.md, docs/WALKTHROUGH.md, docs/PLAN.md, docs/PROTOCOLS.md, docs/architecture.md, the business/ folder, and all session reports
               into the Brain knowledge base. Run after adding new docs or updating existing ones. Safe to re-run (deduplicates automatically).
             </p>
           </div>

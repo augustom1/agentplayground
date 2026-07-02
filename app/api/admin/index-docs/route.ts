@@ -25,6 +25,8 @@ async function isAuthorized(request: NextRequest): Promise<boolean> {
 const DOC_PATHS = [
   "CLAUDE.md",
   "HANDOFF.md",
+  "docs/VISION.md",
+  "docs/WALKTHROUGH.md",
   "docs/PLAN.md",
   "docs/PROTOCOLS.md",
   "docs/architecture.md",
@@ -35,12 +37,15 @@ const DOC_PATHS = [
 // Directories to index recursively
 const DOC_DIRS = [
   "docs/reports",
-  "docs/features",
+  "docs/ops",
   "docs/context",
   "docs/context/business",
   "docs/context/dev",
   "docs/context/agents",
   "docs/context/personal",
+  "business",
+  "business/delivery",
+  "business/marketing",
 ];
 
 const PROJECT_ROOT = process.cwd();

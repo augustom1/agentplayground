@@ -141,6 +141,7 @@ async function indexDocsBackground(): Promise<void> {
     const root = process.cwd();
     const files = [
       "CLAUDE.md", "HANDOFF.md",
+      "docs/VISION.md", "docs/WALKTHROUGH.md",
       "docs/PLAN.md", "docs/PROTOCOLS.md", "docs/architecture.md", "docs/DEPLOY-PROTOCOL.md",
     ];
 
