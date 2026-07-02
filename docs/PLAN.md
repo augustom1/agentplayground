@@ -1,147 +1,116 @@
 # docs/PLAN.md — Master Open Work List
-> Updated: 2026-05-27 (Session 18)
-> Single source of truth for open work. HANDOFF.md has the short version.
-> Full history → docs/SESSION-HISTORY.md
+> Updated: 2026-07-02 (Session 32 — repo cleanup + plan realignment)
+> Source of truth for direction: `docs/VISION.md`. If anything here contradicts it, VISION wins.
+> Session state: `HANDOFF.md` (root). Session history: `docs/SESSION-HISTORY.md`.
+> Superseded plans live in `docs/archive/` (kept for history, do not follow them).
 
 ---
 
-## Active / Next Session
+## Build order (from VISION §5)
 
-### 1. Deploy Session 18 + Run Setup
-**Status:** Built locally. Needs deploy + schema push.
-**Steps:**
-1. `scp` all changed files to VPS
-2. `docker compose exec dashboard npx prisma db push` (new models: UserNote, PendingAction)
-3. `/admin/system` → "Seed Context Now" (seeds Brain + creates pending actions)
-4. `/admin/system` → "Index Docs Now" (indexes all docs)
-5. `/admin/system` → "Run Overnight Tasks" (generates code docs + business docs via qwen2.5:7b)
-6. Chat → coordinator will show pending actions, ask for CV/business info
+**UI restoration → repo cleanup → n8n MCP tools → self-service Telegram bots → permission rings → deployment capabilities.**
 
-### 2. Blog Auto-Generation
-**Status:** Not started. Docs/context seeded (content-strategy in PLAN).
-**What to build:** `/blog/generate` page — user picks topic + outline, coordinator drafts post, saves to Brain + publishes to `/blog`.
-**Agent flow:** Business team → draft post → user reviews → publish to `data/blog/<slug>.md` → render at `/blog/[slug]`.
+One concern per session where possible. Every session ends with a passing Docker build.
 
-### 3. CV Subdomain
-**Status:** `/cv` page built (local). Needs subdomain + public view.
-**What to build:** `cv.agentplayground.net` or `/public/cv/[username]` — public-facing rendered CV from Brain notes.
-**Agent flow:** CV Advisory team formats Brain notes → renders as clean HTML CV page.
-
-### 4. Crypto Billing Agents
-**Status:** Architecture documented in `docs/context/business-setup.md`. Not built.
-**What to build:**
-- `Billing Monitor Agent` team: wallet watcher + invoice matcher + ARQ transfer
-- Schema: `Invoice`, `CryptoTransaction`, `WalletConfig` models
-- `/billing/crypto` page: wallet config, transaction log, ARQ transfer history
-**Blocked on:** User providing ARQ account + preferred chain (see pending actions)
-
-### 5. Job Application Agents
-**Status:** Job Search team seeded in `lib/seed-personal-teams.ts`. UI missing.
-**What to build:** `/jobs` page — paste job description → Application Package skill runs → cover letter + outreach → saves to Brain.
-**Agent flow:** CV notes + job desc → Job Scout analyzes → Application Writer drafts cover letter.
-
-### 6. LLM Provider Settings UI
-**Status:** Backend done. UI missing.
-**Build:** `/settings/providers` page — list providers, add/edit API keys, set default per team, test connection.
-
-### 7. Admin Monitoring Panel
-**Status:** Partially built (`/admin/system` has Index Docs + Overnight). Health metrics missing.
-**Build:** DB size, task volumes, active SSE connections, Ollama model status, ApiUsage chart (daily tokens by model).
-
-### 8. Empty States
-**Status:** Not started.
-**Where:** `/plans`, `/agent-lab`, `/brain`, `/schedule` — blank divs when no data.
-**Build:** Consistent empty states with lucide icons + call-to-action per page.
+- ✅ Repo cleanup — DONE (Session 32, this session — done out of order because the tree was blocking work)
+- 🔜 **UI restoration — NEXT SESSION**
+- then §3, §4, §5 below in order
 
 ---
 
-## Near-Term Backlog
+## 1. NEXT SESSION — UI Restoration (VISION §2)
 
-| Item | Notes |
-|---|---|
-| Webapp hosting by agents | `/app/data/sites/<sub>/` + nginx config gen + `HostedApp` DB record. See P10 in PROTOCOLS.md |
-| Agent evolution / versioning | `tools`, `version`, `changelog` fields on Agent model. Coordinator upgrades agents after successful task patterns |
-| Token usage dashboard | ApiUsage data exists. Build a chart page at `/settings/usage` |
-| Background task log | List all tasks (completed/running/failed) with results, searchable. Enhance `/plans` or add `/tasks` page |
-| Weekly optimization scan | `lib/optimizer/scanner.ts` exists. Wire to cron to run weekly + write OptimizationScan + report to Brain |
-| Multi-server / client isolation | Each client gets separate DB + namespace. `tenantId` field exists on most models — build tenant routing |
+**Goal:** replace the disliked redesign (flat Chat/Overview/Playgrounds nav, rust asterisk logo, rust accents) with the liked pre-redesign feel, reorganized into exactly FOUR top-level sections.
 
----
+### Git facts (already researched in Session 32 — do not re-derive)
 
-## Long-Term Vision
+- The liked UI is recoverable at commit **`5213954`** (Session 22, 2026-06-26): charcoal Design System v3 tokens (`app/globals.css` — still unchanged, keep them), blue-cyan `#38BDF8` brand accent, collapsible sidebar with pill tab box, recents list, hamburger menu.
+- The disliked redesign landed entirely in commit **`404a125`**: full `components/Sidebar.tsx` rewrite, `components/Logo.tsx` replaced with a rust asterisk (too close to Anthropic's mark — must go), rust `#D4715A` hardcoded in 9 app/component files.
+- The build-breaking slug conflict from the failed revert was fixed in Session 32.
 
-### The Brain as Operations Hub
-Every action the system takes should leave a trace in the Brain:
-- Research → `BrainDocument (research)`
-- Task results → `BrainDocument (task-result)`  
-- Session reports → `BrainDocument (session-report)`
-- Plans + outcomes → `BrainDocument (plan)`
-- Documentation → `BrainDocument (manual)` via index-docs
+### Work items
 
-When the Brain is full, agents can answer questions from stored context using local Ollama (zero API cost).
+1. **Sidebar**: recover the `5213954` sidebar's visual language (`git show 5213954:components/Sidebar.tsx`) and adapt to exactly four sections — no fifth without owner approval:
+   - **Chats** — recents + picker: Playground Keeper or team heads (`/chat`)
+   - **Playgrounds** — list only, click to enter `/playground/[id]` (keep the inner playground environment from sessions 28–30; the complaint was the top-level layout, not those pages)
+   - **Teams** — agent teams, skills, optimizer (consolidates `/agent-lab`, `/optimize`, `/tools`)
+   - **Brain** — RAG docs, files, notes; future home of doc-level agent access grants (`/files`, `/notes`)
+   - Everything else (`/overview`, `/cv`, `/learn`, `/billing`, admin) leaves top-level nav; Settings/Admin stay in the hamburger. Pages stay routable for now.
+2. **MobileNav**: same four sections (Session 32 left a temporary `/overview` tab patch).
+3. **Colors**: remove the 9 hardcoded `#D4715A` occurrences in app/components, back to `--color-brand` tokens (blue-cyan on charcoal). Marketing/AR pages are out of scope.
+4. **Logo**: new ORIGINAL terminal-style mark (monospace/prompt aesthetic, e.g. `>_` with block cursor) — show the owner 2–3 SVG variants before wiring in. Do NOT imitate Anthropic/Claude's asterisk. Fallback stopgap: restore the BrainNetwork mark from `5213954`.
+5. **Centering pass**: main content areas are off-center per owner; fix alignment on all four sections.
+6. **Verify**: visual pass on all four sections + passing `docker compose build`.
 
-### Protocols In Place (already built)
-See `docs/PROTOCOLS.md` for full specification. Summary:
-- P1: Research auto-archive (web_search + web_browse → Brain)
-- P2: Task result auto-archive (delegate_to_team → Brain)
-- P3: Session report protocol (generate_session_report tool)
-- P4: Knowledge population (POST /api/admin/index-docs)
-- P5: Agent evolution (optimizer learns from usage)
-- P6: Human intervention (request_human_input → SSE + Telegram)
-- P7: Data retention config (full / results_only / minimal)
-- P8: Token usage tracking (ApiUsage table)
-- P9: Onboarding wizard (4-step setup: account → mission → teams → preferences)
+### Rules while doing it
 
-### Onboarding Goals
-When a new user installs the app on their server:
-1. `/setup` wizard: account → use case → team selection → data/LLM preferences
-2. Admin creates account + seeds selected teams + saves config to AgentMemory + indexes docs
-3. Coordinator reads config at startup and adapts behavior
-
-### Scale-Out Plan
-1. **Single VPS (current):** One admin, multiple users, shared coordinator
-2. **Multi-tenant VPS:** `tenantId` on all models, namespaced Brain, per-tenant coordinators
-3. **Client hosting:** Each client gets isolated namespace + their selected agent teams
-4. **Multi-VPS:** Redis pub/sub for cross-server SSE, shared DB or per-client DB
+- Claude Desktop feel: clean, minimal, generous whitespace. When choosing between adding and removing an element, remove.
+- No emojis anywhere in the UI. No decorative icon noise.
 
 ---
 
-## Infrastructure Backlog
+## 2. Repo cleanup (VISION §3) — ✅ DONE Session 32
 
-| Item | Notes |
-|---|---|
-| Telegram env vars on VPS | `TELEGRAM_GROUP_CHAT_ID` + `TELEGRAM_OWNER_CHAT_ID` → `.env.local` + restart |
-| Stripe payment automation | Schema done. Needs keys + webhook. Wire to UserCredits |
-| Live blockchain (Crypto Wallet) | 3 agents, 3 skills scaffold only. Awaits API keys |
-| Landing page Brain section | Block G — not started |
-| Google/Microsoft OAuth | Phase C3 |
-| Monthly credit reset cron | Schema ready, no reset logic |
-| Update wallet addresses | `app/(app)/billing/page.tsx` → `WALLETS` constant |
+- Stale specs → `docs/archive/` (root cleared of 12 stale .md files, `docs/pivot/`, `docs/features/`, old website)
+- Infra how-tos → `docs/ops/`; loose root scripts → `scripts/`
+- Vision file → `docs/VISION.md`; business docs updated in `business/`
+- Remaining follow-up: none blocking. `docs/architecture.md` and `docs/PROTOCOLS.md` are code-referenced (Brain indexing) — refresh their content opportunistically.
 
 ---
 
-## Recently Completed
+## 3. n8n MCP tools (VISION §4.3.1)
 
-### Session 17 (2026-05-27)
-- Slim CLAUDE.md (session start protocol), new PLAN.md, HANDOFF.md restructured
-- `docs/PROTOCOLS.md` — all 11 system protocols defined
-- `docs/architecture.md` — full code navigation guide (updated)
-- `generate_session_report` tool (tool #30) — Brain upload from coordinator
-- Research auto-archive — `web_search` + `web_browse` → Brain (P1)
-- Task result auto-archive — `delegate_to_team` → Brain (P2)
-- 4-step onboarding wizard — `/setup` page rebuilt
-- `lib/seed-personal-teams.ts` — CV Advisory, Education, Financial Planner, Job Search, Fitness
-- `app/api/admin/index-docs` — docs indexer API
-- `app/admin/system/page.tsx` — Index Docs button
+Agents create/modify their own n8n workflows via the n8n API — workflows stay visible and inspectable by humans.
 
-### Session 16 (2026-05-22)
-- Slug conflict fixed: `[teamId]` → `[id]` in widget-data route
-- No-cache Docker rebuild after directory deletion
-- `docs/DEPLOY-PROTOCOL.md` created
+- MCP tools (in `app/api/mcp/route.ts` layer): `n8n_list_workflows`, `n8n_get_workflow`, `n8n_create_workflow`, `n8n_update_workflow`, `n8n_activate_workflow`, `n8n_run_webhook`
+- Auth via n8n API key from env (`N8N_API_KEY`), never exposed to the model
+- Every agent-made workflow change = automatic commit to a config repo (forensics via `git log`, recovery via `git revert`)
+- Each tool declares its permission ring (GREEN for own workflows) — ring lives in the tool layer, not prompts
 
-### Session 15 (2026-05-22)
-- Project status dashboard + `get_project_status` tool
-- Telegram: bidirectional DMs → coordinator, group notifications, Settings UI
-- Live widget data (task_queue, project_pipeline)
+## 4. Self-service Telegram bots (VISION §4.3.2)
 
-> Full archive → docs/SESSION-HISTORY.md
+- Agents can register and run their own Telegram bots using tokens already provisioned to the system
+- Output channels are an abstraction: Telegram/Discord/email as first-class adapters (Instagram = fragile adapter, never core)
+
+## 5. Permission rings + approver flow + audit log (VISION §4.3.3)
+
+- **GREEN** fully autonomous / **YELLOW** autonomous + audit log the Keeper can summarize / **RED** owner approves with one tap via Telegram
+- Rings enforced in the MCP tool layer — prompts can be injection-attacked, tool scopes cannot
+- RED covers: payments, private keys, destructive deletion, permission-system changes, client credentials
+
+## 6. Deployment capabilities (VISION §4.3.4)
+
+- Agents deploy/restart their own containers, request new subdomains (YELLOW: Traefik changes audited)
+- Gated entirely by the rings from §5
+
+---
+
+## Cross-cutting requirements (apply to every feature above)
+
+- **Budget first-class:** per-agent/per-team daily token budgets, Keeper burn-rate reports, automatic kill-switch on runaway loops. Later becomes a client-facing dashboard.
+- **Prompt injection defense:** all external content agents read is untrusted; safety comes from ring architecture, not prompt instructions.
+- **Agent changes are git commits:** workflows, bots, configs — infrastructure-as-code written by agents.
+- **Per-client API keys:** client-facing deployments run on the client's own LLM key (or metered with explicit markup). Never silently absorb client token costs.
+- **Generic platform features, not one-off scripts:** if code only serves one demo, it's scope creep (VISION §1).
+- **Multi-tenant-aware from the start:** per-client Docker Compose stacks, resource caps, separate networks, Traefik routing per domain.
+
+---
+
+## Backlog (not scheduled — do not start without owner approval)
+
+- Doc-level agent access grants in Brain (grant/revoke per doc) — belongs to the Brain section, VISION §2.1.4
+- Obsidian vault integration as persistent memory layer (Brain section)
+- Playground Library: catalog of ready-made playgrounds clients can browse/deploy (see `business/`)
+- Docker Hub push + friends release (was "Phase 2 done" step; now blocked behind UI restoration)
+- Empty states (Plans, Teams, Brain, Schedule); LLM provider settings UI polish
+
+---
+
+## Hard constraints (VISION §0 — never violate)
+
+- No Zod — Valibot only
+- Prisma 7 with `@prisma/adapter-pg` — never downgrade/swap
+- Never break the Docker build; every session ends green
+- No emojis in the UI
+- Docker Compose + Traefik on Hetzner VPS; deploy via `scp`, never `git pull` on the server
+- LLM routing: local Ollama + Claude API — never hardcode a single provider

@@ -1,155 +1,91 @@
 # Services & Pricing — Agent Playground
+> Updated: 2026-07-02 — aligned with `docs/VISION.md` §1 and `00-overview.md`.
+> These are the current prices. Older price tables in this folder are historical.
 
 ## Service Catalog
 
 ---
 
-### SERVICE 1 — VPS Setup & Managed Hosting
+### SERVICE 1 — Custom Playground ($350–500)
+
+A playground built to the client's spec, deployed into their existing Agent Playground installation
+(self-hosted or on one of our managed tiers).
 
 **What the client gets:**
-- VPS provisioned on Hetzner (client pays Hetzner directly ~€9–19/mo)
-- Full Agent Playground stack deployed (Dashboard, Ollama, n8n, Open WebUI, FileBrowser, Portainer)
-- Custom domain + wildcard SSL (Let's Encrypt via Traefik)
-- Admin account created, first agent team configured
-- 1-hour onboarding call + walkthrough
-- Ongoing: monthly updates, monitoring, backups, email support
+- Discovery call: what should the agents actually do
+- A configured playground: agent team(s), skills, scoped Brain tags, starter documents
+- Any n8n workflows the playground needs
+- Walkthrough call + short usage guide
 
-**Tiers:**
+**Pricing guidance:**
+- $350 — single team, standard tools, no custom integrations
+- $500 — multiple teams and/or a custom integration (external API, custom data source)
 
-| Tier | VPS Spec | Setup Fee | Monthly Retainer |
-|---|---|---|---|
-| Starter | 4 vCPU / 16 GB (Hetzner CX32) | $350 | $99/mo |
-| Growth | 8 vCPU / 32 GB (Hetzner CX42) | $600 | $199/mo |
-| Agency | 16 vCPU / 64 GB (Hetzner CX52) | $900 | $399/mo |
+**Delivery:** 3–7 business days.
 
-**Add-ons:**
-- Extra agent team configuration: +$150/team
-- Additional VPS (multi-tenant): +$200 setup per VPS
-- Anthropic API pass-through: cost + 15% margin
-- Custom Nginx site on same VPS: +$200
+**Always:** after delivery, produce an anonymized generic template for the Playground Library
+(unless the client's use case is truly unique or confidential).
 
 ---
 
-### SERVICE 2 — Website Development
+### SERVICE 2 — Full Framework Installation + Custom Playground ($1,000–1,500 one-off)
 
-**Static sites** (HTML/CSS, hosted on Nginx on client's VPS)
-- Landing page (1 page): $400–600
-- Multi-page marketing site (3–5 pages): $700–1,200
-- Delivery: 5–10 business days
+For clients starting from zero: their own complete Agent Playground stack plus a custom playground.
 
-**Dynamic sites** (Next.js, custom backend, hosted separately or on VPS)
-- Marketing site with CMS: $1,200–2,000
-- SaaS landing page + waitlist: $1,500–2,500
-- Full web application: custom quote ($3,000+)
-- Delivery: 2–6 weeks depending on scope
+**What the client gets:**
+- VPS provisioned (client pays the provider directly, e.g. Hetzner ~€9–19/mo)
+- Full stack deployed: dashboard, PostgreSQL + pgvector, Redis, Ollama, n8n, Traefik + SSL
+- Custom domain, admin account, seeded teams
+- One custom playground (Service 1 included in the price)
+- Client's own LLM API keys configured (they own their token spend)
+- 1-hour onboarding + 30 days of installation support
 
-**What's always included:**
-- Mobile responsive
-- Dark/light mode (matching brand)
-- Contact form
-- Basic SEO (meta tags, sitemap, robots.txt)
-- Hosting setup (Nginx on VPS or Vercel/Netlify for static)
-- 30 days of bug fixes post-launch
+**Pricing guidance:**
+- $1,000 — standard install + one straightforward playground
+- $1,500 — complex playground, extra integrations, or migration of existing data/workflows
 
-**Extras:**
-- Custom CMS integration (Sanity, Contentful): +$400
-- Blog setup: +$300
-- E-commerce (Stripe checkout): +$800
-- Analytics setup (Plausible or GA4): +$150
+**Delivery:** 1–2 weeks.
 
 ---
 
-### SERVICE 3 — AI Automation & n8n Workflows
+### SERVICE 3 — Managed Hosting (recurring)
 
-**Workflow builds** (n8n flows that automate a business process)
-
-| Complexity | Price | Examples |
+| Tier | Price | What they get |
 |---|---|---|
-| Simple (1–3 nodes) | $300 | Send email when task completes, daily report |
-| Medium (4–10 nodes) | $600–900 | CRM sync + AI summary + Slack notification |
-| Complex (10+ nodes) | $1,200–2,000 | Full multi-step AI pipeline with agents |
+| **Basic** | ~$100/mo | Stack hosted on shared multi-tenant server (isolated per-client Docker stack, own domain, resource caps), updates, monitoring, backups, email support |
+| **Library** | ~$180–200/mo | Basic + full Playground Library access: browse, try, and deploy ready-made playgrounds |
+| **Dedicated** | ~$250–300/mo | Own server (no sharing), priority support, custom resource sizing |
 
-**Agent team configuration**
-- Configure a team of agents for a specific use case: $300–600
-- Examples: customer support agent, content generation team, research team
-
-**Ongoing workflow maintenance**
-- Included in Growth/Agency retainer
-- Starter clients: +$50/mo per active workflow
+**Rules:**
+- LLM usage always runs on the client's own API keys, or metered with an explicit,
+  stated markup. Never absorbed silently.
+- Multi-tenant isolation: per-client compose stack, separate Docker network, Traefik per domain.
+- Local Ollama models included on all tiers where server resources allow — routine tasks at zero token cost.
 
 ---
 
-### SERVICE 4 — Consulting & Strategy (hourly)
+### Add-ons (any tier)
 
-- Discovery / audit call: $150/hr (first 30 min free with paid setup)
-- AI automation strategy session: $200/hr
-- Technical architecture review: $200/hr
-- Custom agent prompt engineering: $150/hr
-
----
-
-## Proposal Templates
-
-### Quick Proposal (email format)
-
----
-Hi [Name],
-
-Based on our call, here's what I'd recommend:
-
-**What I'll deliver:**
-- [list 2–3 specific deliverables]
-
-**Investment:**
-- Setup: $[X] (one-time)
-- Ongoing: $[X]/mo (includes [list what's included])
-- VPS: ~$[X]/mo paid directly to Hetzner (you own it)
-
-**Timeline:** [X days] from payment to live
-
-**What I need from you:**
-- Domain access (or I register one for you at cost)
-- Your preferred email for the admin account
-- 30 min for the onboarding call
-
-To proceed: reply "let's do it" and I'll send the invoice.
-
-[Your name]
----
-
-### Full Proposal (document)
-
-Sections:
-1. Executive Summary (2 sentences: what you're getting and why)
-2. Scope of Work (numbered deliverables)
-3. What's NOT included (prevent scope creep)
-4. Pricing (table with line items)
-5. Timeline (start date → delivery milestones)
-6. Terms (50% upfront, 50% on delivery; revisions policy)
-7. Next steps
-
----
-
-## Upsell Triggers
-
-Watch for these signals that a client is ready to upgrade:
-
-| Signal | Upsell |
+| Add-on | Price |
 |---|---|
-| "Can we add another workflow?" | Upgrade to Growth retainer |
-| "We're adding 2 more team members" | Discuss Agency tier or extra agent teams |
-| "The responses are slow sometimes" | VPS upgrade (Natasha's sizing guide) |
-| "We want a customer-facing chatbot" | New agent team + n8n webhook workflow |
-| "Can our client see this?" | White-label setup (custom domain/branding) |
-| "We need to store more files" | VPS storage upgrade |
+| Additional custom playground | $350–500 (Service 1) |
+| Custom n8n workflow (standalone) | $150–400 depending on complexity |
+| Additional website hosted on their stack | $200 setup |
+| Extra onboarding/training session | $75/hour |
 
 ---
 
-## Discount Policy
+## What We Do NOT Sell
 
-- **Pilot clients (first 3):** 40% off setup fee, full price retainer (in exchange for testimonial)
-- **Annual prepay:** 2 months free (10 months price for 12 months)
-- **Referrals:** Referring client gets 1 month retainer credit per successful referral
-- **Non-profit / solo freelancer:** 20% off at your discretion
+- Per-seat SaaS licenses (the core is open source)
+- Raw development hours without a defined deliverable
+- Anything requiring us to hold client private keys or payment credentials
+  (RED-ring actions always remain with the client)
 
-Never discount the retainer for new clients — it sets the wrong expectation.
+## Quoting Rules
+
+1. Anchor on outcomes ("your agents will do X") not components.
+2. Custom quote only when the request doesn't fit the catalog — and if it happens twice,
+   it becomes a catalog item.
+3. Every proposal states: client owns infrastructure, client owns keys, client can leave
+   anytime (open source) — this is the trust pitch that closes deals.

@@ -1,6 +1,7 @@
 # HANDOFF.md — Session State
-> Last updated: 2026-06-29 (Session 30 — Playground Creation Assistant, Phase 2 Session 9)
+> Last updated: 2026-07-02 (Session 32 — Repo cleanup + plan realignment)
 > Read this FIRST at every session start, before CLAUDE.md.
+> **Source of truth for direction: `docs/VISION.md`** — if anything here contradicts it, VISION wins.
 > See `docs/PLAN.md` for the full open work list.
 > See `docs/SESSION-HISTORY.md` for full session archive.
 
@@ -35,7 +36,50 @@ App is **healthy** at `https://app.agentplayground.net`
 - **Local LLM flywheel**: task classifier → Ollama routing → Brain archive → protocol writer
 - **Playgrounds**: Organizational containers grouping AgentTeams — sidebar section, CRUD API, `/spaces/[id]` dashboard (agents, active tasks, skills, recent completions)
 
-### Last Session (Session 30 — 2026-06-29) — Playground Creation Assistant ✅ Phase 2 Session 9
+### Last Session (Session 32 — 2026-07-02) — Repo Cleanup + Plan Realignment ✅
+
+**Direction change:** `docs/VISION.md` (moved from root `AGENT_PLAYGROUND_VISION_2-7.md`) is now the
+source of truth. Priority order: **UI restoration → n8n MCP tools → Telegram bots → permission rings →
+deployment capabilities.** The owner dislikes the current UI (Session 28+ redesign) — restoring the
+pre-redesign feel in a 4-section layout is the next session, fully specced in `docs/PLAN.md` §1.
+
+- **Build fix:** removed committed slug conflicts left by a failed revert — deleted
+  `app/(app)/playground/[teamId]/`, `app/(app)/playground/page.tsx`,
+  `app/api/playground/teams/[teamId]/widget-data/`. HEAD previously had `[id]` + `[teamId]` + `page.tsx`
+  coexisting → Next.js build crashed. `npm run build` passes again.
+- **`components/MobileNav.tsx`:** `/playground` tab (now a 404) temporarily points to `/overview`
+  until the UI restoration rebuilds nav.
+- **Repo reorganization (VISION §3):** 12 stale root .md files + `docs/pivot/` + `docs/features/` +
+  6 stale docs specs + old website folder → `docs/archive/`; infra how-tos (Cloudflare, deployment,
+  Traefik SSL, VPS) → `docs/ops/`; `add-site.sh`/`backup-db.sh`/`setup.sh` → `scripts/`;
+  `claude_desktop_reference.png` → `docs/assets/`; release zip gitignored.
+  Code-referenced paths untouched (docs/PLAN.md, docs/PROTOCOLS.md, docs/architecture.md,
+  docs/DEPLOY-PROTOCOL.md, docs/context/, docs/BLOGPOSTS.md, entrypoint scripts, KEYS.md).
+- **`docs/PLAN.md`:** full rewrite — new build order, detailed UI-restoration spec (incl. git
+  archaeology: liked UI at commit `5213954`, disliked redesign in `404a125`), n8n/Telegram/rings/
+  deployment stages, cross-cutting requirements, backlog.
+- **`business/` docs updated to VISION §1 model:** open source core; custom playgrounds $350–500;
+  full installs $1,000–1,500; hosting ~$100 / ~$180–200 / ~$250–300 per month; Playground Library.
+  Rewrote `business/CLAUDE.md`, `00-overview.md`, `03-services-pricing.md`, `07-future-roadmap.md`;
+  historical banner added to the other 9 business files. AR site = lead-gen, no MercadoPago checkout.
+- **`CLAUDE.md`:** new read order (HANDOFF → docs/VISION.md → docs/PLAN.md), repo structure map,
+  no-emoji + LLM-routing constraints added.
+
+### Previous Session (Session 31 — 2026-06-29) — Overview Dashboard + AR Rebuild ✅ Phase 2 Session 10 COMPLETE
+
+- **`app/(app)/overview/page.tsx`**: Full widget dashboard — 6 widgets: Active Tasks (running/pending), Playgrounds Quick-Launch (cards → /playground/[id]), Recent Completions, Plans Status (with status badges), Brain Summary (doc count + last indexed + link), Quick Chat (input → /chat?q=... launcher)
+- **`app/(app)/playground/[id]/layout.tsx`**: Added Plans (ListTodo → /plans) and Actions (Zap → /actions) to WORKSPACE section
+- **`components/ProviderModelSection.tsx`** + **`app/api/settings/provider-model/route.ts`**: Default Provider/Model selector in Settings — radio buttons (Anthropic/OpenAI/Ollama), model dropdown, saves to AgentMemory DEFAULT_PROVIDER/DEFAULT_MODEL
+- **`app/api/chat/route.ts`**: Reads DEFAULT_PROVIDER/DEFAULT_MODEL from AgentMemory when request doesn't specify provider/model
+- **`app/(app)/chat/page.tsx`**: Reads `?q=` query param on load and pre-fills input (used by Overview Quick Chat)
+- **`webroot/ar/index.html`**: Full rebuild — lead-gen page, no prices, chatbot widget, 4-step process, FAQ, contact section; accent changed from blue to rust #D4715A; rust asterisk logo
+- **`app/api/public/ar-chat/route.ts`**: New public endpoint — in-memory rate limit (20/hr/IP), CORS headers, system prompt for Argentine sales assistant, uses haiku/gpt-4o-mini
+- **`middleware.ts`**: Added `/api/public/` to public routes (no auth required)
+- **Deploy**: SCP 10 files → rebuild dashboard → health 200 ✅
+- **GitHub**: Committed 42 files (sessions 22–31) + pushed to augustom1/agentplayground ✅
+- **Phase 2 COMPLETE** — Docker push pending (need Docker Desktop running)
+
+### Previous Session (Session 30 — 2026-06-29) — Playground Creation Assistant ✅ Phase 2 Session 9
 
 - **`app/api/playground-assistant/route.ts`**: New non-streaming API endpoint for the playground creation chat. Auth-gated. 3 inline tools: `list_teams` (returns existing teams), `suggest_playground_config` (sub-LLM call to generate config JSON), `create_playground_from_config` (creates new teams if needed + playground). `confirmedConfig` shortcut skips LLM for creation step. Tool loop runs up to 6 iterations.
 - **`components/Sidebar.tsx`**: Replaced old form modal with a right-side slide-in chat panel. 4-state machine: `chatting` → `proposing` → `creating` → `done`. Opens with greeting message. User describes intent → assistant proposes config card (name, icon, teams, brain tags) → "Looks good" creates instantly → "Open Playground" navigates. Input box in chatting/proposing states. Auto-scrolls. Panel is 440px wide with backdrop.
@@ -170,53 +214,32 @@ App is **healthy** at `https://app.agentplayground.net`
 
 ## Next Session Priorities
 
-### ✅ Phase 1 (Sessions 0–6) COMPLETE
+### 🔜 NEXT SESSION — UI Restoration (VISION §2)
 
-Phase 1 (docker packaging, marketing site, setup wizard, version endpoint) is done.
-**Holding the GitHub/Docker release** until Phase 2 is done — the app needs to be better before friends test it.
+**Full spec with git archaeology already done: `docs/PLAN.md` §1. Read it first — don't re-derive.**
 
----
+Summary:
+1. Four top-level sections, nothing else: **Chats / Playgrounds / Teams / Brain**
+2. Recover the liked sidebar visual language from commit `5213954` (`git show 5213954:components/Sidebar.tsx`)
+3. Remove the 9 hardcoded rust `#D4715A` occurrences → back to `--color-brand` tokens (blue-cyan on charcoal; `app/globals.css` is already correct, don't touch tokens)
+4. New ORIGINAL terminal-style logo (2–3 SVG variants for owner approval first) — the rust asterisk imitates Anthropic's mark and must go
+5. Fix off-center content, visual pass on all four sections, passing `docker compose build`
+6. MobileNav: replace temporary `/overview` patch with the four sections
 
-### 🔄 Phase 2 — Playground Platform Restructure (Sessions 7–10)
+### After that (in order — see docs/PLAN.md)
+1. n8n MCP tools (agents create their own workflows)
+2. Self-service Telegram bots
+3. Permission rings + one-tap Telegram approval + audit log
+4. Agent deployment capabilities (containers, subdomains)
 
-**Vision pivot (2026-06-28):** The product is being redesigned around Playgrounds as self-contained mini-app environments before friends test it. See `docs/pivot/09-PLATFORM-VISION.md` for the full spec.
-
-**Goal:** By end of June/start of July, the app should feel like a platform, not a dashboard with tabs.
-
-#### ✅ Session 7 — Navigation Restructure (DONE)
-- Sidebar restructured: flat Chat | Overview | Playgrounds list
-- `/playground/[id]` route live (moved from `/spaces/[id]`)
-- Logo unified to rust asterisk everywhere in-app
-- Overview stub live, chat empty state shows playground chips
-
-#### ✅ Session 8 — Playground Environment (DONE)
-- Inner sidebar (200px) with contextual nav: Dashboard / Chat / Brain / Teams / Apps (stub) / Settings
-- Scoped chat: team picker filtered to playground teams, systemContext injected
-- Scoped Brain: tag-filtered VaultNote query with dedup, Add to Brain modal
-- Settings: name/icon/color/teams/brainTags editor with PATCH
-- Default playgrounds: 3 seeded for new users (Development/Research/Business)
-- brainTags field on Playground model in DB
-
-#### ✅ Session 9 — Playground Creation Assistant (DONE)
-- Clicking "+ New Playground" opens a chat-based wizard
-- User describes intent; assistant proposes config (teams, brain tags, new teams if needed)
-- Confirm → playground created instantly → navigate to it
-- Import section in playground settings for future Library packages
-
-#### 🔄 Session 10 — Overview Dashboard + Pre-launch Polish (NEXT)
-- `/overview` becomes a customizable widget board (active tasks, agent status, quick launchers)
-- Polish and end-to-end test before GitHub release
-- See `docs/pivot/PROMPT-SCHEDULE.md` Session 10
-
----
-
-**When Phase 2 is done:** Do the Phase 1 release checklist (Docker push, GitHub release, ZIP), then share with friends.
-
-**Deferred to Phase 3 (post-friends-test):**
-- Subapp system (custom mini-tools installed into a playground)
-- Open platform SDK + docs at agentplayground.net/docs
-- B2B playground provisioning
-- Stripe + Library payments
+### Standing items (do when convenient, not blocking)
+- **AR chatbot key** — VPS `ANTHROPIC_API_KEY` expired; enter a fresh key at
+  `https://app.agentplayground.net/settings` → API Keys (AgentMemory-first lookup already handles it). No code change.
+- **Docker Hub push + friends release** — now gated behind UI restoration (the app's face must be right first):
+  ```bash
+  docker build -t augustojmd/agentplayground:0.1.0 .
+  docker push augustojmd/agentplayground:0.1.0
+  ```
 
 ---
 
@@ -291,5 +314,8 @@ User → Coordinator (25 tool iterations)
 | 17 | Documentation restructure, session reports system, generate_session_report tool |
 | 18–20 | Personal OS pages (CV/learn/notes), Local LLM flywheel, SensorGuard demo, GuardTech site |
 | 21 | SensorGuard cleanup: deleted demo code, VPS cleanup, merged to master, desktop pivot begins |
+| 22–27 | Desktop app Phase 1: nav gating, API keys settings, licenses, wizard, docker packaging, marketing site |
+| 28–31 | Phase 2 (the disliked redesign): flat nav + rust asterisk logo, playground environment, creation assistant, overview dashboard, AR lead-gen rebuild |
+| 32 | New vision adopted (docs/VISION.md), build fix (slug conflicts), repo cleanup, plan + business docs realigned |
 
 Full history → `docs/SESSION-HISTORY.md`

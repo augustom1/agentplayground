@@ -1,6 +1,7 @@
 # CLAUDE.md — Agent Playground
 
-> **Read order every session:** HANDOFF.md → docs/PLAN.md → this file (constraints + commands only).
+> **Read order every session:** HANDOFF.md → docs/VISION.md → docs/PLAN.md → this file (constraints + commands only).
+> `docs/VISION.md` is the source of truth. If any other doc contradicts it, VISION wins.
 
 ---
 
@@ -9,8 +10,9 @@
 At the start of **every session**, before any code work:
 
 1. Read `HANDOFF.md` — current live state + next priorities
-2. Read `docs/PLAN.md` — master open work list
-3. Generate a session opener report comparing last session's planned work vs what was done. Format:
+2. Read `docs/VISION.md` — product vision, hard constraints, roadmap direction
+3. Read `docs/PLAN.md` — master open work list
+4. Generate a session opener report comparing last session's planned work vs what was done. Format:
 
 ```
 ## Session Report — YYYY-MM-DD
@@ -20,8 +22,8 @@ At the start of **every session**, before any code work:
 **Starting now:** [what we'll work on today]
 ```
 
-4. Present the report to the user before doing anything else.
-5. At end of session: update `HANDOFF.md` Next Session section + run `generate_session_report` tool in chat to push report to Brain.
+5. Present the report to the user before doing anything else.
+6. At end of session: update `HANDOFF.md` Next Session section + run `generate_session_report` tool in chat to push report to Brain. Every session ends with a passing Docker build.
 
 ---
 
@@ -35,6 +37,8 @@ At the start of **every session**, before any code work:
 - **No secrets** in docker-compose.yml — `.env.local` only
 - **Slug rule:** every `[param]` segment at the same URL depth must use the same name (e.g. all routes under `app/api/playground/teams/[id]/` use `[id]`)
 - **Deploy rule:** after deleting directories, always rebuild with `--no-cache`
+- **No emojis anywhere in the UI** — no decorative icon noise
+- **LLM routing:** local Ollama + Claude API — never hardcode a single provider
 
 ---
 
@@ -104,6 +108,23 @@ ssh ... "cd /root/opt/vps && docker compose -f docker-compose.yml -f docker-comp
 | Billing wallets | `app/(app)/billing/page.tsx` → `WALLETS` constant |
 | API error helper | `lib/api-error.ts` |
 | VPS app path | `/root/opt/vps/` |
+
+---
+
+## Repo Structure (reorganized 2026-07-02, Session 32)
+
+| Where | What |
+|---|---|
+| `docs/VISION.md` | Source of truth — vision, hard constraints, UI spec, roadmap |
+| `docs/PLAN.md` | Master open work list (next session lives here) |
+| `docs/PROTOCOLS.md` · `docs/architecture.md` · `docs/DEPLOY-PROTOCOL.md` | Working docs (code-referenced by Brain indexing — do not move) |
+| `docs/context/` · `docs/BLOGPOSTS.md` · `docs/reports/` | Code-referenced by seed/overnight routes — do not move |
+| `docs/ops/` | Infra how-tos (Cloudflare, deployment, Traefik SSL, VPS) |
+| `docs/archive/` | Superseded specs and plans — history only, never follow them |
+| `business/` | How the company runs — start at `business/CLAUDE.md` then `business/00-overview.md` |
+| `scripts/` | Operational scripts (setup.sh, add-site.sh, backup-db.sh, seeds) |
+| `KEYS.md` · `SOCIAL_MEDIA_SETUP.md` | Gitignored credential notes — must stay at root (ignore rules match exact path) |
+| `entrypoint.sh` · `ollama-entrypoint.sh` | Referenced by Dockerfiles — must stay at root |
 
 ---
 

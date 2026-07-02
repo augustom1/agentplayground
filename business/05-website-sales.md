@@ -1,5 +1,7 @@
 # Marketing Website — agentplayground.net
 
+> **Note (2026-07-02):** Pricing and business-model details in this file are historical. The current model (open source core; custom playgrounds $350-500; full installations $1,000-1,500; managed hosting ~$100 / ~$180-200 / ~$250-300 per month; Playground Library) lives in `00-overview.md` and `03-services-pricing.md` - use those numbers. The AR site is now a lead-gen page: no listed prices, no MercadoPago checkout.
+
 This file contains the full copy and structure for the sales/marketing website.
 The site sells the done-for-you service. It is NOT the app — it's the front door.
 

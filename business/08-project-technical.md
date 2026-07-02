@@ -1,5 +1,7 @@
 # Technical Summary — Agent Playground
 
+> **Note (2026-07-02):** Pricing and business-model details in this file are historical. The current model (open source core; custom playgrounds $350-500; full installations $1,000-1,500; managed hosting ~$100 / ~$180-200 / ~$250-300 per month; Playground Library) lives in `00-overview.md` and `03-services-pricing.md` - use those numbers. The AR site is now a lead-gen page: no listed prices, no MercadoPago checkout.
+
 For developers joining the project, technical co-founders, or investors who want the details.
 
 ---
