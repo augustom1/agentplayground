@@ -15,7 +15,7 @@ const PRIMARY_TABS = [
   { href: "/dashboard",  label: "Home",       icon: LayoutDashboard },
   { href: "/chat",       label: "Chat",        icon: MessageSquare },
   { href: "/agent-lab",  label: "Teams",       icon: Users },
-  { href: "/playground", label: "Playground",  icon: Layers },
+  { href: "/overview",   label: "Overview",    icon: Layers },
 ];
 
 type MoreSection = {
@@ -160,8 +160,8 @@ export function MobileNav() {
       >
         {PRIMARY_TABS.map((tab) => {
           // Playground tab is active on playground + its sub-pages
-          const subPaths = tab.href === "/playground"
-            ? ["/playground", "/projects", "/schedule", "/pipeline"]
+          const subPaths = tab.href === "/overview"
+            ? ["/overview", "/playground", "/projects", "/schedule", "/pipeline"]
             : [tab.href];
           const active = subPaths.some(p => pathname === p || pathname.startsWith(p + "/"));
           return (
