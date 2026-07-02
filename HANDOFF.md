@@ -70,6 +70,14 @@ pre-redesign feel in a 4-section layout is the next session, fully specced in `d
 - **Brain indexing expanded:** `index-docs` route + setup background indexer now include
   `docs/VISION.md`, `docs/WALKTHROUGH.md`, `docs/ops/`, and the whole `business/` folder;
   Dockerfile copies `business/` into the runtime image so production indexing sees it.
+- **Everything synced:** GitHub `augustom1/agentplayground` pushed (3 commits); VPS `/root/opt/vps/`
+  mirrored to the new structure (stale files parked in `.trash-2026-07-02/` on the VPS, delete when
+  comfortable); `--no-cache` rebuild; health 200; **48 docs indexed into the Brain, 0 errors**
+  (`POST /api/admin/index-docs` with CRON_SECRET bearer).
+- **Production auth fix:** `/api/auth/session` was returning 500 `UntrustedHost` (NextAuth v5 behind
+  Traefik). Added `AUTH_TRUST_HOST=true` to VPS `.env.local` (same fix the desktop package got in
+  Session 25), recreated container → session endpoint 200. Not caused by this deploy — the env var
+  was simply missing on the VPS.
 
 ### Previous Session (Session 31 — 2026-06-29) — Overview Dashboard + AR Rebuild ✅ Phase 2 Session 10 COMPLETE
 
