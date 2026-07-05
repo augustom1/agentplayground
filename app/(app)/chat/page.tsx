@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Send, Bot, Zap, Plus, ChevronDown, Globe, Network,
   Loader2, Sparkles, Search, Eye, Users, Paperclip,
-  Mic, FileText, X, AlertCircle,
+  Mic, FileText, X, AlertCircle, Calendar,
 } from "lucide-react";
 import { useToast } from "@/components/ToastProvider";
 import { LogoMark } from "@/components/Logo";
@@ -389,9 +390,10 @@ function InputBox({ input, setInput, streaming, onSend, onAttach, provider, mode
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-export default function ChatPage() {
+function ChatPageInner() {
   const { addToast } = useToast();
   const { data: session } = useSession();
+  const search = useSearchParams();
   const firstName = (session?.user?.name ?? "").split(" ")[0] || "there";
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -430,9 +432,15 @@ export default function ChatPage() {
 
   // Pre-fill input from ?q= query param (used by Overview quick chat)
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get("q");
+    const q = search.get("q");
     if (q) setInput(q);
-  }, []);
+  }, [search]);
+
+  // Chat-with picker: ?team=coordinator | ?team=<teamId> (sidebar links)
+  useEffect(() => {
+    const t = search.get("team");
+    if (t) setTeamId(t);
+  }, [search]);
 
   useEffect(() => {
     fetch("/api/teams").then(r => r.json()).then((data: Team[]) => setTeams(data.filter(t => !(t as unknown as { isSystemTeam?: boolean }).isSystemTeam))).catch(() => {}).finally(() => setTeamsLoading(false));
@@ -500,15 +508,24 @@ export default function ChatPage() {
 
   function changeProvider(p: Provider) { setProvider(p); setModel((p === "ollama" ? ollamaModels : PROVIDERS[p].models)[0].value); }
 
+  // ?c= opens a specific conversation (sidebar Recents), ?new=1 forces a fresh one,
+  // otherwise resume the session conversation
+  const cParam = search.get("c");
+  const newParam = search.get("new");
   useEffect(() => {
     async function init() {
       try {
-        const storedId = sessionStorage.getItem(SESSION_KEY);
+        if (newParam) {
+          sessionStorage.removeItem(SESSION_KEY);
+          setMessages(prev => (prev.length > 1 ? [prev[0]] : prev));
+        }
+        const storedId = cParam ?? (newParam ? null : sessionStorage.getItem(SESSION_KEY));
         if (storedId) {
           const res = await fetch(`/api/conversations/${storedId}`);
           if (res.ok) {
             const conv = await res.json();
             if (conv.messages?.length > 0) setMessages(prev => [prev[0], ...conv.messages.map((m: { id: string; role: "user" | "assistant"; content: string }) => ({ id: m.id, role: m.role, content: m.content }))]);
+            sessionStorage.setItem(SESSION_KEY, storedId);
             setConversationId(storedId); return;
           }
         }
@@ -517,7 +534,7 @@ export default function ChatPage() {
       } catch {} finally { setLoadingHistory(false); }
     }
     init();
-  }, []);
+  }, [cParam, newParam]);
 
   const saveMessage = useCallback(async (convId: string, role: "user" | "assistant", content: string) => {
     try { await fetch(`/api/conversations/${convId}/messages`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role, content }) }); } catch {}
@@ -563,7 +580,7 @@ export default function ChatPage() {
     if (pendingAttachments.some(a => a.status === "processing")) { addToast("Attachments still processing", "info"); return; }
     setInput("");
     const ready = pendingAttachments.filter(a => a.status === "ready");
-    const audioLines = ready.filter(a => a.type === "audio" && a.transcript).map(a => `🎤 *Voice: "${a.transcript}"*`);
+    const audioLines = ready.filter(a => a.type === "audio" && a.transcript).map(a => `*Voice: "${a.transcript}"*`);
     const displayContent = audioLines.length > 0 ? `${audioLines.join("\n")}\n\n${content}` : content;
     const userMsg: Message = { id: Date.now().toString(), role: "user", content: displayContent };
     const nextMessages = [...messages, userMsg];
@@ -598,7 +615,7 @@ export default function ChatPage() {
         const min = Math.round((new Date(m.scheduledFor).getTime() - Date.now()) / 60000);
         return (
           <div key={m.id} className="shrink-0 flex items-center gap-3 px-4 py-2" style={{ background: "rgba(232,184,74,0.08)", borderBottom: "1px solid rgba(232,184,74,0.18)" }}>
-            <span>📅</span>
+            <Calendar size={14} style={{ color: "#e8b84a", flexShrink: 0 }} />
             <p className="flex-1 text-xs font-medium" style={{ color: "#e8b84a" }}><span style={{ fontWeight: 700 }}>Meeting in {min} min:</span> {m.title}</p>
             <button onClick={() => setDismissedMeetings(p => new Set([...p, m.id]))} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#e8b84a", padding: 2 }}><X size={14} /></button>
           </div>
@@ -657,7 +674,6 @@ export default function ChatPage() {
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--color-border-light)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text)"; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--color-border)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text-secondary)"; }}
                 >
-                  {pg.icon && <span style={{ fontSize: 13 }}>{pg.icon}</span>}
                   {pg.name}
                 </a>
               ))
@@ -748,5 +764,14 @@ export default function ChatPage() {
         </>
       )}
     </div>
+  );
+}
+
+// useSearchParams requires a Suspense boundary in Next 15
+export default function ChatPage() {
+  return (
+    <Suspense fallback={null}>
+      <ChatPageInner />
+    </Suspense>
   );
 }

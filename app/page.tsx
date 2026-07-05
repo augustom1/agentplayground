@@ -18,11 +18,12 @@ export const metadata: Metadata = {
   },
 };
 
-const RUST = "#D4715A";
+const BRAND = "var(--color-brand)";
+const BRAND_TEXT = "#0a1628";
 
 export default async function HomePage() {
   const session = await auth();
-  if (session?.user) redirect("/dashboard");
+  if (session?.user) redirect("/chat");
 
   return (
     <div
@@ -118,8 +119,8 @@ export default async function HomePage() {
             <Link
               href="/download"
               style={{
-                background: RUST,
-                color: "#fff",
+                background: BRAND,
+                color: BRAND_TEXT,
                 padding: "0.75rem 1.75rem",
                 borderRadius: "8px",
                 textDecoration: "none",
@@ -238,7 +239,7 @@ export default async function HomePage() {
                     justifyContent: "center",
                     fontSize: "0.8125rem",
                     fontWeight: "600",
-                    color: RUST,
+                    color: BRAND,
                   }}
                 >
                   {i + 1}
@@ -268,8 +269,8 @@ export default async function HomePage() {
           href="/download"
           style={{
             display: "inline-block",
-            background: RUST,
-            color: "#fff",
+            background: BRAND,
+            color: BRAND_TEXT,
             padding: "0.75rem 1.75rem",
             borderRadius: "8px",
             textDecoration: "none",

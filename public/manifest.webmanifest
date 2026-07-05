@@ -2,7 +2,7 @@
   "name": "Agent Playground",
   "short_name": "AgentPG",
   "description": "Your personal AI operations platform",
-  "start_url": "/",
+  "start_url": "/chat",
   "display": "standalone",
   "background_color": "#1a1a1a",
   "theme_color": "#1a1a1a",

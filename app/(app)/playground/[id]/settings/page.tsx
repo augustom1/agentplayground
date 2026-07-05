@@ -190,7 +190,7 @@ export default function PlaygroundSettingsPage() {
           <input
             value={color}
             onChange={e => setColor(e.target.value)}
-            placeholder="#D4715A"
+            placeholder="#38BDF8"
             style={{
               padding: "7px 10px", borderRadius: 8, fontSize: 13, width: 160,
               background: "var(--color-surface-2)", border: "1px solid var(--color-border)",

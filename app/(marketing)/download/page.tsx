@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   },
 };
 
-const RUST = "#D4715A";
+const BRAND = "var(--color-brand)";
 
 async function getVersion(): Promise<{ version: string; downloadUrl: string }> {
   try {
@@ -45,7 +45,7 @@ export default async function DownloadPage() {
               borderRadius: "9999px",
               padding: "0.25rem 0.875rem",
               fontSize: "0.8125rem",
-              color: RUST,
+              color: BRAND,
               fontWeight: "500",
               marginBottom: "1rem",
               fontFamily: "var(--font-mono)",
@@ -94,8 +94,8 @@ export default async function DownloadPage() {
           <a
             href={downloadUrl !== "#" ? downloadUrl : "#"}
             style={{
-              background: RUST,
-              color: "#fff",
+              background: BRAND,
+              color: "#0a1628",
               padding: "0.75rem 1.5rem",
               borderRadius: "8px",
               textDecoration: "none",
@@ -123,7 +123,7 @@ export default async function DownloadPage() {
                   href="https://www.docker.com/products/docker-desktop/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ color: RUST, textDecoration: "none" }}
+                  style={{ color: BRAND, textDecoration: "none" }}
                 >
                   Docker Desktop
                 </a>{" "}
@@ -155,7 +155,7 @@ export default async function DownloadPage() {
                 href="https://www.docker.com/products/docker-desktop/"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ color: RUST, textDecoration: "none" }}
+                style={{ color: BRAND, textDecoration: "none" }}
               >
                 Docker Desktop
               </a>
@@ -168,7 +168,7 @@ export default async function DownloadPage() {
                 href="https://platform.openai.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ color: RUST, textDecoration: "none" }}
+                style={{ color: BRAND, textDecoration: "none" }}
               >
                 platform.openai.com
               </a>
@@ -179,7 +179,7 @@ export default async function DownloadPage() {
             </Step>
             <Step n={5}>
               Open{" "}
-              <a href="http://localhost:3000" style={{ color: RUST, textDecoration: "none" }}>
+              <a href="http://localhost:3000" style={{ color: BRAND, textDecoration: "none" }}>
                 http://localhost:3000
               </a>
             </Step>
@@ -208,7 +208,7 @@ export default async function DownloadPage() {
                 href="https://platform.openai.com/api-keys"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ color: RUST, textDecoration: "none", fontSize: "0.875rem" }}
+                style={{ color: BRAND, textDecoration: "none", fontSize: "0.875rem" }}
               >
                 platform.openai.com/api-keys
               </a>
@@ -223,7 +223,7 @@ export default async function DownloadPage() {
                 href="https://console.anthropic.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ color: RUST, textDecoration: "none", fontSize: "0.875rem" }}
+                style={{ color: BRAND, textDecoration: "none", fontSize: "0.875rem" }}
               >
                 console.anthropic.com
               </a>
@@ -260,7 +260,7 @@ function Step({ n, children }: { n: number; children: React.ReactNode }) {
           justifyContent: "center",
           fontSize: "0.8125rem",
           fontWeight: "600",
-          color: RUST,
+          color: BRAND,
         }}
       >
         {n}

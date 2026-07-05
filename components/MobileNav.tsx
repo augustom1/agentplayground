@@ -4,24 +4,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
-  LayoutDashboard, MessageSquare, Users, Layers,
-  MoreHorizontal, X, Calendar, Workflow, CreditCard,
-  Link2, Settings, Wrench, BookOpen, FolderOpen, Brain,
-  Sparkles, Server, Globe, ClipboardList,
+  MessageSquare, LayoutGrid, Layers,
+  MoreHorizontal, X, Calendar, Settings, Brain,
+  ClipboardList, Users,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 
+// Same three tabs as the desktop sidebar pill: Chat | Playgrounds | Overview
 const PRIMARY_TABS = [
-  { href: "/dashboard",  label: "Home",       icon: LayoutDashboard },
-  { href: "/chat",       label: "Chat",        icon: MessageSquare },
-  { href: "/agent-lab",  label: "Teams",       icon: Users },
-  { href: "/overview",   label: "Overview",    icon: Layers },
+  { href: "/chat",        label: "Chat",        icon: MessageSquare, subPaths: ["/chat"] },
+  { href: "/playgrounds", label: "Playgrounds", icon: LayoutGrid,    subPaths: ["/playgrounds", "/playground"] },
+  { href: "/overview",    label: "Overview",    icon: Layers,        subPaths: ["/overview"] },
 ];
-
-type MoreSection = {
-  label: string;
-  items: { href: string; label: string; icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }> }[];
-};
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -31,41 +25,12 @@ export function MobileNav() {
 
   useEffect(() => { setMoreOpen(false); }, [pathname]);
 
-  const moreSections: MoreSection[] = [
-    {
-      label: "Work",
-      items: [
-        { href: "/plans",     label: "Plans",       icon: ClipboardList },
-        { href: "/projects",  label: "Projects",    icon: FolderOpen },
-        { href: "/schedule",  label: "Schedule",    icon: Calendar },
-        { href: "/pipeline",  label: "Work Queue",  icon: Workflow },
-      ],
-    },
-    {
-      label: "Knowledge",
-      items: [
-        { href: "/files", label: "Brain & Files", icon: Brain },
-      ],
-    },
-    {
-      label: "Stack",
-      items: [
-        { href: "/optimize",  label: "AI Efficiency",  icon: Sparkles },
-        { href: "/server",    label: "Server",          icon: Server },
-        { href: "/websites",  label: "Websites",        icon: Globe },
-        { href: "/tools",     label: "Apps & Tools",    icon: Wrench },
-        ...(isAdmin ? [{ href: "/connect", label: "Integrations", icon: Link2 }] : []),
-        { href: "/blog",      label: "Blog",            icon: BookOpen },
-      ],
-    },
-    {
-      label: "Settings",
-      items: [
-        { href: "/billing",  label: "Billing",      icon: CreditCard },
-        { href: "/settings", label: "App Settings", icon: Settings },
-        ...(isAdmin ? [{ href: "/users", label: "Users", icon: Users }] : []),
-      ],
-    },
+  const moreItems = [
+    { href: "/files",    label: "Brain",    icon: Brain },
+    { href: "/schedule", label: "Schedule", icon: Calendar },
+    { href: "/plans",    label: "Plans",    icon: ClipboardList },
+    { href: "/settings", label: "Settings", icon: Settings },
+    ...(isAdmin ? [{ href: "/users", label: "Users", icon: Users }] : []),
   ];
 
   return (
@@ -101,48 +66,36 @@ export function MobileNav() {
               </button>
             </div>
 
-            <div className="flex flex-col gap-4 px-4 pb-2">
-              {moreSections.map((section) => (
-                <div key={section.label}>
-                  <p
-                    className="text-[10px] font-semibold tracking-wider uppercase mb-2"
-                    style={{ color: "var(--color-muted)", letterSpacing: "0.08em" }}
+            <div className="grid grid-cols-4 gap-2 px-4 pb-2">
+              {moreItems.map((item) => {
+                const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-xl transition-all"
+                    style={{
+                      background: active ? "var(--color-brand-dim)" : "var(--color-surface-2)",
+                      border: `1px solid ${active ? "var(--color-brand)" : "transparent"}`,
+                      textDecoration: "none",
+                      minHeight: 64,
+                      justifyContent: "center",
+                    }}
+                    onClick={() => setMoreOpen(false)}
                   >
-                    {section.label}
-                  </p>
-                  <div className="grid grid-cols-4 gap-2">
-                    {section.items.map((item) => {
-                      const active = pathname === item.href || pathname.startsWith(item.href + "/");
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-xl transition-all"
-                          style={{
-                            background: active ? "var(--color-brand-dim)" : "var(--color-surface-2)",
-                            border: `1px solid ${active ? "var(--color-brand)" : "transparent"}`,
-                            textDecoration: "none",
-                            minHeight: 64,
-                            justifyContent: "center",
-                          }}
-                          onClick={() => setMoreOpen(false)}
-                        >
-                          <item.icon
-                            size={20}
-                            style={{ color: active ? "var(--color-brand)" : "var(--color-text-secondary)" }}
-                          />
-                          <span
-                            className="text-[9px] text-center leading-tight font-medium"
-                            style={{ color: active ? "var(--color-brand)" : "var(--color-text)" }}
-                          >
-                            {item.label}
-                          </span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
+                    <item.icon
+                      size={20}
+                      style={{ color: active ? "var(--color-brand)" : "var(--color-text-secondary)" }}
+                    />
+                    <span
+                      className="text-[9px] text-center leading-tight font-medium"
+                      style={{ color: active ? "var(--color-brand)" : "var(--color-text)" }}
+                    >
+                      {item.label}
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -159,11 +112,7 @@ export function MobileNav() {
         }}
       >
         {PRIMARY_TABS.map((tab) => {
-          // Playground tab is active on playground + its sub-pages
-          const subPaths = tab.href === "/overview"
-            ? ["/overview", "/playground", "/projects", "/schedule", "/pipeline"]
-            : [tab.href];
-          const active = subPaths.some(p => pathname === p || pathname.startsWith(p + "/"));
+          const active = tab.subPaths.some(p => pathname === p || pathname.startsWith(p + "/"));
           return (
             <Link
               key={tab.href}

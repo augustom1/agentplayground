@@ -5,10 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import {
   Settings, Users, Plus, MessageSquare,
-  LayoutGrid, Loader2, X,
+  LayoutGrid, Layers, Loader2, X,
   ChevronLeft, ChevronRight, Search, Menu,
   PanelLeftClose, Sun, Moon, Shield, Send,
-  ArrowRight, Check,
+  ArrowRight, Check, Network, Brain, FolderOpen,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { UserMenu } from "@/components/UserMenu";
@@ -16,7 +16,11 @@ import { LogoMark } from "@/components/Logo";
 import { useLanguage } from "@/components/LanguageProvider";
 import { useTheme } from "@/components/ThemeProvider";
 
+type SidebarTab = "chat" | "playgrounds" | "overview";
+
 type PlaygroundItem = { id: string; name: string; icon: string | null; color: string | null };
+type TeamItem = { id: string; name: string; isSystemTeam?: boolean };
+type ConversationItem = { id: string; title: string | null; _count: { messages: number } };
 
 type PlaygroundConfig = {
   name: string;
@@ -56,7 +60,7 @@ function NavItem({
       onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
     >
       <span style={{ opacity: 0.75, flexShrink: 0, display: "inline-flex" }}><Icon size={14} /></span>
-      {!collapsed && <span>{label}</span>}
+      {!collapsed && <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>}
     </Link>
   );
 }
@@ -87,8 +91,16 @@ export function Sidebar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // ── Tab pill state — synced to route ─────────────────
+  const [tab, setTab] = useState<SidebarTab>("chat");
+  useEffect(() => {
+    if (pathname.startsWith("/playground")) setTab("playgrounds");
+    else if (pathname.startsWith("/overview")) setTab("overview");
+  }, [pathname]);
+
   const [playgrounds, setPlaygrounds] = useState<PlaygroundItem[]>([]);
-  const [showPlaygrounds, setShowPlaygrounds] = useState(true);
+  const [teams, setTeams] = useState<TeamItem[]>([]);
+  const [recents, setRecents] = useState<ConversationItem[]>([]);
 
   // ── Playground creation panel ────────────────────────
   const [showPanel, setShowPanel] = useState(false);
@@ -128,6 +140,25 @@ export function Sidebar() {
       .then((data: unknown) => { if (Array.isArray(data)) setPlaygrounds(data as PlaygroundItem[]); })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    fetch("/api/teams")
+      .then(r => r.ok ? r.json() : [])
+      .then((data: unknown) => {
+        if (Array.isArray(data)) setTeams((data as TeamItem[]).filter(t => !t.isSystemTeam).slice(0, 8));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Recents — refresh when navigating so new chats appear
+  useEffect(() => {
+    fetch("/api/conversations")
+      .then(r => r.ok ? r.json() : [])
+      .then((data: unknown) => {
+        if (Array.isArray(data)) setRecents((data as ConversationItem[]).filter(c => c._count.messages > 0).slice(0, 8));
+      })
+      .catch(() => {});
+  }, [pathname]);
 
   function openCreatePlayground() {
     setPanelState("chatting");
@@ -255,6 +286,12 @@ export function Sidebar() {
 
   const w = collapsed ? 56 : 260;
 
+  const TABS: Array<{ id: SidebarTab; label: string }> = [
+    { id: "chat", label: "Chat" },
+    { id: "playgrounds", label: "Playgrounds" },
+    { id: "overview", label: "Overview" },
+  ];
+
   return (
     <aside
       className="glass-sidebar flex flex-col h-full"
@@ -294,7 +331,7 @@ export function Sidebar() {
               <Search size={13} />
             </button>
 
-            {/* Hamburger ⋯ — Settings, Admin, Users, language, theme */}
+            {/* Hamburger — Settings, Admin, Users, language, theme */}
             <div style={{ position: "relative" }} ref={menuRef}>
               <button
                 onClick={() => setMenuOpen(v => !v)}
@@ -401,30 +438,43 @@ export function Sidebar() {
         </Link>
       </div>
 
-      {/* ── New chat button ──────────────────────────────── */}
-      <div style={{ padding: collapsed ? "0 6px 6px" : "0 8px 6px" }}>
-        <Link
-          href="/chat"
-          title={collapsed ? "New chat" : undefined}
-          style={{
-            display: "flex", alignItems: "center",
-            gap: collapsed ? 0 : "8px",
-            padding: collapsed ? "7px 0" : "6px 10px",
-            justifyContent: collapsed ? "center" : "flex-start",
-            borderRadius: "8px", textDecoration: "none",
-            color: "var(--color-text-secondary)",
-            fontSize: "13px", fontWeight: 500,
-            transition: "background 0.12s",
-          }}
-          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"}
-          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
-        >
-          <Plus size={14} style={{ opacity: 0.8, flexShrink: 0 }} />
-          {!collapsed && "New chat"}
-        </Link>
-      </div>
+      {/* ── Tab pill — Chat | Playgrounds | Overview ─────── */}
+      {!collapsed && (
+        <div style={{
+          margin: "0 8px 10px", padding: "3px",
+          background: "var(--color-surface-2)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "10px",
+          display: "flex", gap: "2px", flexShrink: 0,
+        }}>
+          {TABS.map(t => {
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => {
+                  setTab(t.id);
+                  if (t.id === "overview") router.push("/overview");
+                }}
+                style={{
+                  flex: 1, padding: "5px 0", borderRadius: "7px", border: "none",
+                  cursor: "pointer", fontSize: "12px",
+                  background: active ? "var(--color-surface-3)" : "transparent",
+                  color: active ? "var(--color-text)" : "var(--color-muted)",
+                  fontWeight: active ? 500 : 400,
+                  transition: "background 0.12s, color 0.12s",
+                }}
+                onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "var(--color-text-secondary)"; }}
+                onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "var(--color-muted)"; }}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-      {/* ── Main nav ─────────────────────────────────────── */}
+      {/* ── Tab content ──────────────────────────────────── */}
       <nav
         style={{
           flex: 1, overflowY: "auto", overflowX: "hidden",
@@ -432,48 +482,94 @@ export function Sidebar() {
           padding: collapsed ? "0 6px 8px" : "0 8px 8px",
         }}
       >
-        {/* SECTION: Main */}
-        {!collapsed && <p style={SECTION_LABEL}>Main</p>}
+        {collapsed ? (
+          <>
+            <NavItem href="/chat" label="Chat" icon={MessageSquare} collapsed active={isActive("/chat")} />
+            <NavItem href="/playgrounds" label="Playgrounds" icon={LayoutGrid} collapsed active={isActive("/playgrounds") || isActive("/playground")} />
+            <NavItem href="/overview" label="Overview" icon={Layers} collapsed active={isActive("/overview")} />
+          </>
+        ) : tab === "chat" ? (
+          <>
+            <NavItem href="/chat?new=1" label="New chat" icon={Plus} collapsed={false} active={false} />
 
-        <NavItem href="/chat" label="Chat" icon={MessageSquare} collapsed={collapsed} active={isActive("/chat")} />
-        <NavItem href="/overview" label="Overview" icon={LayoutGrid} collapsed={collapsed} active={isActive("/overview")} />
-
-        {/* SECTION: Playgrounds */}
-        {!collapsed && (
-          <div style={{ marginTop: "16px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "4px", padding: "2px 10px 4px" }}>
-              <button
-                onClick={() => setShowPlaygrounds(v => !v)}
-                style={{ display: "flex", alignItems: "center", gap: "4px", flex: 1, border: "none", background: "transparent", cursor: "pointer", padding: 0 }}
-              >
-                <span style={{ ...SECTION_LABEL, padding: 0 }}>Playgrounds</span>
-                <ChevronRight
-                  size={10}
-                  style={{
-                    color: "var(--color-muted)",
-                    transform: showPlaygrounds ? "rotate(90deg)" : "rotate(0deg)",
-                    transition: "transform 0.15s",
-                  }}
-                />
-              </button>
-              <button
-                onClick={openCreatePlayground}
-                title="New playground"
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  width: 18, height: 18, borderRadius: 4, border: "none",
-                  background: "transparent", cursor: "pointer", color: "var(--color-muted)",
-                  flexShrink: 0,
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text-secondary)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--color-muted)"; }}
-              >
-                <Plus size={11} />
-              </button>
+            {/* Projects — stub until Session 37 */}
+            <div
+              title="Projects — coming soon"
+              style={{
+                display: "flex", alignItems: "center", gap: "10px",
+                padding: "7px 10px", borderRadius: "8px",
+                fontSize: "13px", color: "var(--color-muted)", cursor: "default",
+              }}
+            >
+              <span style={{ opacity: 0.6, flexShrink: 0, display: "inline-flex" }}><FolderOpen size={14} /></span>
+              <span>Projects</span>
+              <span style={{
+                marginLeft: "auto", fontSize: "9px", fontWeight: 600, letterSpacing: "0.05em",
+                textTransform: "uppercase", color: "var(--color-muted)",
+                border: "1px solid var(--color-border)", borderRadius: "4px", padding: "1px 5px",
+              }}>Soon</span>
             </div>
 
-            {showPlaygrounds && (
-              playgrounds.length === 0 ? (
+            <NavItem href="/overview#brain" label="Brain" icon={Brain} collapsed={false} active={false} />
+
+            {/* Chat with — Keeper + team heads */}
+            <div style={{ marginTop: "16px" }}>
+              <p style={SECTION_LABEL}>Chat with</p>
+              <NavItem href="/chat?team=coordinator" label="Playground Keeper" icon={Network} collapsed={false} active={false} />
+              {teams.map(t => (
+                <NavItem key={t.id} href={`/chat?team=${t.id}`} label={t.name} icon={Users} collapsed={false} active={false} />
+              ))}
+            </div>
+
+            {/* Recents */}
+            {recents.length > 0 && (
+              <div style={{ marginTop: "16px" }}>
+                <p style={SECTION_LABEL}>Recents</p>
+                {recents.map(c => (
+                  <Link
+                    key={c.id}
+                    href={`/chat?c=${c.id}`}
+                    style={{
+                      display: "block", padding: "5px 10px", borderRadius: "8px",
+                      textDecoration: "none", fontSize: "12px",
+                      color: "var(--color-text-secondary)",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      transition: "background 0.12s",
+                    }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+                  >
+                    {c.title || "Untitled chat"}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </>
+        ) : tab === "playgrounds" ? (
+          <>
+            {/* Coordinator quick chat — task router lands here in Session 34 */}
+            <NavItem href="/chat?team=coordinator" label="Quick task" icon={Network} collapsed={false} active={false} />
+
+            <div style={{ marginTop: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "4px", padding: "2px 10px 4px" }}>
+                <span style={{ ...SECTION_LABEL, padding: 0, flex: 1 }}>Playgrounds</span>
+                <button
+                  onClick={openCreatePlayground}
+                  title="New playground"
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    width: 18, height: 18, borderRadius: 4, border: "none",
+                    background: "transparent", cursor: "pointer", color: "var(--color-muted)",
+                    flexShrink: 0,
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; (e.currentTarget as HTMLElement).style.color = "var(--color-text-secondary)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--color-muted)"; }}
+                >
+                  <Plus size={11} />
+                </button>
+              </div>
+
+              {playgrounds.length === 0 ? (
                 <button
                   onClick={openCreatePlayground}
                   style={{
@@ -487,64 +583,21 @@ export function Sidebar() {
                   + Create your first Playground
                 </button>
               ) : (
-                playgrounds.map(pg => {
-                  const active = isActive(`/playground/${pg.id}`);
-                  return (
-                    <Link
-                      key={pg.id}
-                      href={`/playground/${pg.id}`}
-                      style={{
-                        display: "flex", alignItems: "center", gap: "8px",
-                        padding: "5px 10px", borderRadius: "8px", textDecoration: "none",
-                        background: active ? "var(--color-surface-3)" : "transparent",
-                        color: active ? "var(--color-text)" : "var(--color-text-secondary)",
-                        fontSize: "12px", fontWeight: active ? 500 : 400,
-                        transition: "background 0.12s",
-                      }}
-                      onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; }}
-                      onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-                    >
-                      {pg.icon ? (
-                        <span style={{ fontSize: "13px", lineHeight: 1, flexShrink: 0 }}>{pg.icon}</span>
-                      ) : (
-                        <LayoutGrid size={12} style={{ opacity: 0.6, flexShrink: 0 }} />
-                      )}
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {pg.name}
-                      </span>
-                    </Link>
-                  );
-                })
-              )
-            )}
-          </div>
-        )}
-
-        {/* Collapsed — show playground icons */}
-        {collapsed && playgrounds.length > 0 && (
-          <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "2px" }}>
-            {playgrounds.slice(0, 5).map(pg => {
-              const active = isActive(`/playground/${pg.id}`);
-              return (
-                <Link
-                  key={pg.id}
-                  href={`/playground/${pg.id}`}
-                  title={pg.name}
-                  style={{
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    padding: "7px 0", borderRadius: "8px", textDecoration: "none",
-                    background: active ? "var(--color-surface-3)" : "transparent",
-                    fontSize: "13px",
-                    transition: "background 0.12s",
-                  }}
-                  onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"; }}
-                  onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-                >
-                  {pg.icon ? pg.icon : <LayoutGrid size={14} style={{ opacity: 0.6 }} />}
-                </Link>
-              );
-            })}
-          </div>
+                playgrounds.map(pg => (
+                  <NavItem
+                    key={pg.id}
+                    href={`/playground/${pg.id}`}
+                    label={pg.name}
+                    icon={LayoutGrid}
+                    collapsed={false}
+                    active={isActive(`/playground/${pg.id}`)}
+                  />
+                ))
+              )}
+            </div>
+          </>
+        ) : (
+          <NavItem href="/overview" label="Overview" icon={Layers} collapsed={false} active={isActive("/overview")} />
         )}
       </nav>
 
@@ -578,12 +631,9 @@ export function Sidebar() {
               display: "flex", alignItems: "center", justifyContent: "space-between",
               flexShrink: 0,
             }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 16 }}>✨</span>
-                <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
-                  Create a Playground
-                </h2>
-              </div>
+              <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
+                Create a Playground
+              </h2>
               {panelState !== "creating" && (
                 <button
                   onClick={closePanel}
@@ -610,7 +660,7 @@ export function Sidebar() {
                     padding: "10px 14px",
                     borderRadius: msg.role === "user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
                     background: msg.role === "user" ? "var(--color-brand)" : "var(--color-surface-2)",
-                    color: msg.role === "user" ? "#fff" : "var(--color-text)",
+                    color: msg.role === "user" ? "#0a1628" : "var(--color-text)",
                     fontSize: 13, lineHeight: 1.55,
                     border: msg.role === "assistant" ? "1px solid var(--color-border)" : "none",
                   }}
@@ -642,12 +692,9 @@ export function Sidebar() {
                   borderRadius: 12, padding: "14px 16px",
                   display: "flex", flexDirection: "column", gap: 10,
                 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 22 }}>{proposedConfig.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>{proposedConfig.name}</div>
-                      <div style={{ fontSize: 12, color: "var(--color-muted)" }}>{proposedConfig.description}</div>
-                    </div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>{proposedConfig.name}</div>
+                    <div style={{ fontSize: 12, color: "var(--color-muted)" }}>{proposedConfig.description}</div>
                   </div>
 
                   {proposedConfig.suggestedTeamIds.length > 0 && (
@@ -727,13 +774,14 @@ export function Sidebar() {
               {/* Done state */}
               {panelState === "done" && (
                 <div style={{
-                  background: "rgba(212,113,90,0.08)",
-                  border: "1px solid rgba(212,113,90,0.25)",
+                  background: "var(--color-brand-dim)",
+                  border: "1px solid var(--color-brand-muted)",
                   borderRadius: 12, padding: "14px 16px",
                   display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-start",
                 }}>
-                  <div style={{ fontSize: 13, color: "var(--color-text)", fontWeight: 500 }}>
-                    ✅ <strong>{createdPgName}</strong> is ready!
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--color-text)", fontWeight: 500 }}>
+                    <Check size={14} style={{ color: "var(--color-brand)" }} />
+                    <span><strong>{createdPgName}</strong> is ready</span>
                   </div>
                   <button
                     onClick={openCreatedPlayground}

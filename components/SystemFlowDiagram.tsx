@@ -2,7 +2,7 @@
 
 import React from "react";
 
-const RUST = "#D4715A";
+const RUST = "#38BDF8"; // brand blue-cyan — hex needed for alpha-suffix styles below
 const BLUE = "#5B8DEF";
 const PURPLE = "#9B72DB";
 const AMBER = "#E0A030";

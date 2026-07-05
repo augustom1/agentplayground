@@ -6,6 +6,7 @@ import { CreditsAdminPanel } from "@/components/CreditsAdminPanel";
 import { TelegramSettings } from "@/components/TelegramSettings";
 import { UserApiKeysSection } from "@/components/UserApiKeysSection";
 import { ProviderModelSection } from "@/components/ProviderModelSection";
+import { ThemeSection } from "@/components/ThemeSection";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -175,7 +176,7 @@ export default async function SettingsPage() {
   const allRequiredSet = hasDatabaseUrl && (hasAnthropicKey || hasOpenAIKey || hasOllamaUrl);
 
   return (
-    <div className="flex flex-col gap-5 p-4 md:p-6 max-w-3xl animate-fade-in">
+    <div className="flex flex-col gap-5 p-4 md:p-6 max-w-3xl mx-auto w-full animate-fade-in">
       <div>
         <h1 className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>
           Settings
@@ -253,6 +254,9 @@ export default async function SettingsPage() {
           ))}
         </div>
       </div>
+
+      {/* Appearance — theme toggle */}
+      <ThemeSection />
 
       {/* User API Keys */}
       <UserApiKeysSection />

@@ -79,7 +79,7 @@ export default function ActionsPage() {
   const openCount = actions.filter((a) => a.status === "open").length;
 
   return (
-    <div className="p-6 max-w-2xl">
+    <div className="p-6 max-w-2xl mx-auto w-full">
       <div className="flex items-center justify-between mb-1">
         <h1 className="text-lg font-semibold flex items-center gap-2" style={{ color: "var(--color-text)" }}>
           Actions

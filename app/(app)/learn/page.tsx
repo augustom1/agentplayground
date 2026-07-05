@@ -78,7 +78,7 @@ export default function LearnPage() {
   }
 
   return (
-    <div className="p-6 max-w-3xl">
+    <div className="p-6 max-w-3xl mx-auto w-full">
       <div className="flex items-center justify-between mb-1">
         <h1 className="text-lg font-semibold flex items-center gap-2" style={{ color: "var(--color-text)" }}>
           <BookOpen size={18} style={{ color: "var(--color-accent)" }} />

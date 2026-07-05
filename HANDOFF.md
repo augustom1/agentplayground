@@ -1,5 +1,5 @@
 # HANDOFF.md — Session State
-> Last updated: 2026-07-02 (Session 32 — Repo cleanup + plan realignment)
+> Last updated: 2026-07-04 (Session 33 — UI v4 shell: tab pill sidebar, light mode, pixel logo, rust purge)
 > Read this FIRST at every session start, before CLAUDE.md.
 > **Source of truth for direction: `docs/VISION.md`** — if anything here contradicts it, VISION wins.
 > See `docs/PLAN.md` for the full open work list.
@@ -24,7 +24,7 @@ App is **healthy** at `https://app.agentplayground.net`
 - Project status dashboard (`/projects`): workstream panels, task counts
 - Telegram: bidirectional DMs → coordinator, group notifications, settings UI
 - PWA: manifest, icons, installable
-- Design System v3: charcoal `#1a1a1a`, rust logo `#D4715A`, neutral palette
+- Design System v4: charcoal `#1a1a1a` dark (default) + white/grey light mode, blue-cyan `--color-brand` `#38BDF8`, pixel-art playground logo (`components/Logo.tsx`) — rust `#D4715A` fully purged
 - **Actions system**: PendingAction model, `/actions` page, create/dismiss/list tools
 - **Personal OS pages**: `/cv`, `/learn`, `/notes` — Brain-indexed context, admin-only nav links
 - **Nav gating**: `/overview`, `/notes`, `/cv`, `/learn`, `/connect` hidden for non-admin users
@@ -36,7 +36,28 @@ App is **healthy** at `https://app.agentplayground.net`
 - **Local LLM flywheel**: task classifier → Ollama routing → Brain archive → protocol writer
 - **Playgrounds**: Organizational containers grouping AgentTeams — sidebar section, CRUD API, `/spaces/[id]` dashboard (agents, active tasks, skills, recent completions)
 
-### Last Session (Session 32 — 2026-07-02) — Repo Cleanup + Plan Realignment ✅
+### Last Session (Session 33 — 2026-07-04) — UI v4 Shell + Theme + Logo ✅
+
+PLAN §1 Session 33 delivered — the Claude Desktop shell:
+
+- **`components/Sidebar.tsx` rebuilt:** top tab pill **Chat | Playgrounds | Overview** (synced to route; Overview tab click navigates to `/overview`).
+  - **Chat tab:** New chat, Projects stub ("Soon" tag, real in Session 37), Brain item → `/overview#brain`, "Chat with" picker (Playground Keeper → `/chat?team=coordinator`, team heads → `/chat?team=<id>`), Recents (GET `/api/conversations`, non-empty only → `/chat?c=<id>`).
+  - **Playgrounds tab:** Quick task entry (→ coordinator chat; real router popup comes in Session 34) + playground list (neutral icons — no emoji rendering) + create panel (kept, emojis/rust removed).
+  - **Overview tab:** link to `/overview`. Collapsed mode: three icon links.
+- **`app/(app)/playgrounds/page.tsx` NEW:** playgrounds-and-nothing-else grid (VISION §2.1) + inline name-only create; destination for the mobile Playgrounds tab and collapsed sidebar.
+- **`app/(app)/chat/page.tsx`:** now reads `?team=` (chat-with picker) and `?c=` (open conversation from Recents) via `useSearchParams` (page wrapped in Suspense); emoji cleanup (calendar icon, voice prefix, chips); home screen was already the centered greeting + coordinator input from earlier work — kept.
+- **`components/MobileNav.tsx`:** same three tabs Chat | Playgrounds | Overview (temporary `/overview` patch gone); More sheet trimmed to Brain/Schedule/Plans/Settings (+Users for admin).
+- **Rust purge complete — 0 occurrences left in code:** `app/page.tsx`, `download/page.tsx`, `setup/page.tsx` (brand tokens), `SystemFlowDiagram.tsx`, `notes/page.tsx` (brand hex for alpha-suffix styles), playground settings placeholder, seed-skills prompt text, `globals.css` header comment, **`webroot/ar/index.html`** (asterisk favicon/nav/footer → pixel logo, accent → `#38BDF8`).
+- **Pixel-art logo everywhere:** `components/Logo.tsx` (was already updated, now deployed), `public/icons/icon.svg` rewritten, **PWA PNGs regenerated** (icon-512/192 maskable-safe, apple-touch-icon, favicon-32) from the 32×32 pixel grid via scratchpad script. The rust asterisk no longer exists anywhere.
+- **Light mode shipped:** token set + `ThemeProvider` + pre-paint script already existed; added **`components/ThemeSection.tsx`** — Appearance card in Settings (Dark default / Light). Toggle also remains in the sidebar hamburger.
+- **Centering pass:** added `mx-auto w-full` to main containers in settings, schedule, actions, billing, connect, cv, learn, notes, projects, tools, users.
+- **`middleware.ts` fix found during verification:** `/icons/*` and `/manifest.webmanifest` were auth-gated (redirected to login) — PWA icons/manifest were broken for logged-out visitors. Added both to `isPublic`.
+- **Registration hard-closed (owner request 2026-07-05):** `REGISTRATION_OPEN` env master switch — unset (default) = `/api/auth/register` returns 403 and `/register` renders a "Registration closed" card (form split into `app/(auth)/register/RegisterForm.tsx`, shown only when open). Invite-code gate (CRON_SECRET) still applies on top when reopened. "Create one" link removed from login. Reopen when selling: set `REGISTRATION_OPEN=true` on the VPS. Owner creates accounts via `/users` (admin) meanwhile.
+- **Post-review papercut fixes:** sidebar New chat → `/chat?new=1` (actually starts a fresh conversation; plain `/chat` resumed the session one), PWA `start_url` → `/chat` (installed app opens the app, not marketing), logged-in redirects `/dashboard` → `/chat` everywhere (marketing root, middleware `/login`, login callbackUrl, register auto-signin) — chat greeting is the home now.
+- Builds: `npm run build` ✅ · docker compose build ✅ · deployed via scp; verified live: app health 200, marketing serves `var(--color-brand)` (0 rust), AR site blue, icon.svg + manifest public (were auth-gated — PWA install was broken in prod until this fix), `/register` shows closed card, register API 403.
+- Not committed to git — owner asks for commits explicitly; working tree holds Session 33 changes.
+
+### Previous Session (Session 32 — 2026-07-02) — Repo Cleanup + Plan Realignment ✅
 
 **Direction change:** `docs/VISION.md` (moved from root `AGENT_PLAYGROUND_VISION_2-7.md`) is now the
 source of truth. Priority order: **UI restoration → n8n MCP tools → Telegram bots → permission rings →
@@ -228,17 +249,25 @@ pre-redesign feel in a 4-section layout is the next session, fully specced in `d
 
 ## Next Session Priorities
 
-### 🔜 NEXT SESSION — UI Restoration (VISION §2)
+### 🔜 NEXT SESSION — Session 34: Overview hub + coordinator task router
 
-**Full spec with git archaeology already done: `docs/PLAN.md` §1. Read it first — don't re-derive.**
+Prompt ready in `docs/SESSION-PROMPTS.md`. Spec: `docs/PLAN.md` §1.
+1. Overview tab rebuilt as system hub: widget dashboard (static layout), full Brain window (the sidebar Brain item already points at `/overview#brain` — honor the anchor), global Schedule, previously-cut utilities (Optimize, websites, tools — confirm list with owner).
+2. Playgrounds tab coordinator quick chat = real task router: describe task → coordinator picks team → confirmation popup with reasoning → accept or override via playground → team picker → dispatch through delegate_to_team/plans. (Session 33 stub is a plain link to `/chat?team=coordinator` — replace it.)
 
-Summary:
-1. Four top-level sections, nothing else: **Chats / Playgrounds / Teams / Brain**
-2. Recover the liked sidebar visual language from commit `5213954` (`git show 5213954:components/Sidebar.tsx`)
-3. Remove the 9 hardcoded rust `#D4715A` occurrences → back to `--color-brand` tokens (blue-cyan on charcoal; `app/globals.css` is already correct, don't touch tokens)
-4. New ORIGINAL terminal-style logo (2–3 SVG variants for owner approval first) — the rust asterisk imitates Anthropic's mark and must go
-5. Fix off-center content, visual pass on all four sections, passing `docker compose build`
-6. MobileNav: replace temporary `/overview` patch with the four sections
+### UI v4 spec context (owner feedback 2026-07-04)
+
+**The four-section restoration spec is superseded. Full new spec + session breakdown: `docs/PLAN.md` §1. Read it first — don't re-derive.**
+
+Summary (owner reviewed live UI 2026-07-04 — "did not hate it, but not what I want"):
+1. Playground inner environment (`/playground/[id]`) is the right track — keep, make customizable
+2. Shell → Claude Desktop pattern: sidebar tab pill **Chat | Playgrounds | Overview** (exactly three tabs), centered home greeting + coordinator input; teams live inside playgrounds (no top-level Teams); Brain access point under Chat tab → redirects to Brain window in the Overview tab
+3. Playgrounds tab: coordinator quick-chat task router (team-confirmation popup + manual override) + playground list. Overview tab = system hub: customizable widget dashboard (playgrounds, teams, total tasks, plans…) + full Brain + global Schedule + Optimize + websites + other cut utilities; inside a playground, Brain (brainTags) and Schedule are scoped to that playground
+3b. **Projects** (Chat tab item): isolated, disposable multi-playground workspaces — own folder + own Brain namespace + teams by reference + one-tap zero-residue teardown (anti-SensorGuard-cleanup design). Spec: docs/PLAN.md §1 item 6. Sessions 37–38.
+3c. Theme: dark (charcoal/grey + blue accent, default) AND new light mode (white/grey + same blue). Logo: pixel-art playground equipment, variants pending owner pick.
+3d. Session prompts ready to paste: `docs/SESSION-PROMPTS.md` (sessions 33–38)
+4. Then: customizable playground dashboards/menus → per-agent editor (model, skills, Brain doc access, files) → multi-team shared-file projects
+5. Still applies from old spec: purge 9 rust `#D4715A` hardcodes → `--color-brand` tokens, new ORIGINAL terminal-style logo (2–3 SVG variants for approval), centering pass, MobileNav update, docker build green
 
 ### After that (in order — see docs/PLAN.md)
 1. n8n MCP tools (agents create their own workflows)

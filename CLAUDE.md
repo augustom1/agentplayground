@@ -88,6 +88,7 @@ ssh ... "cd /root/opt/vps && docker compose -f docker-compose.yml -f docker-comp
 | `NEXTAUTH_URL` | ✅ prod | |
 | `OLLAMA_BASE_URL` | ⚠️ | default: `http://ollama:11434` |
 | `VAULT_CONTEXT_ENABLED` | ⚠️ | `true` on VPS enables Brain injection |
+| `REGISTRATION_OPEN` | ⚠️ | Self-registration master switch — unset/false = closed (default). Set `true` only when selling; invite-code gate (`REQUIRE_INVITE_CODE`, code = CRON_SECRET) applies on top |
 | `TELEGRAM_BOT_TOKEN` | ⚠️ | Telegram integration |
 | `BRAVE_SEARCH_API_KEY` | ⚠️ | Web search (DuckDuckGo fallback if unset) |
 | `VPS_SSH_KEY` | ⚠️ | Tool installer via SSH |

@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 /* ┌──────────────────────────────────────────────────────────────────────────┐
-   │  AGENT PLAYGROUND — Design System v3                                     │
-   │  Claude Desktop-inspired · Neutral dark charcoal · Rust accent           │
-   │  Brand: Rust (#D4715A) · Stack: Next.js + Tailwind v4                   │
+   │  AGENT PLAYGROUND — Design System v4                                     │
+   │  Claude Desktop-inspired · Charcoal dark (default) + white/grey light    │
+   │  Brand: Blue-cyan (--color-brand) · Stack: Next.js + Tailwind v4         │
    └──────────────────────────────────────────────────────────────────────────┘ */
 
 @theme inline {

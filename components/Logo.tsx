@@ -1,16 +1,35 @@
-const RUST = "#D4715A";
+const FRAME_BLUE = "#2E9BE8";
 
-export function LogoMark({ size = 20, color = RUST }: { size?: number; color?: string }) {
+export function LogoMark({ size = 20, color = "currentColor" }: { size?: number; color?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 26 26" fill="none" aria-label="AgentPlayground">
-      <line x1="13" y1="2" x2="13" y2="24" stroke={color} strokeWidth="3.5" strokeLinecap="round" />
-      <line x1="2.5" y1="8.5" x2="23.5" y2="17.5" stroke={color} strokeWidth="3.5" strokeLinecap="round" />
-      <line x1="2.5" y1="17.5" x2="23.5" y2="8.5" stroke={color} strokeWidth="3.5" strokeLinecap="round" />
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-label="AgentPlayground">
+      <g fill={FRAME_BLUE}>
+        <rect x="3" y="4" width="26" height="3" />
+        <rect x="4" y="7" width="3" height="6" />
+        <rect x="3" y="13" width="3" height="6" />
+        <rect x="2" y="19" width="3" height="6" />
+        <rect x="1" y="25" width="6" height="3" />
+        <rect x="25" y="7" width="3" height="6" />
+        <rect x="26" y="13" width="3" height="6" />
+        <rect x="27" y="19" width="3" height="6" />
+        <rect x="25" y="25" width="6" height="3" />
+      </g>
+      <g fill={color}>
+        <rect x="11" y="7" width="2" height="2" />
+        <rect x="11" y="10" width="2" height="2" />
+        <rect x="11" y="13" width="2" height="2" />
+        <rect x="11" y="16" width="2" height="2" />
+        <rect x="19" y="7" width="2" height="2" />
+        <rect x="19" y="10" width="2" height="2" />
+        <rect x="19" y="13" width="2" height="2" />
+        <rect x="19" y="16" width="2" height="2" />
+        <rect x="8" y="19" width="16" height="3" />
+      </g>
     </svg>
   );
 }
 
-export function LogoFull({ size = 20, color = RUST }: { size?: number; color?: string }) {
+export function LogoFull({ size = 20, color = "currentColor" }: { size?: number; color?: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
       <LogoMark size={size} color={color} />

@@ -1,31 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <!-- Background -->
-  <rect width="512" height="512" rx="110" fill="#1a1a1a"/>
-
-  <!-- Brain outline -->
-  <path
-    d="M256 112C212 112 180 132 164 162C142 164 124 182 124 202C106 212 97 230 97 250C97 282 117 309 145 317C150 340 170 355 192 355H320C342 355 362 340 367 317C395 309 415 282 415 250C415 230 406 212 388 202C388 182 370 164 348 162C332 132 300 112 256 112Z"
-    stroke="#D4715A"
-    stroke-width="18"
-    stroke-linejoin="round"
-    fill="none"
-    opacity="0.92"
-  />
-  <!-- Brain center division -->
-  <line x1="256" y1="120" x2="256" y2="355" stroke="#D4715A" stroke-width="13" opacity="0.38"/>
-
-  <!-- Node 1 — top left -->
-  <circle cx="108" cy="72" r="28" fill="#D4715A" opacity="0.95"/>
-  <!-- Connection 1 -->
-  <line x1="131" y1="93" x2="162" y2="148" stroke="#D4715A" stroke-width="14" opacity="0.5" stroke-linecap="round"/>
-
-  <!-- Node 2 — top right -->
-  <circle cx="404" cy="72" r="28" fill="#D4715A" opacity="0.95"/>
-  <!-- Connection 2 -->
-  <line x1="381" y1="93" x2="350" y2="148" stroke="#D4715A" stroke-width="14" opacity="0.5" stroke-linecap="round"/>
-
-  <!-- Node 3 — bottom -->
-  <circle cx="256" cy="436" r="28" fill="#D4715A" opacity="0.95"/>
-  <!-- Connection 3 -->
-  <line x1="256" y1="408" x2="256" y2="356" stroke="#D4715A" stroke-width="14" opacity="0.5" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="6" fill="#1a1a1a"/>
+  <g fill="#2E9BE8">
+    <rect x="3" y="4" width="26" height="3"/>
+    <rect x="4" y="7" width="3" height="6"/>
+    <rect x="3" y="13" width="3" height="6"/>
+    <rect x="2" y="19" width="3" height="6"/>
+    <rect x="1" y="25" width="6" height="3"/>
+    <rect x="25" y="7" width="3" height="6"/>
+    <rect x="26" y="13" width="3" height="6"/>
+    <rect x="27" y="19" width="3" height="6"/>
+    <rect x="25" y="25" width="6" height="3"/>
+  </g>
+  <g fill="#efefef">
+    <rect x="11" y="7" width="2" height="2"/>
+    <rect x="11" y="10" width="2" height="2"/>
+    <rect x="11" y="13" width="2" height="2"/>
+    <rect x="11" y="16" width="2" height="2"/>
+    <rect x="19" y="7" width="2" height="2"/>
+    <rect x="19" y="10" width="2" height="2"/>
+    <rect x="19" y="13" width="2" height="2"/>
+    <rect x="19" y="16" width="2" height="2"/>
+    <rect x="8" y="19" width="16" height="3"/>
+  </g>
 </svg>

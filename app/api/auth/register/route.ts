@@ -5,6 +5,8 @@
  * Seeded with 500 credits (free tier).
  *
  * Controlled by:
+ *   REGISTRATION_OPEN=true    → registration reachable at all (default: CLOSED —
+ *                               flip this when there is a product to sell)
  *   REQUIRE_INVITE_CODE=true  → invite code required (default: on)
  *   REQUIRE_INVITE_CODE=false → open registration
  *
@@ -17,6 +19,11 @@ import { apiError } from "@/lib/api-error";
 
 export async function POST(req: NextRequest) {
   try {
+    // Master switch — self-registration is closed until there is a product to sell
+    if (process.env.REGISTRATION_OPEN !== "true") {
+      return apiError("Registration is currently closed", 403);
+    }
+
     const body = await req.json() as {
       email?: string;
       password?: string;

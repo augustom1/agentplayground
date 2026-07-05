@@ -4,13 +4,12 @@ import { useState, useEffect, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, AlertCircle } from "lucide-react";
-import Link from "next/link";
 import { LogoMark } from "@/components/Logo";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/chat";
 
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
@@ -133,15 +132,6 @@ function LoginForm() {
           </button>
         </form>
 
-        <p className="text-center text-[11px] mt-4" style={{ color: "var(--color-muted)" }}>
-          No account?{" "}
-          <Link
-            href="/register"
-            style={{ color: "var(--color-brand)", textDecoration: "none", fontWeight: 500 }}
-          >
-            Create one →
-          </Link>
-        </p>
       </div>
     </div>
   );

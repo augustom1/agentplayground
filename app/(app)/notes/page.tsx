@@ -19,7 +19,7 @@ const CATEGORY_LABELS: Record<NoteCategory, string> = {
 };
 
 const CATEGORY_COLORS: Record<NoteCategory, string> = {
-  cv:        "#D4715A",
+  cv:        "#38BDF8",
   business:  "#6b8cff",
   education: "#5cb85c",
   finance:   "#f0ad4e",
@@ -117,7 +117,7 @@ export default function NotesPage() {
   }
 
   return (
-    <div className="p-6 max-w-3xl">
+    <div className="p-6 max-w-3xl mx-auto w-full">
       <div className="flex items-center justify-between mb-1">
         <h1 className="text-lg font-semibold" style={{ color: "var(--color-text)" }}>Notes & Context</h1>
         <button

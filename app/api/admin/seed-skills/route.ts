@@ -350,7 +350,7 @@ Steps:
         category: "general",
         description: "Review a page or flow for usability, design system compliance, and gaps.",
         instructions: `Design system: docs/context/dev/02-tech-stack.md — Styling section.
-Design System v3: charcoal #1a1a1a background, rust #D4715A accent (logo/CTAs only), lucide-react icons.
+Design System v4: charcoal #1a1a1a background (light mode: white/grey), blue-cyan #38BDF8 brand accent via --color-brand, lucide-react icons.
 Review checklist:
 - [ ] Dark theme consistent (bg-gray-900/950, text-gray-100/400)
 - [ ] Status colors: green=healthy, yellow=idle, red=error, blue=deploying

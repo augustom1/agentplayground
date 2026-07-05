@@ -38,7 +38,9 @@ export default auth(async (req) => {
     pathname === "/llms.txt" ||
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml" ||
-    pathname === "/favicon.ico";
+    pathname === "/favicon.ico" ||
+    pathname === "/manifest.webmanifest" ||
+    pathname.startsWith("/icons/");
 
   if (isPublic) return NextResponse.next();
 
@@ -63,8 +65,8 @@ export default auth(async (req) => {
     loginUrl.searchParams.set("callbackUrl", req.nextUrl.pathname);
     res = NextResponse.redirect(loginUrl);
   } else if (pathname === "/login") {
-    // Logged-in users visiting /login → redirect to dashboard
-    res = NextResponse.redirect(new URL("/dashboard", req.url));
+    // Logged-in users visiting /login → redirect to the app home (chat)
+    res = NextResponse.redirect(new URL("/chat", req.url));
   } else if (pathname.startsWith("/users") || pathname.startsWith("/api/users")) {
     // Role gate: /users and /api/users → admin only
     const role = (req.auth as { user?: { role?: string } })?.user?.role;

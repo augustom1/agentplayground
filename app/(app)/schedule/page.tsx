@@ -509,7 +509,7 @@ export default function SchedulePage() {
   const isCurrentMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth();
 
   return (
-    <div className="flex flex-col gap-5 p-4 md:p-6 max-w-6xl animate-fade-in">
+    <div className="flex flex-col gap-5 p-4 md:p-6 max-w-6xl mx-auto w-full animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

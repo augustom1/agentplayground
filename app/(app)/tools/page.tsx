@@ -202,7 +202,7 @@ export default function ToolsPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-5 p-4 md:p-6 max-w-5xl animate-fade-in">
+    <div className="flex flex-col gap-5 p-4 md:p-6 max-w-5xl mx-auto w-full animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

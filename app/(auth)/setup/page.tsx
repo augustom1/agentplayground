@@ -201,9 +201,9 @@ export default function SetupPage() {
   }
 
   // Rust accent colour used for selected states on this onboarding screen
-  const RUST = "#D4715A";
-  const RUST_DIM = "rgba(212,113,90,0.12)";
-  const RUST_BORDER = "rgba(212,113,90,0.6)";
+  const RUST = "var(--color-brand)";
+  const RUST_DIM = "var(--color-brand-dim)";
+  const RUST_BORDER = "var(--color-brand-muted)";
 
   return (
     <div
