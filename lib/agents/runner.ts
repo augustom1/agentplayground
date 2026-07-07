@@ -2,6 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { queryBrain, formatBrainContext } from "@/lib/brain/query";
 import { executeTool, CHAT_TOOLS } from "@/lib/chat-tools";
+import { getEffectiveApiKey } from "@/lib/api-keys";
+import { runProviderToolLoop } from "./provider-loop";
 import type { TaskResult } from "./events";
 
 const MAX_TOOL_ITERATIONS = 10;
@@ -123,9 +125,6 @@ async function runWithApi(
   task: { id: string; title: string; description: string; team: { name: string; permissions: string[] | null }; plan: { title: string; id: string } },
   brainContext: string
 ): Promise<TaskResult> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return simpleFallback(task.id, task.team.name, buildTaskPrompt(task.title, task.description, task.plan.title));
-
   const systemPrompt = buildSystemPrompt(task.team.name, task.team.permissions ?? [], brainContext);
   const userMessage = buildTaskPrompt(task.title, task.description, task.plan.title);
 
@@ -133,6 +132,37 @@ async function runWithApi(
   const tools = CHAT_TOOLS
     .filter((t) => allowedToolNames.includes(t.name))
     .map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema }));
+
+  const apiKey = await getEffectiveApiKey("ANTHROPIC_API_KEY");
+  if (!apiKey) {
+    // Free-tier path: NVIDIA / OpenAI / local Ollama via the provider abstraction
+    const loop = await runProviderToolLoop({ systemPrompt, userMessage, tools, taskId: task.id });
+    if (!loop.ok) return simpleFallback(task.id, task.team.name, userMessage);
+
+    const content = loop.content || "Task completed.";
+    const summary = content.slice(0, 200).replace(/\n+/g, " ");
+    archiveTaskResult(task.id, task.title, task.plan.title, task.team.name, content, `${loop.provider}/${loop.model}`);
+    import("@/lib/optimizer/protocol-writer").then(({ evaluateAndWriteProtocol }) =>
+      evaluateAndWriteProtocol({
+        userId: "system",
+        userPrompt: userMessage,
+        assistantResponse: content,
+        toolsUsed: loop.toolsUsed,
+        inputTokens: loop.inputTokens,
+        outputTokens: loop.outputTokens,
+      })
+    ).catch(() => {});
+
+    return {
+      taskId: task.id,
+      content,
+      summary,
+      inputTokens: loop.inputTokens,
+      outputTokens: loop.outputTokens,
+      provider: loop.provider,
+      model: loop.model,
+    };
+  }
 
   const client = new Anthropic({ apiKey });
   let currentMessages: Anthropic.Messages.MessageParam[] = [
@@ -254,6 +284,6 @@ export async function runAgentTask(taskId: string): Promise<TaskResult> {
 }
 
 function simpleFallback(taskId: string, teamName: string, prompt: string): TaskResult {
-  const content = `[${teamName}] Task acknowledged. No API key configured — task recorded but not executed.\n\nPrompt: ${prompt.slice(0, 200)}`;
+  const content = `[${teamName}] Task acknowledged. No AI provider available — task recorded but not executed. Add an API key in Settings > API Keys (Anthropic, or NVIDIA's free key), or start Ollama.\n\nPrompt: ${prompt.slice(0, 200)}`;
   return { taskId, content, summary: content.slice(0, 200), inputTokens: 0, outputTokens: 0, provider: "none", model: "none" };
 }

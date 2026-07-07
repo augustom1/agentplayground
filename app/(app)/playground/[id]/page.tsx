@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ArrowLeft, Pencil, Trash2, Loader2, Check, X,
   Circle, Zap, CheckCircle2, Users,
@@ -482,8 +483,18 @@ export default function PlaygroundPage() {
           }}
         >
           <p style={{ fontSize: 13, color: "var(--color-muted)", margin: 0 }}>
-            No teams assigned yet. Edit this playground to add teams.
+            Teams of AI agents do the work in this playground. None are assigned yet.
           </p>
+          <Link
+            href={`/playground/${id}/settings`}
+            style={{
+              display: "inline-block", marginTop: 12, padding: "7px 14px", borderRadius: 8,
+              fontSize: 13, fontWeight: 500, textDecoration: "none",
+              background: "var(--color-brand)", color: "#fff",
+            }}
+          >
+            Add teams
+          </Link>
         </div>
       )}
     </div>

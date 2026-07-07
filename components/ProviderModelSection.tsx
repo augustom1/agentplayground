@@ -15,12 +15,19 @@ const PROVIDER_MODELS: Record<string, Array<{ value: string; label: string }>> =
     { value: "gpt-4o-mini", label: "GPT-4o mini (recommended)" },
     { value: "gpt-4o", label: "GPT-4o" },
   ],
+  nvidia: [
+    { value: "meta/llama-3.1-8b-instruct", label: "Llama 3.1 8B (free, recommended)" },
+    { value: "qwen/qwen2.5-coder-32b-instruct", label: "Qwen2.5 Coder 32B (free, code)" },
+    { value: "meta/llama-3.3-70b-instruct", label: "Llama 3.3 70B (free, larger)" },
+    { value: "deepseek-ai/deepseek-r1", label: "DeepSeek R1 (free, reasoning)" },
+  ],
   ollama: [],
 };
 
 const PROVIDERS = [
   { id: "anthropic", label: "Anthropic" },
   { id: "openai", label: "OpenAI" },
+  { id: "nvidia", label: "NVIDIA (Free)" },
   { id: "ollama", label: "Ollama (Local)" },
 ];
 

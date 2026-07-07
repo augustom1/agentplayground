@@ -17,16 +17,19 @@ export async function GET() {
   const session = await auth();
   if (!session?.user?.id) return apiError("Unauthorized", 401);
 
-  const [anthropicKey, openaiKey] = await Promise.all([
+  const [anthropicKey, openaiKey, nvidiaKey] = await Promise.all([
     getStoredKey("ANTHROPIC_API_KEY"),
     getStoredKey("OPENAI_API_KEY"),
+    getStoredKey("NVIDIA_API_KEY"),
   ]);
 
   return NextResponse.json({
     anthropicKey: !!(process.env.ANTHROPIC_API_KEY || anthropicKey),
     openaiKey: !!(process.env.OPENAI_API_KEY || openaiKey),
+    nvidiaKey: !!(process.env.NVIDIA_API_KEY || nvidiaKey),
     anthropicSource: process.env.ANTHROPIC_API_KEY ? "env" : anthropicKey ? "db" : "none",
     openaiSource: process.env.OPENAI_API_KEY ? "env" : openaiKey ? "db" : "none",
+    nvidiaSource: process.env.NVIDIA_API_KEY ? "env" : nvidiaKey ? "db" : "none",
   });
 }
 
@@ -34,11 +37,12 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return apiError("Unauthorized", 401);
 
-  const body = (await req.json()) as { anthropicKey?: string; openaiKey?: string };
+  const body = (await req.json()) as { anthropicKey?: string; openaiKey?: string; nvidiaKey?: string };
 
   for (const [keyName, value] of [
     ["ANTHROPIC_API_KEY", body.anthropicKey],
     ["OPENAI_API_KEY", body.openaiKey],
+    ["NVIDIA_API_KEY", body.nvidiaKey],
   ] as [string, string | undefined][]) {
     if (value === undefined) continue;
     const trimmed = value.trim();

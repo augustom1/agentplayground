@@ -1,12 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Activity, LayoutGrid, CheckCircle2, ListTodo, BookOpen, MessageSquare,
-  Plus, ArrowRight, Loader2,
+  Activity, LayoutGrid, CheckCircle2, ListTodo, Users, ArrowRight, Loader2,
+  LayoutDashboard, Brain, CalendarDays, Sparkles, Globe, Wrench,
 } from "lucide-react";
+
+// Hub windows — the full pages embedded as sections (VISION §2 update: Overview = system hub)
+import BrainWindow from "@/app/(app)/files/page";
+import ScheduleWindow from "@/app/(app)/schedule/page";
+import OptimizeWindow from "@/app/(app)/optimize/page";
+import WebsitesWindow from "@/app/(app)/websites/page";
+import ToolsWindow from "@/app/(app)/tools/page";
 
 type Task = {
   id: string;
@@ -18,7 +24,29 @@ type Task = {
 
 type Playground = { id: string; name: string; icon: string | null };
 
+type Team = {
+  id: string;
+  name: string;
+  isSystemTeam?: boolean;
+  _count?: { agents: number; tasks: number; skills: number };
+};
+
 type Plan = { id: string; title: string; status: string; createdAt: string };
+
+type SectionId = "dashboard" | "brain" | "schedule" | "optimize" | "websites" | "tools";
+
+const SECTIONS: Array<{ id: SectionId; label: string; icon: React.ComponentType<{ size?: number }> }> = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "brain", label: "Brain", icon: Brain },
+  { id: "schedule", label: "Schedule", icon: CalendarDays },
+  { id: "optimize", label: "Optimize", icon: Sparkles },
+  { id: "websites", label: "Websites", icon: Globe },
+  { id: "tools", label: "Tools", icon: Wrench },
+];
+
+function isSectionId(v: string): v is SectionId {
+  return SECTIONS.some(s => s.id === v);
+}
 
 function timeAgo(iso: string) {
   const ms = Date.now() - new Date(iso).getTime();
@@ -39,7 +67,7 @@ const STATUS_COLOR: Record<string, string> = {
 const PLAN_BADGE: Record<string, { bg: string; color: string; label: string }> = {
   PENDING_APPROVAL: { bg: "var(--color-yellow-dim)", color: "var(--color-yellow)", label: "Draft" },
   APPROVED: { bg: "var(--color-green-dim)", color: "var(--color-green)", label: "Approved" },
-  RUNNING: { bg: "rgba(212,113,90,0.12)", color: "var(--color-brand)", label: "Running" },
+  RUNNING: { bg: "var(--color-brand-dim)", color: "var(--color-brand)", label: "Running" },
   COMPLETED: { bg: "var(--color-surface-3)", color: "var(--color-muted)", label: "Done" },
   FAILED: { bg: "var(--color-red-dim)", color: "var(--color-red)", label: "Failed" },
 };
@@ -84,53 +112,47 @@ function Widget({
   );
 }
 
-function Empty({ text }: { text: string }) {
+function Empty({ text, actionLabel, actionHref }: { text: string; actionLabel?: string; actionHref?: string }) {
   return (
-    <p style={{ fontSize: 12, color: "var(--color-muted)", padding: "16px", textAlign: "center" }}>
-      {text}
-    </p>
+    <div style={{ padding: "16px", textAlign: "center" }}>
+      <p style={{ fontSize: 12, color: "var(--color-muted)", margin: 0 }}>{text}</p>
+      {actionLabel && actionHref && (
+        <Link
+          href={actionHref}
+          style={{ display: "inline-block", marginTop: 8, fontSize: 12, fontWeight: 500, color: "var(--color-brand)", textDecoration: "none" }}
+        >
+          {actionLabel} →
+        </Link>
+      )}
+    </div>
   );
 }
 
 const ROW_BORDER = "1px solid rgba(255,255,255,0.04)";
 
-export default function OverviewPage() {
-  const router = useRouter();
+function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [playgrounds, setPlaygrounds] = useState<Playground[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [brainCount, setBrainCount] = useState<number | null>(null);
-  const [brainLastDate, setBrainLastDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [chatInput, setChatInput] = useState("");
 
   useEffect(() => {
     Promise.allSettled([
       fetch("/api/tasks").then(r => r.ok ? r.json() : []),
       fetch("/api/playgrounds").then(r => r.ok ? r.json() : []),
+      fetch("/api/teams").then(r => r.ok ? r.json() : []),
       fetch("/api/plans").then(r => r.ok ? r.json() : []),
-      fetch("/api/brain/notes?limit=1").then(r => r.ok ? r.json() : null),
-    ]).then(([tasksR, pgR, plansR, brainR]) => {
+    ]).then(([tasksR, pgR, teamsR, plansR]) => {
       if (tasksR.status === "fulfilled") setTasks(tasksR.value as Task[]);
       if (pgR.status === "fulfilled") setPlaygrounds(pgR.value as Playground[]);
+      if (teamsR.status === "fulfilled") setTeams((teamsR.value as Team[]).filter(t => !t.isSystemTeam));
       if (plansR.status === "fulfilled") setPlans((plansR.value as Plan[]).slice(0, 5));
-      if (brainR.status === "fulfilled" && brainR.value) {
-        const b = brainR.value as { total: number; notes: Array<{ updatedAt: string }> };
-        setBrainCount(b.total ?? 0);
-        if (b.notes?.length > 0) setBrainLastDate(b.notes[0].updatedAt);
-      }
     }).finally(() => setLoading(false));
   }, []);
 
-  const activeTasks = tasks.filter(t => t.status === "running" || t.status === "pending").slice(0, 10);
+  const activeTasks = tasks.filter(t => t.status === "running" || t.status === "pending");
   const completedTasks = tasks.filter(t => t.status === "completed").slice(0, 5);
-
-  function handleChatSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const q = chatInput.trim();
-    if (!q) return;
-    router.push(`/chat?q=${encodeURIComponent(q)}`);
-  }
 
   if (loading) {
     return (
@@ -141,143 +163,204 @@ export default function OverviewPage() {
   }
 
   return (
-    <div style={{ padding: "24px", maxWidth: 1040, margin: "0 auto" }}>
-      <div style={{ marginBottom: 22 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
+
+      {/* 1 — Tasks: totals + active list */}
+      <Widget title="Tasks" icon={Activity}>
+        <div style={{ display: "flex", gap: 28, padding: "14px 16px 10px" }}>
+          <div>
+            <span style={{ fontSize: 28, fontWeight: 700, color: "var(--color-text)", letterSpacing: "-0.03em", lineHeight: 1 }}>{tasks.length}</span>
+            <p style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 3 }}>total</p>
+          </div>
+          <div>
+            <span style={{ fontSize: 28, fontWeight: 700, color: activeTasks.length > 0 ? "var(--color-green)" : "var(--color-text)", letterSpacing: "-0.03em", lineHeight: 1 }}>{activeTasks.length}</span>
+            <p style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 3 }}>active</p>
+          </div>
+        </div>
+        {tasks.length === 0 && (
+          <Empty
+            text="Work you send to your teams shows up here."
+            actionLabel="Dispatch your first task"
+            actionHref="/playgrounds"
+          />
+        )}
+        {activeTasks.slice(0, 5).map((t, i) => (
+          <div key={t.id} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 16px", borderTop: i === 0 ? "1px solid var(--color-border)" : ROW_BORDER }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, marginTop: 5, background: STATUS_COLOR[t.status] ?? "var(--color-muted)" }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 12, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</p>
+              <p style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 1 }}>{t.team?.name ?? "—"} · {timeAgo(t.createdAt)}</p>
+            </div>
+          </div>
+        ))}
+      </Widget>
+
+      {/* 2 — Playgrounds */}
+      <Widget title="Playgrounds" icon={LayoutGrid} href="/playgrounds">
+        {playgrounds.length === 0 ? (
+          <Empty
+            text="Playgrounds are workspaces that group your agent teams."
+            actionLabel="Create one"
+            actionHref="/playgrounds"
+          />
+        ) : (
+          <div style={{ padding: "6px 8px" }}>
+            {playgrounds.map(pg => (
+              <Link
+                key={pg.id}
+                href={`/playground/${pg.id}`}
+                style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, textDecoration: "none", color: "var(--color-text)", fontSize: 13 }}
+                onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)")}
+                onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "transparent")}
+              >
+                <LayoutGrid size={13} style={{ color: "var(--color-brand)", opacity: 0.85, flexShrink: 0 }} />
+                <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pg.name}</span>
+                <ArrowRight size={11} style={{ color: "var(--color-muted)" }} />
+              </Link>
+            ))}
+          </div>
+        )}
+      </Widget>
+
+      {/* 3 — Teams */}
+      <Widget title="Teams" icon={Users}>
+        {teams.length === 0 ? (
+          <Empty
+            text="Teams are groups of AI agents that carry out your tasks."
+            actionLabel="Ask the Keeper to set one up"
+            actionHref="/chat?team=coordinator"
+          />
+        ) : (
+          <div style={{ padding: "6px 8px" }}>
+            {teams.slice(0, 8).map(t => (
+              <Link
+                key={t.id}
+                href={`/chat?team=${t.id}`}
+                style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, textDecoration: "none", color: "var(--color-text)", fontSize: 13 }}
+                onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)")}
+                onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "transparent")}
+              >
+                <Users size={13} style={{ color: "var(--color-muted)", flexShrink: 0 }} />
+                <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span>
+                <span style={{ fontSize: 11, color: "var(--color-muted)", flexShrink: 0 }}>
+                  {t._count?.agents ?? 0} agent{(t._count?.agents ?? 0) !== 1 ? "s" : ""}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </Widget>
+
+      {/* 4 — Plans */}
+      <Widget title="Plans" icon={ListTodo} href="/plans">
+        {plans.length === 0 ? (
+          <Empty
+            text="Plans break a big goal into tasks across your teams."
+            actionLabel="Create a plan"
+            actionHref="/plans"
+          />
+        ) : plans.map((p, i) => {
+          const badge = PLAN_BADGE[p.status] ?? { bg: "var(--color-surface-3)", color: "var(--color-muted)", label: p.status };
+          return (
+            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 16px", borderBottom: i < plans.length - 1 ? ROW_BORDER : "none" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 12, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
+                <p style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 1 }}>{timeAgo(p.createdAt)}</p>
+              </div>
+              <span style={{ fontSize: 10, fontWeight: 600, flexShrink: 0, padding: "2px 8px", borderRadius: 999, background: badge.bg, color: badge.color }}>
+                {badge.label}
+              </span>
+            </div>
+          );
+        })}
+      </Widget>
+
+      {/* 5 — Recent Completions */}
+      <Widget title="Recent Completions" icon={CheckCircle2}>
+        {completedTasks.length === 0 ? (
+          <Empty
+            text="Finished task results land here."
+            actionLabel="Dispatch a task"
+            actionHref="/playgrounds"
+          />
+        ) : completedTasks.map((t, i) => (
+          <div key={t.id} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "9px 16px", borderBottom: i < completedTasks.length - 1 ? ROW_BORDER : "none" }}>
+            <CheckCircle2 size={12} style={{ color: "var(--color-green)", flexShrink: 0, marginTop: 3 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 12, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</p>
+              <p style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 1 }}>{t.team?.name ?? "—"} · {timeAgo(t.createdAt)}</p>
+            </div>
+          </div>
+        ))}
+      </Widget>
+
+    </div>
+  );
+}
+
+export default function OverviewPage() {
+  const [section, setSection] = useState<SectionId>("dashboard");
+
+  // Section synced to the URL hash — /overview#brain lands on Brain (sidebar Brain item points there)
+  useEffect(() => {
+    function apply() {
+      const h = window.location.hash.replace("#", "");
+      setSection(isSectionId(h) ? h : "dashboard");
+    }
+    apply();
+    window.addEventListener("hashchange", apply);
+    return () => window.removeEventListener("hashchange", apply);
+  }, []);
+
+  function selectSection(id: SectionId) {
+    setSection(id);
+    history.replaceState(null, "", id === "dashboard" ? "/overview" : `/overview#${id}`);
+  }
+
+  return (
+    <div style={{ padding: "24px 24px 0", maxWidth: 1120, margin: "0 auto", width: "100%" }}>
+      <div style={{ marginBottom: 14 }}>
         <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text)", letterSpacing: "-0.02em" }}>
           Overview
         </h1>
-        <p style={{ fontSize: 13, color: "var(--color-muted)", marginTop: 3 }}>Your agents at a glance</p>
+        <p style={{ fontSize: 13, color: "var(--color-muted)", marginTop: 3 }}>Everything you have working, in one window</p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
-
-        {/* 1 — Active Tasks */}
-        <Widget title="Active Tasks" icon={Activity}>
-          {activeTasks.length === 0 ? (
-            <Empty text="No active tasks" />
-          ) : activeTasks.map((t, i) => (
-            <div key={t.id} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "9px 16px", borderBottom: i < activeTasks.length - 1 ? ROW_BORDER : "none" }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0, marginTop: 5, background: STATUS_COLOR[t.status] ?? "var(--color-muted)" }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 12, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</p>
-                <p style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 1 }}>{t.team?.name ?? "—"} · {timeAgo(t.createdAt)}</p>
-              </div>
-            </div>
-          ))}
-        </Widget>
-
-        {/* 2 — Playgrounds Quick-Launch */}
-        <Widget title="Playgrounds" icon={LayoutGrid}>
-          {playgrounds.length > 0 && (
-            <div style={{ padding: "6px 8px" }}>
-              {playgrounds.map(pg => (
-                <Link
-                  key={pg.id}
-                  href={`/playground/${pg.id}`}
-                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, textDecoration: "none", color: "var(--color-text)", fontSize: 13 }}
-                  onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)")}
-                  onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "transparent")}
-                >
-                  <span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1 }}>{pg.icon ?? "🎯"}</span>
-                  <span style={{ flex: 1 }}>{pg.name}</span>
-                  <ArrowRight size={11} style={{ color: "var(--color-muted)" }} />
-                </Link>
-              ))}
-            </div>
-          )}
-          {playgrounds.length === 0 && <Empty text="No playgrounds yet" />}
-          <div style={{ padding: "8px 12px 10px", borderTop: playgrounds.length > 0 ? "1px solid var(--color-border)" : "none", marginTop: playgrounds.length > 0 ? 4 : 0 }}>
+      {/* Section tabs */}
+      <div style={{ display: "flex", alignItems: "center", gap: 2, borderBottom: "1px solid var(--color-border)", overflowX: "auto", marginBottom: 18 }}>
+        {SECTIONS.map(({ id, label, icon: Icon }) => {
+          const active = section === id;
+          return (
             <button
-              onClick={() => router.push("/chat")}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", borderRadius: 8, width: "100%", background: "transparent", border: "1px dashed var(--color-border)", color: "var(--color-muted)", fontSize: 12, cursor: "pointer" }}
+              key={id}
+              onClick={() => selectSection(id)}
+              style={{
+                display: "flex", alignItems: "center", gap: 7,
+                padding: "9px 14px", fontSize: 13, whiteSpace: "nowrap",
+                background: "transparent", border: "none", cursor: "pointer",
+                color: active ? "var(--color-text)" : "var(--color-muted)",
+                fontWeight: active ? 500 : 400,
+                borderBottom: active ? "2px solid var(--color-brand)" : "2px solid transparent",
+                marginBottom: -1,
+                transition: "color 0.12s",
+              }}
+              onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "var(--color-text-secondary)"; }}
+              onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "var(--color-muted)"; }}
             >
-              <Plus size={11} /> New Playground
+              <Icon size={13} />
+              {label}
             </button>
-          </div>
-        </Widget>
-
-        {/* 3 — Recent Completions */}
-        <Widget title="Recent Completions" icon={CheckCircle2}>
-          {completedTasks.length === 0 ? (
-            <Empty text="No completed tasks yet" />
-          ) : completedTasks.map((t, i) => (
-            <div key={t.id} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "9px 16px", borderBottom: i < completedTasks.length - 1 ? ROW_BORDER : "none" }}>
-              <CheckCircle2 size={12} style={{ color: "var(--color-green)", flexShrink: 0, marginTop: 3 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 12, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</p>
-                <p style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 1 }}>{t.team?.name ?? "—"} · {timeAgo(t.createdAt)}</p>
-              </div>
-            </div>
-          ))}
-        </Widget>
-
-        {/* 4 — Plans Status */}
-        <Widget title="Plans" icon={ListTodo} href="/plans">
-          {plans.length === 0 ? (
-            <Empty text="No plans yet" />
-          ) : plans.map((p, i) => {
-            const badge = PLAN_BADGE[p.status] ?? { bg: "var(--color-surface-3)", color: "var(--color-muted)", label: p.status };
-            return (
-              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 16px", borderBottom: i < plans.length - 1 ? ROW_BORDER : "none" }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 12, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
-                  <p style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 1 }}>{timeAgo(p.createdAt)}</p>
-                </div>
-                <span style={{ fontSize: 10, fontWeight: 600, flexShrink: 0, padding: "2px 8px", borderRadius: 999, background: badge.bg, color: badge.color }}>
-                  {badge.label}
-                </span>
-              </div>
-            );
-          })}
-        </Widget>
-
-        {/* 5 — Brain Summary */}
-        <Widget title="Brain" icon={BookOpen} href="/files">
-          <div style={{ padding: "16px" }}>
-            {brainCount === null ? (
-              <p style={{ fontSize: 12, color: "var(--color-muted)" }}>Loading…</p>
-            ) : (
-              <>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: 32, fontWeight: 700, color: "var(--color-text)", letterSpacing: "-0.03em", lineHeight: 1 }}>{brainCount}</span>
-                  <span style={{ fontSize: 13, color: "var(--color-muted)" }}>documents</span>
-                </div>
-                {brainLastDate && (
-                  <p style={{ fontSize: 11, color: "var(--color-muted)", marginBottom: 14 }}>Last indexed {timeAgo(brainLastDate)}</p>
-                )}
-                <Link href="/files" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--color-brand)", textDecoration: "none" }}>
-                  Open Brain <ArrowRight size={11} />
-                </Link>
-              </>
-            )}
-          </div>
-        </Widget>
-
-        {/* 6 — Quick Chat */}
-        <Widget title="Quick Chat" icon={MessageSquare}>
-          <div style={{ padding: "14px 16px" }}>
-            <p style={{ fontSize: 12, color: "var(--color-muted)", marginBottom: 12, lineHeight: 1.6 }}>
-              Ask your coordinator anything — opens Chat.
-            </p>
-            <form onSubmit={handleChatSubmit} style={{ display: "flex", gap: 8 }}>
-              <input
-                value={chatInput}
-                onChange={e => setChatInput(e.target.value)}
-                placeholder="Ask anything…"
-                style={{ flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13, border: "1px solid var(--color-border)", background: "var(--color-surface)", color: "var(--color-text)", outline: "none" }}
-              />
-              <button
-                type="submit"
-                disabled={!chatInput.trim()}
-                style={{ padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, border: "none", background: chatInput.trim() ? "var(--color-brand)" : "var(--color-surface-3)", color: chatInput.trim() ? "#fff" : "var(--color-muted)", cursor: chatInput.trim() ? "pointer" : "not-allowed" }}
-              >
-                Go →
-              </button>
-            </form>
-          </div>
-        </Widget>
-
+          );
+        })}
       </div>
+
+      {/* Active window */}
+      {section === "dashboard" && <Dashboard />}
+      {section === "brain" && <BrainWindow />}
+      {section === "schedule" && <ScheduleWindow />}
+      {section === "optimize" && <OptimizeWindow />}
+      {section === "websites" && <WebsitesWindow />}
+      {section === "tools" && <ToolsWindow />}
     </div>
   );
 }

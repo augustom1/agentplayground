@@ -25,11 +25,23 @@ Agent Playground is a **self-hosted AI operations platform**. A user deploys it 
 
 ### Business model (context, not current implementation work)
 
+> Updated 2026-07-06 (owner): private-server-first model. Installations are a side business;
+> no shared/multi-tenant hosting offered yet. Detail: `business/03-services-pricing.md`.
+
 - **Open source core** → adoption, content (video miniseries), credibility.
-- **Paid services:** custom playgrounds (~$350–500), full framework installations with a custom playground (~$1,000–1,500 one-off).
-- **Recurring:** managed hosting tiers (~$100/mo basic, ~$180–200/mo with playground library access, ~$250–300/mo dedicated infrastructure).
-- **Playground Library:** a catalog of ready-made playgrounds (personal and business) that subscribed clients can browse, try, and deploy to their own installation. Every custom client project should, where possible, produce a generic, anonymized template for the library.
-- Multi-tenant hosting: multiple client stacks on one powerful server, isolated via per-client Docker Compose stacks, resource caps, separate Docker networks, Traefik routing per domain. **Architecture should be multi-tenant-aware from the start**, not retrofitted.
+- **Flagship offer — Private Server Deployment (push hard):** client gets their own VPS running the
+  full stack + custom playground(s). **One-time $1,000–2,000** scoped by how many apps/integrations
+  and how many users. **Recurring monthly** = server cost passthrough + ~30% brokerage fee
+  (industry-standard markup on brokered infrastructure) + maintenance fee + (future) per-app fees
+  for API apps included in their agent teams.
+- **Side services:** custom playground into an existing installation (~$350–500); assisted VPS
+  install ($50 — script-driven, app running, zero config support: client connects domain/SSL/keys
+  in the app themselves).
+- **Playground Library:** a catalog of ready-made playgrounds (personal and business) that clients can browse, try, and deploy to their own installation. Every custom client project should, where possible, produce a generic, anonymized template for the library.
+- Multi-tenant/shared hosting: **not offered yet** (owner decision 2026-07-06 — no rented shared
+  boxes until demand justifies it). The architecture stays multi-tenant-aware from the start
+  (per-client Docker Compose stacks, resource caps, separate networks, Traefik per domain) so the
+  option can open later without retrofitting.
 
 Implication for code: features built for internal use (scheduling, publishing pipelines, budget dashboards, template deployment) should be **generic platform features**, never one-off scripts. If code only serves one demo, it's scope creep.
 

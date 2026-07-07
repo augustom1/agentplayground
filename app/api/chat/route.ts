@@ -219,7 +219,7 @@ async function buildCoordinatorContext(): Promise<string> {
         const when = m.scheduledFor.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
         const parts = Array.isArray(m.participants) ? (m.participants as Participant[]).map((p) => p.name).join(", ") : "";
         const inMinutes = Math.round((m.scheduledFor.getTime() - now.getTime()) / 60000);
-        const timeNote = inMinutes <= m.reminderMins ? ` ⚠️ STARTING IN ${inMinutes} MIN` : "";
+        const timeNote = inMinutes <= m.reminderMins ? ` STARTING IN ${inMinutes} MIN` : "";
         return `- **${m.title}** at ${when}${timeNote}${parts ? ` — with: ${parts}` : ""}`;
       }).join("\n");
       sections.push(`## Upcoming Meetings (next 24h)\n${meetingList}\n\nProactively mention these if relevant. Use schedule_meeting to create new ones.`);
@@ -255,7 +255,7 @@ async function buildTeamContext(teamId: string): Promise<string> {
 
   const cliFnList =
     team.cliFunctions
-      .map((f) => `- ${f.name}: \`${f.command}\`${f.dangerous ? " ⚠ dangerous" : ""}`)
+      .map((f) => `- ${f.name}: \`${f.command}\`${f.dangerous ? " (dangerous)" : ""}`)
       .join("\n") || "No CLI functions.";
 
   const slug = team.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
@@ -358,42 +358,58 @@ async function streamAnthropic(
     }
 
     if (iterations >= MAX_TOOL_ITERATIONS) {
-      controller.enqueue(encoder.encode("\n\n⚠️ *Max tool iterations reached.*"));
+      controller.enqueue(encoder.encode("\n\n*Max tool iterations reached.*"));
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes("credit_balance_too_low") || msg.includes("credit balance is too low")) {
       controller.enqueue(encoder.encode(
-        "⚠️ **Insufficient Anthropic credits.**\n\nPlease add credits at [console.anthropic.com → Billing](https://console.anthropic.com/settings/billing).\n\nOr switch to **Ollama** in the model selector to run models locally for free."
+        "**Insufficient Anthropic credits.**\n\nPlease add credits at [console.anthropic.com → Billing](https://console.anthropic.com/settings/billing).\n\nOr switch to **Ollama** in the model selector to run models locally for free."
       ));
     } else if (msg.includes("invalid_api_key") || msg.includes("authentication")) {
-      controller.enqueue(encoder.encode("⚠️ Your Anthropic API key appears to be invalid. Go to **Settings → API Keys** to update it."));
+      controller.enqueue(encoder.encode("Your Anthropic API key appears to be invalid. Go to **Settings → API Keys** to update it."));
     } else {
-      controller.enqueue(encoder.encode(`❌ ${msg}`));
+      controller.enqueue(encoder.encode(`Error: ${msg}`));
     }
   }
 
   return { inputTokens: totalInputTokens, outputTokens: totalOutputTokens, webSearchCalls: totalWebSearchCalls, webBrowseCalls: totalWebBrowseCalls, responseText: accumulatedText, toolsUsed: usedTools };
 }
 
+// OpenAI-compatible endpoints (NVIDIA NIM etc.) reuse the OpenAI tool loop with a
+// different base URL + key. NVIDIA: free key from build.nvidia.com, ~40 req/min.
+type OpenAICompat = { keyName: string; baseURL?: string; label: string; missingKeyMsg: string };
+
+const NVIDIA_COMPAT: OpenAICompat = {
+  keyName: "NVIDIA_API_KEY",
+  baseURL: "https://integrate.api.nvidia.com/v1",
+  label: "NVIDIA",
+  missingKeyMsg:
+    "No NVIDIA API key found. Get a free one at [build.nvidia.com](https://build.nvidia.com) (no credit card), then add it in **Settings → API Keys**.",
+};
+
 async function streamOpenAI(
   messages: Array<{ role: "user" | "assistant"; content: string }>,
   model: string,
   systemPrompt: string,
   controller: ReadableStreamDefaultController,
-  encoder: TextEncoder
+  encoder: TextEncoder,
+  compat?: OpenAICompat
 ) {
-  const apiKey = await getEffectiveApiKey("OPENAI_API_KEY");
+  const keyName = compat?.keyName ?? "OPENAI_API_KEY";
+  const label = compat?.label ?? "OpenAI";
+  const apiKey = await getEffectiveApiKey(keyName);
   if (!apiKey) {
     controller.enqueue(
       encoder.encode(
-        "No OpenAI API key found. Go to **Settings → API Keys** to add yours, or switch to Anthropic Claude."
+        compat?.missingKeyMsg ??
+          "No OpenAI API key found. Go to **Settings → API Keys** to add yours, or switch to Anthropic Claude."
       )
     );
     return;
   }
 
-  const client = new OpenAI({ apiKey });
+  const client = new OpenAI({ apiKey, baseURL: compat?.baseURL });
 
   // Convert CHAT_TOOLS (Anthropic format) to OpenAI function calling format
   const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = CHAT_TOOLS.map((t) => ({
@@ -470,18 +486,36 @@ async function streamOpenAI(
     }
 
     if (iterations >= MAX_TOOL_ITERATIONS) {
-      controller.enqueue(encoder.encode("\n\n⚠️ *Max tool iterations reached.*"));
+      controller.enqueue(encoder.encode("\n\n*Max tool iterations reached.*"));
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes("invalid_api_key") || msg.includes("Incorrect API key")) {
-      controller.enqueue(encoder.encode("⚠️ Your OpenAI API key appears to be invalid. Go to **Settings → API Keys** to update it."));
-    } else if (msg.includes("rate_limit_exceeded") || msg.includes("Rate limit")) {
-      controller.enqueue(encoder.encode("⚠️ OpenAI rate limit exceeded. Please wait a moment and try again."));
-    } else if (msg.includes("model_not_found") || msg.includes("does not exist")) {
-      controller.enqueue(encoder.encode(`⚠️ Model "${model}" not found. Check your OpenAI model name.`));
+    if (compat && /tool/i.test(msg) && (msg.includes("400") || /not support/i.test(msg))) {
+      // Some models on OpenAI-compatible catalogs (NVIDIA NIM) reject the tools param —
+      // fall back to a plain completion so the user still gets an answer.
+      try {
+        const plain = await client.chat.completions.create({
+          model,
+          max_tokens: 4096,
+          messages: [{ role: "system", content: systemPrompt }, ...messages],
+          stream: false,
+        });
+        const text = plain.choices[0]?.message?.content ?? "";
+        controller.enqueue(encoder.encode(text || `${label} returned an empty response.`));
+        controller.enqueue(encoder.encode(`\n\n*Note: this model doesn't support tools — answered directly.*`));
+        return;
+      } catch {
+        // fall through to the generic error below
+      }
+    }
+    if (msg.includes("invalid_api_key") || msg.includes("Incorrect API key") || msg.includes("401") || (compat && msg.includes("403")) || /unauthorized/i.test(msg)) {
+      controller.enqueue(encoder.encode(`Your ${label} API key appears to be invalid. Go to **Settings → API Keys** to update it.`));
+    } else if (msg.includes("rate_limit_exceeded") || msg.includes("Rate limit") || msg.includes("429")) {
+      controller.enqueue(encoder.encode(`${label} rate limit exceeded. Please wait a moment and try again.`));
+    } else if (msg.includes("model_not_found") || msg.includes("does not exist") || msg.includes("404")) {
+      controller.enqueue(encoder.encode(`Model "${model}" not found. Check your ${label} model name.`));
     } else {
-      controller.enqueue(encoder.encode(`❌ OpenAI error: ${msg}`));
+      controller.enqueue(encoder.encode(`${label} error: ${msg}`));
     }
   }
 }
@@ -585,7 +619,7 @@ async function streamOllama(
     }
 
     if (iterations >= MAX_TOOL_ITERATIONS) {
-      controller.enqueue(encoder.encode("\n\n⚠️ *Max tool iterations reached.*"));
+      controller.enqueue(encoder.encode("\n\n*Max tool iterations reached.*"));
     }
   } catch (err) {
     controller.enqueue(encoder.encode(`Cannot reach Ollama at ${baseUrl}. Make sure the service is running.\n\nError: ${String(err)}`));
@@ -726,6 +760,7 @@ export async function POST(req: Request) {
     anthropic: "claude-sonnet-4-6",
     openai: "gpt-4o",
     ollama: "qwen2.5:7b",
+    nvidia: "meta/llama-3.1-8b-instruct",
   };
   const resolvedModel = model || defaultModels[provider] || "claude-sonnet-4-6";
 
@@ -748,6 +783,8 @@ export async function POST(req: Request) {
       try {
         if (provider === "openai") {
           await streamOpenAI(messages, resolvedModel, systemPrompt, controller, encoder);
+        } else if (provider === "nvidia") {
+          await streamOpenAI(messages, resolvedModel, systemPrompt, controller, encoder, NVIDIA_COMPAT);
         } else if (provider === "ollama") {
           await streamOllama(messages, resolvedModel, systemPrompt, controller, encoder);
         } else {
@@ -802,7 +839,7 @@ export async function POST(req: Request) {
           }
         }
       } catch (err) {
-        controller.enqueue(encoder.encode(`\n\n❌ Error: ${String(err)}`));
+        controller.enqueue(encoder.encode(`\n\nError: ${String(err)}`));
       } finally {
         controller.close();
       }

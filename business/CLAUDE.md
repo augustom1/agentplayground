@@ -16,15 +16,15 @@ Users deploy it on their own VPS and get AI agent teams, coordinated by the Play
 that operate real infrastructure — n8n workflows, Telegram bots, deployments, documents —
 without a developer in the loop except for protected actions.
 
-**Revenue model (full detail in `00-overview.md` and `03-services-pricing.md`):**
+**Revenue model (updated 2026-07-06, private-server-first — full detail in `00-overview.md` and `03-services-pricing.md`):**
 
 | Stream | Price |
 |---|---|
-| Custom playgrounds | $350–500 one-off |
-| Full framework installation + custom playground | $1,000–1,500 one-off |
-| Managed hosting — basic | ~$100/mo |
-| Managed hosting + Playground Library access | ~$180–200/mo |
-| Dedicated infrastructure | ~$250–300/mo |
+| **Private Server Deployment (flagship)** — own VPS + stack + custom playground(s), scoped by apps + users | $1,000–2,000 one-off |
+| Recurring on deployments — server passthrough + ~30% brokerage (when brokered) + maintenance + future per-app fees | composed monthly (~$95–120/mo typical) |
+| Custom playground (existing installation) | $350–500 one-off |
+| Assisted VPS install (side business, zero config support) | $50 one-off |
+| Shared/multi-tenant hosting | NOT offered yet (owner 2026-07-06) |
 
 **The compounding asset:** the Playground Library — every custom client project produces
 (where possible) a generic anonymized template that library-tier subscribers can deploy.

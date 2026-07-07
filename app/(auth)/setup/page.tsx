@@ -13,7 +13,7 @@ import Link from "next/link";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Provider = "openai" | "anthropic" | "ollama";
+type Provider = "openai" | "anthropic" | "nvidia" | "ollama";
 type StarterPack = "personal" | "business" | "development" | "blank";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -41,6 +41,14 @@ const PROVIDERS: Array<{
     description: "Works with Claude Sonnet and Haiku.",
     keyPlaceholder: "sk-ant-...",
     link: { label: "Get a free key →", href: "https://console.anthropic.com" },
+  },
+  {
+    id: "nvidia",
+    name: "NVIDIA",
+    label: "Cloud · Free",
+    description: "Free cloud models (Llama, Qwen, DeepSeek). Sign up at build.nvidia.com — no credit card needed.",
+    keyPlaceholder: "nvapi-...",
+    link: { label: "Get a free key →", href: "https://build.nvidia.com" },
   },
   {
     id: "ollama",
@@ -115,12 +123,10 @@ export default function SetupPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Step 2 — API keys
+  // Step 2 — API keys (one entry per key-based provider)
   const [selectedProviders, setSelectedProviders] = useState<Set<Provider>>(new Set(["openai"]));
-  const [openaiKey, setOpenaiKey]         = useState("");
-  const [anthropicKey, setAnthropicKey]   = useState("");
-  const [showOpenai, setShowOpenai]       = useState(false);
-  const [showAnthropic, setShowAnthropic] = useState(false);
+  const [keys, setKeys]       = useState<Record<string, string>>({ openai: "", anthropic: "", nvidia: "" });
+  const [showKey, setShowKey] = useState<Record<string, boolean>>({});
 
   // Step 3 — Account
   const [name, setName]         = useState("");
@@ -183,8 +189,9 @@ export default function SetupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           apiKeys: {
-            openai:    selectedProviders.has("openai")    ? openaiKey.trim()    : undefined,
-            anthropic: selectedProviders.has("anthropic") ? anthropicKey.trim() : undefined,
+            openai:    selectedProviders.has("openai")    ? keys.openai.trim()    : undefined,
+            anthropic: selectedProviders.has("anthropic") ? keys.anthropic.trim() : undefined,
+            nvidia:    selectedProviders.has("nvidia")    ? keys.nvidia.trim()    : undefined,
           },
           starterPack,
         }),
@@ -291,7 +298,7 @@ export default function SetupPage() {
               <div>
                 <h2 className="font-semibold mb-1" style={{ color: "var(--color-text)" }}>Connect your AI provider</h2>
                 <p className="text-[13px]" style={{ color: "var(--color-text-secondary)" }}>
-                  AgentPlayground works with Anthropic Claude, OpenAI, or free local models via Ollama. Select all that apply.
+                  AgentPlayground works with Anthropic Claude, OpenAI, NVIDIA&apos;s free cloud models, or free local models via Ollama. Select all that apply.
                 </p>
               </div>
 
@@ -335,22 +342,20 @@ export default function SetupPage() {
                         >
                           <div className="relative">
                             <input
-                              type={id === "openai" ? (showOpenai ? "text" : "password") : (showAnthropic ? "text" : "password")}
+                              type={showKey[id] ? "text" : "password"}
                               placeholder={keyPlaceholder}
-                              value={id === "openai" ? openaiKey : anthropicKey}
-                              onChange={(e) => id === "openai" ? setOpenaiKey(e.target.value) : setAnthropicKey(e.target.value)}
+                              value={keys[id] ?? ""}
+                              onChange={(e) => setKeys((prev) => ({ ...prev, [id]: e.target.value }))}
                               className={inputClass}
                               style={{ color: "var(--color-text)", paddingRight: "36px" }}
                             />
                             <button
                               type="button"
-                              onClick={() => id === "openai" ? setShowOpenai((v) => !v) : setShowAnthropic((v) => !v)}
+                              onClick={() => setShowKey((prev) => ({ ...prev, [id]: !prev[id] }))}
                               className="absolute right-2.5 top-1/2 -translate-y-1/2"
                               style={{ color: "var(--color-muted)" }}
                             >
-                              {(id === "openai" ? showOpenai : showAnthropic)
-                                ? <EyeOff size={13} />
-                                : <Eye size={13} />}
+                              {showKey[id] ? <EyeOff size={13} /> : <Eye size={13} />}
                             </button>
                           </div>
                           {link && (
@@ -380,21 +385,44 @@ export default function SetupPage() {
                   <ChevronLeft size={14} /> Back
                 </button>
                 <button
-                  onClick={() => {
-                    const needsKey = [...selectedProviders].some((p) => p !== "ollama");
-                    const hasKey =
-                      (!selectedProviders.has("openai")    || openaiKey.trim()) &&
-                      (!selectedProviders.has("anthropic") || anthropicKey.trim());
-                    if (needsKey && !hasKey) {
+                  onClick={async () => {
+                    const hasKey = [...selectedProviders].every((p) => p === "ollama" || (keys[p] ?? "").trim());
+                    if (!hasKey) {
                       setError("Please enter an API key for each selected provider, or select Ollama only.");
                       return;
                     }
                     setError(null);
-                    setStep(3);
+                    setLoading(true);
+                    try {
+                      // Cheap validation ping per key so an invalid key fails here,
+                      // not silently at the first chat.
+                      for (const p of [...selectedProviders]) {
+                        if (p === "ollama") continue;
+                        const res = await fetch("/api/setup/validate-key", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ provider: p, key: (keys[p] ?? "").trim() }),
+                        });
+                        const data = await res.json() as { valid?: boolean; error?: string };
+                        if (res.ok && data.valid === false) {
+                          const pName = PROVIDERS.find((x) => x.id === p)?.name ?? p;
+                          setError(`The ${pName} key was rejected by ${pName}. Check the key and try again.`);
+                          return;
+                        }
+                      }
+                      setStep(3);
+                    } catch {
+                      // Validation ping unreachable (offline install) — don't block setup on it
+                      setStep(3);
+                    } finally {
+                      setLoading(false);
+                    }
                   }}
+                  disabled={loading}
                   className="btn-primary flex items-center gap-2 py-2.5 flex-1 justify-center"
                 >
-                  Continue <ChevronRight size={14} />
+                  {loading && <Loader2 size={13} className="animate-spin" />}
+                  {loading ? "Checking keys…" : <>Continue <ChevronRight size={14} /></>}
                 </button>
               </div>
             </div>
@@ -575,7 +603,9 @@ export default function SetupPage() {
                   You&apos;re all set!
                 </h2>
                 <p className="text-[13px] leading-relaxed" style={{ color: "var(--color-text-secondary)" }}>
-                  Your admin account is ready. Agent teams are being seeded in the background — they&apos;ll appear in Teams within a few seconds.
+                  {starterPack === "blank"
+                    ? "Your admin account is ready. You chose a blank start — create your own teams and playgrounds from the Playgrounds tab whenever you're ready."
+                    : "Your admin account is ready. Agent teams and starter playgrounds are being seeded in the background — they'll appear within a few seconds."}
                 </p>
               </div>
 
@@ -583,7 +613,7 @@ export default function SetupPage() {
               <div className="w-full flex flex-col gap-1.5 py-1">
                 {[
                   { label: "Account", value: email },
-                  { label: "Providers", value: [...selectedProviders].map((p) => ({ openai: "OpenAI", anthropic: "Anthropic", ollama: "Ollama" }[p])).join(", ") },
+                  { label: "Providers", value: [...selectedProviders].map((p) => ({ openai: "OpenAI", anthropic: "Anthropic", nvidia: "NVIDIA", ollama: "Ollama" }[p])).join(", ") },
                   { label: "Starter", value: STARTERS.find((s) => s.id === starterPack)?.name ?? starterPack },
                 ].map(({ label, value }) => (
                   <div key={label} className="flex justify-between items-center py-1.5 px-3 rounded-md" style={{ background: "var(--color-surface-2)" }}>

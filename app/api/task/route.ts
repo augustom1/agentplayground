@@ -15,6 +15,8 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { CHAT_TOOLS, executeTool } from "@/lib/chat-tools";
+import { getEffectiveApiKey } from "@/lib/api-keys";
+import { runProviderToolLoop } from "@/lib/agents/provider-loop";
 import { apiError } from "@/lib/api-error";
 import { auth } from "@/auth";
 import { notifyTaskComplete } from "@/lib/notify";
@@ -82,19 +84,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      const errMsg = "No ANTHROPIC_API_KEY configured";
-      if (taskId) {
-        await prisma.task.update({
-          where: { id: taskId },
-          data: { status: "failed", result: errMsg },
-        });
-      }
-      return NextResponse.json({ error: errMsg }, { status: 500 });
-    }
-
-    const client = new Anthropic({ apiKey });
+    const apiKey = await getEffectiveApiKey("ANTHROPIC_API_KEY");
     const tools = CHAT_TOOLS.map((t) => ({
       name: t.name,
       description: t.description,
@@ -112,14 +102,35 @@ Execute the task completely using the available tools. When done, provide a clea
 - Be concise in status updates, thorough in execution
 - End with ✓ summary of what was done, or ✗ with reason if failed${skillsContext}`;
 
-    const messages: Anthropic.MessageParam[] = [
-      { role: "user", content: resolvedPrompt },
-    ];
-
     let resultText = "";
     let iterations = 0;
     let continueLoop = true;
     const toolsUsed: string[] = [];
+
+    if (!apiKey) {
+      // Free-tier path: NVIDIA / OpenAI / local Ollama via the provider abstraction
+      const loop = await runProviderToolLoop({
+        systemPrompt,
+        userMessage: resolvedPrompt,
+        tools,
+        maxIterations: MAX_ITERATIONS,
+      });
+      if (!loop.ok) {
+        if (taskId) {
+          await prisma.task.update({
+            where: { id: taskId },
+            data: { status: "failed", result: loop.content },
+          });
+        }
+        return NextResponse.json({ error: loop.content }, { status: 500 });
+      }
+      resultText = loop.content;
+      toolsUsed.push(...loop.toolsUsed);
+    } else {
+    const client = new Anthropic({ apiKey });
+    const messages: Anthropic.MessageParam[] = [
+      { role: "user", content: resolvedPrompt },
+    ];
 
     while (continueLoop && iterations < MAX_ITERATIONS) {
       iterations++;
@@ -155,9 +166,10 @@ Execute the task completely using the available tools. When done, provide a clea
 
       if (response.stop_reason === "end_turn") continueLoop = false;
     }
+    }
 
     if (iterations >= MAX_ITERATIONS) {
-      resultText += "\n\n⚠️ Reached max iterations — task may be incomplete.";
+      resultText += "\n\nWarning: reached max iterations — task may be incomplete.";
     }
 
     const finalStatus = resultText.includes("✗") ? "failed" : "completed";

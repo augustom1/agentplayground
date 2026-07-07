@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { executeTool, CHAT_TOOLS } from "@/lib/chat-tools";
+import { getEffectiveApiKey } from "@/lib/api-keys";
+import { runProviderToolLoop } from "./provider-loop";
 import type { TaskResult } from "./events";
 
 const MAX_TOOL_ITERATIONS = 10;
@@ -38,11 +40,6 @@ export async function runDelegatedTask(
   taskId: string,
   task: DelegatedTaskInput
 ): Promise<TaskResult> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return { taskId, content: "No ANTHROPIC_API_KEY set.", summary: "No API key.", inputTokens: 0, outputTokens: 0, provider: "none", model: "none" };
-  }
-
   const team = await prisma.agentTeam.findUnique({
     where: { id: task.teamId },
     select: { name: true, description: true, agents: { select: { name: true, systemPrompt: true } } },
@@ -66,15 +63,33 @@ Write results to the vault when done. Return a clear summary of what you accompl
 
   const userMessage = `## Task: ${task.title}\n\n${task.description}\n\nComplete this task now.`;
 
-  const client = new Anthropic({ apiKey });
-  let currentMessages: Anthropic.Messages.MessageParam[] = [
-    { role: "user", content: userMessage },
-  ];
-
   let fullText = "";
   let totalInput = 0;
   let totalOutput = 0;
   let needsInput: { question: string; context?: string } | null = null;
+  let usedProvider = "anthropic";
+  let usedModel = "claude-haiku-4-5-20251001";
+
+  const apiKey = await getEffectiveApiKey("ANTHROPIC_API_KEY");
+  if (!apiKey) {
+    // Free-tier path: NVIDIA / OpenAI / local Ollama via the provider abstraction
+    const loop = await runProviderToolLoop({
+      systemPrompt, userMessage, tools, taskId, interceptHumanInput: true,
+    });
+    if (!loop.ok) {
+      return { taskId, content: loop.content, summary: "No AI provider available.", inputTokens: 0, outputTokens: 0, provider: "none", model: "none" };
+    }
+    fullText = loop.content;
+    totalInput = loop.inputTokens;
+    totalOutput = loop.outputTokens;
+    needsInput = loop.needsInput;
+    usedProvider = loop.provider;
+    usedModel = loop.model;
+  } else {
+  const client = new Anthropic({ apiKey });
+  let currentMessages: Anthropic.Messages.MessageParam[] = [
+    { role: "user", content: userMessage },
+  ];
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     const response = await client.messages.create({
@@ -124,6 +139,7 @@ Write results to the vault when done. Return a clear summary of what you accompl
 
     break;
   }
+  }
 
   // Agent paused — needs human input before continuing
   if (needsInput) {
@@ -134,8 +150,8 @@ Write results to the vault when done. Return a clear summary of what you accompl
       summary: `Needs input: ${needsInput.question.slice(0, 100)}`,
       inputTokens: totalInput,
       outputTokens: totalOutput,
-      provider: "anthropic",
-      model: "claude-haiku-4-5-20251001",
+      provider: usedProvider,
+      model: usedModel,
     };
   }
 
@@ -165,5 +181,5 @@ Write results to the vault when done. Return a clear summary of what you accompl
     })
   ).catch(() => {});
 
-  return { taskId, content, summary, inputTokens: totalInput, outputTokens: totalOutput, provider: "anthropic", model: "claude-haiku-4-5-20251001" };
+  return { taskId, content, summary, inputTokens: totalInput, outputTokens: totalOutput, provider: usedProvider, model: usedModel };
 }

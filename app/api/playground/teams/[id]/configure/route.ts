@@ -4,6 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
 import { auth } from "@/auth";
+import { getEffectiveApiKey } from "@/lib/api-keys";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -38,8 +39,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     const instruction: string = body.instruction;
     if (!instruction?.trim()) return apiError("Missing instruction", 400);
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) return apiError("ANTHROPIC_API_KEY not set", 500);
+    const apiKey = await getEffectiveApiKey("ANTHROPIC_API_KEY");
+    if (!apiKey) return apiError("Anthropic API key not configured. Go to Settings → API Keys.", 503);
 
     const currentConfig = JSON.stringify(team.config ?? {}, null, 2);
     const prompt = `Current config:\n${currentConfig}\n\nUser instruction: "${instruction}"`;

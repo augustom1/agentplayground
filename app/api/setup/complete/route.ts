@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     if (!session?.user?.id) return apiError("Unauthorized", 401);
 
     const body = await req.json() as {
-      apiKeys?: { openai?: string; anthropic?: string };
+      apiKeys?: { openai?: string; anthropic?: string; nvidia?: string };
       starterPack?: string;
     };
 
@@ -49,6 +49,22 @@ export async function POST(req: NextRequest) {
     // Save API keys to AgentMemory
     if (apiKeys.openai?.trim())    await saveApiKey("OPENAI_API_KEY",    apiKeys.openai.trim());
     if (apiKeys.anthropic?.trim()) await saveApiKey("ANTHROPIC_API_KEY", apiKeys.anthropic.trim());
+    if (apiKeys.nvidia?.trim())    await saveApiKey("NVIDIA_API_KEY",    apiKeys.nvidia.trim());
+
+    // Default chat provider = the best provider the user actually gave a key for,
+    // so the first message doesn't go to a provider they can't use.
+    const defProvider = apiKeys.anthropic?.trim() ? "anthropic"
+      : apiKeys.openai?.trim() ? "openai"
+      : apiKeys.nvidia?.trim() ? "nvidia"
+      : "ollama";
+    const defModel = {
+      anthropic: "claude-sonnet-4-6",
+      openai: "gpt-4o-mini",
+      nvidia: "meta/llama-3.1-8b-instruct",
+      ollama: "qwen2.5:7b",
+    }[defProvider];
+    await saveApiKey("DEFAULT_PROVIDER", defProvider);
+    await saveApiKey("DEFAULT_MODEL", defModel);
 
     // Save starter pack selection for coordinator context
     await prisma.agentMemory.create({
@@ -71,8 +87,12 @@ export async function POST(req: NextRequest) {
       } else if (starterPack === "business" || starterPack === "development") {
         await seedTeams().catch(console.error);
       }
-      // blank — no pre-seeded teams, user builds from scratch
-      await seedDefaultPlaygrounds(session.user.id).catch(console.error);
+      // blank — no pre-seeded teams or playgrounds, user builds from scratch
+      await seedDefaultPlaygrounds(session.user.id, starterPack).catch(console.error);
+      if (starterPack !== "blank") {
+        const { seedDemoContent } = await import("@/lib/seed-demo");
+        await seedDemoContent().catch(console.error);
+      }
     };
     runSeed().catch(console.error);
 

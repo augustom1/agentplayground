@@ -15,6 +15,7 @@ import { UserMenu } from "@/components/UserMenu";
 import { LogoMark } from "@/components/Logo";
 import { useLanguage } from "@/components/LanguageProvider";
 import { useTheme } from "@/components/ThemeProvider";
+import { TaskRouter } from "@/components/TaskRouter";
 
 type SidebarTab = "chat" | "playgrounds" | "overview";
 
@@ -89,6 +90,7 @@ export function Sidebar() {
 
   const [collapsed, setCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showTaskRouter, setShowTaskRouter] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // ── Tab pill state — synced to route ─────────────────
@@ -210,7 +212,7 @@ export function Sidebar() {
         setPanelState("proposing");
       }
     } catch {
-      setPanelMessages(prev => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
+      setPanelMessages(prev => [...prev, { role: "assistant", content: "I couldn't reach your AI provider — check your key in Settings > API Keys. You can also create a playground without me: open the Playgrounds tab and use New playground." }]);
     } finally {
       setPanelLoading(false);
     }
@@ -257,7 +259,7 @@ export function Sidebar() {
         setPanelState("chatting");
       }
     } catch {
-      setPanelMessages(prev => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
+      setPanelMessages(prev => [...prev, { role: "assistant", content: "Creating the playground failed — that step needs a working AI provider (Settings > API Keys). You can also create it manually: Playgrounds tab, New playground." }]);
       setPanelState("chatting");
     }
   }
@@ -510,7 +512,25 @@ export function Sidebar() {
               }}>Soon</span>
             </div>
 
-            <NavItem href="/overview#brain" label="Brain" icon={Brain} collapsed={false} active={false} />
+            {/* Same-page hash links don't fire hashchange (Next uses pushState) — force it so the hub switches sections */}
+            <Link
+              href="/overview#brain"
+              onClick={() => {
+                if (window.location.pathname.startsWith("/overview")) window.location.hash = "brain";
+              }}
+              style={{
+                display: "flex", alignItems: "center", gap: "10px",
+                padding: "7px 10px", borderRadius: "8px",
+                fontSize: "13px", textDecoration: "none",
+                transition: "background 0.12s, color 0.12s",
+                background: "transparent", color: "var(--color-text-secondary)",
+              }}
+              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)")}
+              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "transparent")}
+            >
+              <span style={{ opacity: 0.75, flexShrink: 0, display: "inline-flex" }}><Brain size={14} /></span>
+              <span>Brain</span>
+            </Link>
 
             {/* Chat with — Keeper + team heads */}
             <div style={{ marginTop: "16px" }}>
@@ -547,8 +567,23 @@ export function Sidebar() {
           </>
         ) : tab === "playgrounds" ? (
           <>
-            {/* Coordinator quick chat — task router lands here in Session 34 */}
-            <NavItem href="/chat?team=coordinator" label="Quick task" icon={Network} collapsed={false} active={false} />
+            {/* Coordinator quick chat — the task router */}
+            <button
+              onClick={() => setShowTaskRouter(true)}
+              style={{
+                display: "flex", alignItems: "center", gap: "10px",
+                padding: "7px 10px", borderRadius: "8px", width: "100%",
+                fontSize: "13px", border: "none", background: "transparent",
+                cursor: "pointer", textAlign: "left",
+                color: "var(--color-text-secondary)",
+                transition: "background 0.12s, color 0.12s",
+              }}
+              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)")}
+              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "transparent")}
+            >
+              <span style={{ opacity: 0.75, flexShrink: 0, display: "inline-flex" }}><Network size={14} /></span>
+              <span>Quick task</span>
+            </button>
 
             <div style={{ marginTop: "16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "4px", padding: "2px 10px 4px" }}>
@@ -869,6 +904,9 @@ export function Sidebar() {
           </div>
         </>
       )}
+
+      {/* ── Coordinator task router ───────────────────────── */}
+      <TaskRouter open={showTaskRouter} onClose={() => setShowTaskRouter(false)} />
 
       {/* ── Bottom — user menu only ───────────────────────── */}
       <div style={{ borderTop: "1px solid var(--color-border)", padding: collapsed ? "6px 6px 10px" : "6px 8px 10px" }}>

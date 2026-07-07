@@ -334,7 +334,7 @@ function NoteViewer({ item, onBack, onDelete, onSaved }: {
         setSyncMsg({ text: `✓ Team synced — ${agents} agents, ${skills} skills, ${cliFunctions} CLI functions`, ok: true });
         setTimeout(() => setSyncMsg(null), 5000);
       } else if (data.syncWarning) {
-        setSyncMsg({ text: `⚠ ${data.syncWarning}`, ok: false });
+        setSyncMsg({ text: `Warning: ${data.syncWarning}`, ok: false });
         setTimeout(() => setSyncMsg(null), 7000);
       }
     } finally { setSaving(false); }

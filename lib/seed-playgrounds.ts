@@ -1,27 +1,44 @@
 import { prisma } from "@/lib/prisma";
 
-const DEFAULTS = [
+interface PlaygroundDef {
+  name: string;
+  brainTags: string[];
+  teamKeywords: string[];
+}
+
+// Keyword lists must cover every team that seedTeams / seedPersonalTeams creates,
+// so no seeded team is unreachable from the task router's playground picker.
+const CORE_DEFAULTS: PlaygroundDef[] = [
   {
     name: "Development",
-    icon: "💻",
     brainTags: ["dev", "code", "development"],
-    teamKeywords: ["dev", "code", "tech", "engineer"],
+    teamKeywords: ["dev", "code", "tech", "engineer", "product", "design"],
   },
   {
     name: "Research",
-    icon: "🔬",
     brainTags: ["research", "study", "notes"],
-    teamKeywords: ["research", "study", "learn"],
+    teamKeywords: ["research", "study", "learn", "intel"],
   },
   {
     name: "Business",
-    icon: "💼",
     brainTags: ["business", "ops", "finance", "marketing"],
-    teamKeywords: ["business", "ops", "finance", "marketing", "sales"],
+    teamKeywords: ["business", "finance", "marketing", "sales", "content", "growth", "command"],
   },
 ];
 
-export async function seedDefaultPlaygrounds(userId: string): Promise<void> {
+const PERSONAL_DEFAULT: PlaygroundDef = {
+  name: "Personal",
+  brainTags: ["personal", "health", "career", "finance"],
+  teamKeywords: ["fitness", "health", "job", "cv", "career", "financ", "education", "learning"],
+};
+
+/**
+ * Seed starter playgrounds wired to the teams the chosen starter pack created.
+ * Blank starter seeds nothing — the user builds from scratch.
+ */
+export async function seedDefaultPlaygrounds(userId: string, starterPack?: string): Promise<void> {
+  if (starterPack === "blank") return;
+
   const count = await prisma.playground.count({ where: { userId } });
   if (count > 0) return;
 
@@ -30,7 +47,11 @@ export async function seedDefaultPlaygrounds(userId: string): Promise<void> {
     select: { id: true, name: true },
   });
 
-  for (const def of DEFAULTS) {
+  const defs = starterPack === "personal"
+    ? [PERSONAL_DEFAULT, ...CORE_DEFAULTS]
+    : CORE_DEFAULTS;
+
+  for (const def of defs) {
     const matchedIds = allTeams
       .filter(t => def.teamKeywords.some(kw => t.name.toLowerCase().includes(kw)))
       .map(t => t.id);
@@ -38,7 +59,7 @@ export async function seedDefaultPlaygrounds(userId: string): Promise<void> {
     await prisma.playground.create({
       data: {
         name: def.name,
-        icon: def.icon,
+        icon: null,
         brainTags: def.brainTags,
         teamIds: matchedIds,
         userId,

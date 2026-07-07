@@ -13,27 +13,31 @@ except for a small set of protected actions (payments, private keys, destructive
 
 ## The Business Model
 
-**Open source core → paid services → recurring hosting.**
+> Updated 2026-07-06 (owner): private-server-first. Full catalog: `03-services-pricing.md`.
+
+**Open source core → private server deployments (flagship) → recurring composed fee.**
 
 ### 1. Open source core (adoption engine)
 - The platform itself is open source. This drives adoption, credibility, and content.
 - Content: video miniseries showing agents operating real infrastructure.
 - The open core is the top of the funnel — it is never crippled to force upgrades.
 
-### 2. Paid services (one-off revenue)
+### 2. Flagship — Private Server Deployment (push hard)
+
+| Component | Price |
+|---|---|
+| One-time: own VPS + full stack + custom playground(s), scoped by apps + users | $1,000–2,000 |
+| Recurring: server passthrough + ~30% brokerage (when we rent it for them) + maintenance fee + future per-app fees | composed monthly invoice (worked example ≈ $95–120/mo) |
+
+### 3. Side services
 
 | Service | Price |
 |---|---|
-| Custom playground (built to client spec) | $350–500 |
-| Full framework installation + custom playground | $1,000–1,500 one-off |
+| Custom playground into an existing installation | $350–500 |
+| Assisted VPS install (script-run, zero config support — client connects domain/SSL/keys in-app) | $50 |
 
-### 3. Recurring revenue (managed hosting)
-
-| Tier | Price | What they get |
-|---|---|---|
-| Basic managed hosting | ~$100/mo | Their stack, hosted and maintained |
-| Hosting + Playground Library | ~$180–200/mo | Above + browse/try/deploy library playgrounds |
-| Dedicated infrastructure | ~$250–300/mo | Own server, isolation, priority support |
+Shared/multi-tenant hosting: **not offered yet** (owner decision 2026-07-06); architecture stays
+multi-tenant-aware so it can open later as the budget tier.
 
 ### 4. The Playground Library (the compounding asset)
 - A catalog of ready-made playgrounds (personal and business) that subscribed clients can

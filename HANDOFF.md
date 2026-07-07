@@ -1,9 +1,20 @@
 # HANDOFF.md — Session State
-> Last updated: 2026-07-04 (Session 33 — UI v4 shell: tab pill sidebar, light mode, pixel logo, rust purge)
+> Last updated: 2026-07-06 (Session 36 first-run + demo seed shipped — session crashed pre-wrap-up, state reconstructed same evening)
 > Read this FIRST at every session start, before CLAUDE.md.
 > **Source of truth for direction: `docs/VISION.md`** — if anything here contradicts it, VISION wins.
 > See `docs/PLAN.md` for the full open work list.
 > See `docs/SESSION-HISTORY.md` for full session archive.
+
+---
+
+## ⏱ RELEASE SPRINT — friends release by FRIDAY 2026-07-10
+
+**Owner decision 2026-07-05.** Friends get the downloadable app over the July 11–12 weekend; the owner
+then starts making content around it and pursuing first sales. Until it ships, **`docs/PLAN.md` §0
+overrides every other priority in this file** — sprint session prompts are in `docs/SESSION-PROMPTS.md`
+(35 release gate → 36 first-run + demo seed → 37 stretch widget registry → 38 ship Friday).
+The bar all week: *the downloadable app must survive a stranger's first 15 minutes.* Stability over
+features; agent editor and Projects are deferred post-release.
 
 ---
 
@@ -36,7 +47,152 @@ App is **healthy** at `https://app.agentplayground.net`
 - **Local LLM flywheel**: task classifier → Ollama routing → Brain archive → protocol writer
 - **Playgrounds**: Organizational containers grouping AgentTeams — sidebar section, CRUD API, `/spaces/[id]` dashboard (agents, active tasks, skills, recent completions)
 
-### Last Session (Session 33 — 2026-07-04) — UI v4 Shell + Theme + Logo ✅
+### Session 35 addendum (2026-07-06) — NVIDIA free API provider ✅ (owner request)
+
+**Users can now run the app 100% free two ways: Ollama (local) or NVIDIA's free API (cloud).**
+NVIDIA NIM (`https://integrate.api.nvidia.com/v1`) is OpenAI-compatible; a free `nvapi-…` key comes
+from build.nvidia.com (no credit card, ~40 req/min, 100+ models).
+
+- **Chat:** `streamOpenAI` generalized with an `OpenAICompat` config — the `nvidia` provider reuses the
+  full OpenAI tool loop against the NVIDIA base URL with `NVIDIA_API_KEY` (env → AgentMemory). Includes
+  a retry-without-tools fallback (some NIM models reject the `tools` param) and NVIDIA-correct error
+  mapping (**403 = invalid key** there, not 401 — verified live). Model picker: 4th provider tab with
+  Llama 3.1 8B (default) / Qwen2.5 Coder 32B / Llama 3.3 70B / DeepSeek R1, all labeled free; cost
+  display shows "free" for any `vendor/model` id. **Default is deliberately the small 8B** (owner call
+  2026-07-06): faster and burns far fewer free-tier credits — the bigger models stay in the picker.
+  `defaultModelFor(provider)` helper added in `lib/providers` and used by planner + council so the
+  keeper/council fallback never requests a Claude model id from NVIDIA/Ollama (was hardcoded
+  `claude-sonnet-4-6` — would have 404'd on the free fallback).
+- **Wizard:** NVIDIA card (Cloud · Free) with key input + build.nvidia.com link; key state refactored to
+  a map (`keys[providerId]`) so future providers are one array entry. `/api/setup/complete` stores
+  `NVIDIA_API_KEY` and now also writes **DEFAULT_PROVIDER/DEFAULT_MODEL from the best key the user
+  actually gave** (anthropic → openai → nvidia → ollama) — previously an OpenAI/NVIDIA-only user's
+  first chat went to Anthropic and bounced.
+- **Chat page loads that default on mount** (GET `/api/settings/provider-model`) — picker opens on the
+  user's real provider, verified live (fresh NVIDIA-only install → picker shows "Llama 3.3 70B (free)").
+- **Settings:** NVIDIA key field in API Keys (GET/POST extended), NVIDIA card in the provider grid
+  (grid now 4-wide), NVIDIA option + models in Default Provider & Model.
+- **Free-tier fallbacks in the machinery:** `route-task` pickProvider and `lib/providers` `getProvider`
+  both try NVIDIA (via `OpenAIProvider` + baseUrl) after Anthropic and before Ollama/env defaults — the
+  task router LLM pick and planner work on a free NVIDIA-only install.
+- **INSTALL.md** now leads the "no key yet" line with the free NVIDIA option; `docker/.env.example` has
+  an `NVIDIA_API_KEY=` line.
+- Verified live on a fresh packaged install (wizard NVIDIA-only → Personal): wizard accepts nvapi key,
+  chat hits `integrate.api.nvidia.com` (placeholder key → correct "invalid key → Settings → API Keys"
+  message), Settings surfaces all render. **NOT verified: a real completion — needs a real nvapi key
+  (owner: 2 min at build.nvidia.com, free, no credit card). Delegated/plan task runners are still
+  Anthropic-SDK-only** — free-tier coverage for `lib/agents/delegated.ts`/`runner.ts` is the natural
+  Session 36+ follow-up (port them to the provider abstraction).
+- Builds green (`npm run build` ×3, docker build ×3 — the OneDrive `.next` readlink glitch recurred
+  once; `Remove-Item .next` fixes it). Image re-pushed to Docker Hub (0.1.0 + latest), release zip
+  rebuilt + re-uploaded (build-release.sh bsdtar path used), 11 app files scp'd to VPS + rebuild.
+
+### Last Session (Session 36 — 2026-07-06) — First-run experience + demo seed ✅ (crashed pre-wrap-up)
+
+**The session was lost mid-flight** (owner closed it accidentally while waiting on the docker build);
+this block was reconstructed the same evening from the working tree, KEYS.md, Docker Hub, and file
+timestamps. All code work landed and the image is built + pushed; the deploy/verify/docs tail was cut off.
+
+**Done (verified from evidence):**
+- **Keys (owner pre-req CLOSED):** fresh `ANTHROPIC_API_KEY` verified 200; `NVIDIA_API_KEY` verified
+  with a real completion — both 2026-07-06, KEYS.md statuses updated (old Anthropic key marked EXPIRED).
+- **Provider abstraction port:** new `lib/agents/provider-loop.ts` — `runProviderToolLoop()` runs the
+  tool loop over `lib/providers` (anthropic → nvidia → ollama via `getAvailableProvider` +
+  `defaultModelFor`, `request_human_input` interception, retry-without-tools degrade). Wired into
+  `lib/agents/delegated.ts` + `lib/agents/runner.ts` — free-tier installs can now run delegated/plan
+  background tasks.
+- **"Any model, any time":** new shared `lib/model-catalog.ts` (4 providers, curated shortlists);
+  main chat picker now uses it + has a custom model id input per provider; new
+  `components/ModelPicker.tsx` (compact, opens upward, custom id input) wired into the playground
+  scoped chat (`app/(app)/playground/[id]/chat/page.tsx`). This was the last thing edited (22:07).
+- **Session 35 fallout fixes:** Blank starter really blank (`lib/seed-defaults.ts`), Personal-pack
+  teams assigned to playgrounds (`lib/seed-playgrounds.ts`), wizard key validation ping (new
+  `app/api/setup/validate-key/` + setup page wiring), done-step copy fixed.
+- **Demo seed:** new `lib/seed-demo.ts` (2 welcome/example Brain docs + example scheduled job,
+  idempotent) called from `/api/setup/complete`.
+- **README.md + INSTALL.md final pass.**
+- **Image rebuilt + pushed:** `augustojmd/agentplayground:0.1.0` + `:latest` built 22:16 and on
+  Docker Hub as of 22:25 (2026-07-06) — the image contains ALL of the above (built after the last
+  edit), and a successful docker build means the code compiles green.
+- **Release zip re-uploaded:** GH release v0.1.0 asset updated 2026-07-06 22:04 (verified via gh) —
+  the zip is the docker package + scripts; app code comes from the pushed Hub image, so friends
+  pulling now get all Session 36 code. NOT stale.
+
+**Left hanging by the crash (Session 37 step 0):**
+- **VPS scp deploy of the Session 36 files + dashboard rebuild — verified via ssh 2026-07-06: the
+  VPS has NONE of the new files (model-catalog, seed-demo, provider-loop, ModelPicker); it runs
+  Session 35 code.** The hosted app works but lacks the runner port + pickers until deployed.
+- Confirm fresh ANTHROPIC + NVIDIA keys are set in VPS Settings → API Keys.
+- Live browser verification of the ModelPicker + custom model input (code compiled but never exercised).
+- Git commit (sessions 34–36 all uncommitted in the working tree).
+
+### Previous Session (Session 35 — 2026-07-05) — RELEASE GATE ✅
+
+Sprint §0 Session 35 delivered. **The downloadable app is live:** `augustojmd/agentplayground:0.1.0`
++ `:latest` on Docker Hub (digest `sha256:d1ab3800…`, public — friends pull with no login), release zip
+rebuilt and re-uploaded to GitHub release v0.1.0, `agentplayground.net/api/version` → `/download` →
+GitHub asset chain verified 200 end-to-end.
+
+- **Fresh-install e2e test run TWICE from empty volumes** (docker/ package, real browser at
+  `http://127.0.0.1:3000` for a clean cookie jar — localhost carries dev cookies that mask first-run
+  behavior). Pass 1: Anthropic key + Personal starter. Pass 2: Ollama-only + Blank starter. Full path
+  worked both times: wizard 5 steps → account + auto sign-in → key stored → teams/playgrounds seeded →
+  chat (graceful key error) → manual playground create → Quick task router (manual fallback → team →
+  dispatch) → Overview widgets pick everything up.
+- **RELEASE-BLOCKING BUG found + fixed — wizard/Settings API keys never reached the agent runners.**
+  `lib/agents/delegated.ts`, `lib/agents/runner.ts`, `lib/providers/index.ts` (`getProvider` fallback),
+  playground team chat (`app/api/playground/teams/[id]/threads/[threadId]/messages/route.ts`) and
+  `app/api/task/route.ts` all read `process.env.ANTHROPIC_API_KEY` only. Desktop installs have no env
+  key — every delegated task, plan task, and playground team chat failed with "No API key" even with a
+  valid wizard key. New `lib/api-keys.ts` → `getEffectiveApiKey()` (env truthy-check → AgentMemory)
+  wired into all five call sites. Chat + route-task already had their own fallbacks (unchanged).
+- **First-screen bug fixed:** fresh install opened the marketing homepage ("Download Free" + dead-end
+  Sign in — registration is closed). `middleware.ts` now runs the zero-users check on `/` and `/login`
+  and redirects to `/setup`. Verified: `curl /` on fresh DB → 307 `/setup`.
+- **Playground assistant failure mode fixed:** generic "Something went wrong" → now says the AI provider
+  is the problem (Settings > API Keys) and points to manual create (Playgrounds tab → New playground).
+- **Empty states (first-run) shipped:** Overview widgets Tasks/Playgrounds/Teams/Plans/Completions each
+  say what the thing is + exactly one action link; playground dashboard "no teams" panel got an
+  **Add teams** button → `/playground/[id]/settings`; Plans page empty copy explains the approve flow.
+  Brain (folder-structure onboarding) and Schedule (calendar + Add Job) were already good — untouched.
+- **Emoji purge in messages:** chat route stream errors (⚠️/❌ removed), chat page + files page error
+  prefixes, assistant 🚀 icon fallback → null; Settings provider badge "Active" → "Available" (was
+  claiming all three providers active regardless of keys/Ollama reality).
+- **Release zip was stale on GitHub since June 28** — `docker/build-release.sh` uses `zip`, which
+  doesn't exist in Git Bash; the script silently kept the old archive. Fixed (bsdtar fallback + hard
+  fail), rebuilt, uploaded with `--clobber` (asset now 5664 bytes, updated 2026-07-06). INSTALL.md help
+  line now says "message the person who sent you this" (was a nonexistent GitHub org issue link).
+- **docs/FEEDBACK.md created** — friends bug-report inbox with template; post-release sessions read it
+  FIRST and fix reported bugs before roadmap work.
+- Builds: `npm run build` ✅ (once after `.next` cache purge — OneDrive readlink glitch) ·
+  `docker build` ✅ · deployed 18 files via scp → VPS dashboard rebuild.
+- **NOT verified: a successful first chat with a VALID key.** The only Anthropic key anywhere (env,
+  docker/.env.local, KEYS.md — which wrongly says ACTIVE) is expired/invalid. Owner pre-req from the
+  sprint list is still open: put a fresh key in Settings → API Keys (VPS) and re-test one chat +
+  one dispatched task locally before Friday.
+- **Session 36 notes (fallout list):** (1) Blank starter isn't blank — `seedDefaults()` still creates
+  File Manager/Database Agent teams + 3 empty playgrounds, so the router picker dead-ends ("This
+  playground has no teams assigned." — handled, but a dead end); (2) Personal-pack teams (Fitness &
+  Health, Job Search…) aren't assigned to any playground → unreachable via the router's manual picker;
+  (3) wizard accepts an invalid key silently — friend finds out at first chat (consider a cheap
+  validation ping); (4) wizard done-step says "teams are being seeded" even for Blank; (5) router
+  silently falls back to manual picker on LLM failure — fine, but consider a one-line notice.
+
+### Previous Session (Session 34 — 2026-07-05) — Overview Hub + Coordinator Task Router ✅
+
+PLAN §1 Session 34 delivered:
+
+- **`app/(app)/overview/page.tsx` rebuilt as the system hub:** section tab bar **Dashboard | Brain | Schedule | Optimize | Websites | Tools** synced to the URL hash (`/overview#brain` etc. — the sidebar Brain item lands on the Brain section). Owner confirmed the utilities list (Optimize, Websites, Tools as **embedded windows**; Agent Lab excluded — superseded by the Session 36 per-agent editor). Sections embed the existing pages directly (`files`, `schedule`, `optimize`, `websites`, `tools` page components imported into the hub — zero duplication; the standalone routes still work).
+- **Dashboard section widgets (static layout):** Tasks (total + active stat numbers + active list), Playgrounds (neutral icons — removed the leftover `🎯` emoji fallback), Teams (new — non-system teams with agent counts, rows link to `/chat?team=`), Plans, Recent Completions. Removed Quick Chat + Brain-summary widgets (Brain is a full section now; remove rather than add). Also fixed a leftover rust `rgba(212,113,90,…)` in the RUNNING plan badge → `var(--color-brand-dim)`.
+- **`app/api/route-task/route.ts` NEW — coordinator task router API:** route mode (`POST {description}`) fetches non-system teams and asks an LLM to pick `{teamId, title, reasoning}` (Anthropic key env→AgentMemory first, DB-configured keeper provider incl. Ollama as fallback; degrades to `teamId: null` → manual picker when no LLM reachable). Dispatch mode (`POST {description, title, teamId, dispatch: true}`) creates the Task + activity log + `TASK_STARTED` SSE event, then runs `runDelegatedTask` **in the background** (same lifecycle as `toolDelegateToTeam`: blocked/completed/failed statuses, Brain ingest, Telegram notifications) and returns the taskId immediately.
+- **`components/TaskRouter.tsx` NEW — router popup:** describe task → routing → confirmation card (pick + reasoning, "Dispatch to X" / "Change team") → or override via playground list → team picker (filtered to the playground's `teamIds`) → dispatching → done. Wired into the Sidebar Playgrounds tab (**Quick task** button replaces the Session 33 link stub) and into `/playgrounds` (button in header — mobile tab destination).
+- **Bug found + fixed during verification:** same-page hash links don't fire `hashchange` (Next Link uses `pushState`) — clicking sidebar Brain while already on `/overview` updated the URL but not the section. Sidebar Brain link now forces `window.location.hash` on same-page clicks.
+- **Verified live in the browser (production, logged-in session):** all six hub sections render embedded; `#brain` anchor works from both cross-page and same-page entry; router full flow exercised — LLM routing gracefully fell back to the manual picker (expired VPS key, see standing items), override flow dispatched a smoke-test task to Marketing Team, task row created, background runner failed gracefully (expired key) with status `failed`, no unhandledRejection. Dashboard Tasks widget picked the task up (1 total).
+- Builds: `npm run build` ✅ · `docker compose build dashboard` ✅ · deployed via scp (2 rounds: 5 files + Sidebar fix), container healthy, health 200.
+- Noticed during verification: **files.agentplayground.net shows DOWN** in the Websites monitor (pre-existing infra, not this deploy). The Brain vault shows 0 notes at root ("Knowledge Base 0") — folders exist; the 48 indexed docs live in brain chunks, not vault notes.
+- Not committed to git — owner asks for commits explicitly; working tree holds Session 34 changes.
+
+### Previous Session (Session 33 — 2026-07-04) — UI v4 Shell + Theme + Logo ✅
 
 PLAN §1 Session 33 delivered — the Claude Desktop shell:
 
@@ -249,11 +405,25 @@ pre-redesign feel in a 4-section layout is the next session, fully specced in `d
 
 ## Next Session Priorities
 
-### 🔜 NEXT SESSION — Session 34: Overview hub + coordinator task router
+### 🔜 NEXT SESSION — Session 37: Session 36 wrap-up, then stretch widget registry (sprint)
 
-Prompt ready in `docs/SESSION-PROMPTS.md`. Spec: `docs/PLAN.md` §1.
-1. Overview tab rebuilt as system hub: widget dashboard (static layout), full Brain window (the sidebar Brain item already points at `/overview#brain` — honor the anchor), global Schedule, previously-cut utilities (Optimize, websites, tools — confirm list with owner).
-2. Playgrounds tab coordinator quick chat = real task router: describe task → coordinator picks team → confirmation popup with reasoning → accept or override via playground → team picker → dispatch through delegate_to_team/plans. (Session 33 stub is a plain link to `/chat?team=coordinator` — replace it.)
+Prompt in `docs/SESSION-PROMPTS.md`. Session 36 shipped all its code and the image is on Docker Hub,
+but the session crashed before the deploy/verify tail — **step 0 is closing that out:**
+- Verify live in a browser: main chat custom-model input + playground ModelPicker; one real chat on
+  the fresh Anthropic key, one on NVIDIA (both keys verified 2026-07-06, KEYS.md current).
+- scp Session 36 files to the VPS + rebuild (ssh-verified missing 2026-07-06); confirm both keys
+  set in VPS Settings → API Keys. Release zip already current (re-uploaded 22:04, verified).
+- **Git commit sessions 34–36** (owner approved 2026-07-06 — "check through, make it ready").
+
+Then, only if nothing install-critical is open: widget registry (spec in `docs/PLAN.md` §1 items 3–4).
+Then: 38 SHIP Friday.
+**Post-release order changed (owner 2026-07-06):** friends feedback fixes → content polish →
+**Meetings + Mission Control (PLAN §1 item 7, Sessions 39–41 — live agent board + interactive
+council meetings with a live room)** → agent editor → Projects (§1 items 5–6).
+Widget-registry note from Session 34 (for whenever it's built): the hub Dashboard widgets are
+hardcoded in `app/(app)/overview/page.tsx` (`Dashboard()` component) — that's the surface the registry
+replaces. The hub's embedded windows (Brain/Schedule/Optimize/Websites/Tools) import the standalone
+page components — keep that pattern.
 
 ### UI v4 spec context (owner feedback 2026-07-04)
 

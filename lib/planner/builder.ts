@@ -1,4 +1,4 @@
-import { getProvider } from "@/lib/providers";
+import { getProvider, defaultModelFor } from "@/lib/providers";
 import { queryBrain, formatBrainContext } from "@/lib/brain/query";
 import { runCouncil } from "@/lib/council";
 import { prisma } from "@/lib/prisma";
@@ -60,7 +60,7 @@ export async function buildPlan(goal: string, userId?: string): Promise<string> 
   // 2. Keeper drafts the plan
   const keeper = await getProvider("keeper");
   const draftResult = await keeper.complete({
-    model: "claude-sonnet-4-6",
+    model: defaultModelFor(keeper),
     system: KEEPER_SYSTEM,
     messages: [
       {

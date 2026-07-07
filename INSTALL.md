@@ -17,7 +17,7 @@
 
 4. **Your browser will open** to http://localhost:3000. The setup wizard will guide you — it will ask for your API key during setup.
 
-   No key yet? Get one free at [platform.openai.com/api-keys](https://platform.openai.com/api-keys) (OpenAI) or [console.anthropic.com](https://console.anthropic.com) (Anthropic).
+   No key yet? Get a **completely free** one at [build.nvidia.com](https://build.nvidia.com) (NVIDIA — free cloud models, no credit card), or a paid one at [platform.openai.com/api-keys](https://platform.openai.com/api-keys) (OpenAI) / [console.anthropic.com](https://console.anthropic.com) (Anthropic).
 
 ## Stopping the app
 Run `stop.bat` (Windows) or `./stop.sh` (Mac/Linux), or use Docker Desktop.
@@ -44,4 +44,4 @@ Go to **Settings → API Keys** inside the app at any time.
 
 **Port 3000 already in use** — edit `docker-compose.yml`, change `"3000:3000"` to `"3001:3000"`, then access the app at port 3001.
 
-**Need help?** — open an issue at github.com/agentplayground/app
+**Need help?** — message the person who sent you this package. Include a screenshot of what you see — it helps a lot.

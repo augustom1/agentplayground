@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/ToastProvider";
 import { LogoMark } from "@/components/Logo";
+import { MODEL_CATALOG } from "@/lib/model-catalog";
 import { useSession } from "next-auth/react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -33,42 +34,18 @@ type Message = {
 };
 
 type Team = { id: string; name: string; status: string; _count: { agents: number } };
-type Provider = "anthropic" | "openai" | "ollama";
+type Provider = "anthropic" | "openai" | "nvidia" | "ollama";
 type ProviderConfig = { label: string; color: string; models: Array<{ value: string; label: string }> };
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const PROVIDERS: Record<Provider, ProviderConfig> = {
-  anthropic: {
-    label: "Anthropic", color: "var(--color-brand)",
-    models: [
-      { value: "claude-sonnet-4-6",        label: "Sonnet 4.6" },
-      { value: "claude-opus-4-6",          label: "Opus 4.6" },
-      { value: "claude-haiku-4-5-20251001",label: "Haiku 4.5" },
-    ],
-  },
-  openai: {
-    label: "OpenAI", color: "#34d399",
-    models: [
-      { value: "gpt-4o",      label: "GPT-4o" },
-      { value: "gpt-4o-mini", label: "GPT-4o mini" },
-      { value: "o1-mini",     label: "o1-mini" },
-    ],
-  },
-  ollama: {
-    label: "Ollama", color: "#fb923c",
-    models: [
-      { value: "llama3",    label: "Llama 3" },
-      { value: "llama3.1",  label: "Llama 3.1" },
-      { value: "mistral",   label: "Mistral" },
-      { value: "codellama", label: "CodeLlama" },
-    ],
-  },
-};
+const PROVIDERS: Record<Provider, ProviderConfig> = MODEL_CATALOG;
 
 const SESSION_KEY = "chat_conversation_id";
 
 function calcCost(input: number, output: number, model: string): string {
+  // NVIDIA catalog models ("vendor/model") and Ollama are free
+  if (model.includes("/")) return "free";
   const rates: Record<string, { in: number; out: number }> = {
     "claude-sonnet-4-6":        { in: 0.003,   out: 0.015   },
     "claude-opus-4-6":          { in: 0.015,   out: 0.075   },
@@ -171,7 +148,7 @@ function ModelDropdown({ provider, model, models, onChangeProvider, onChangeMode
           >
             {/* Provider tabs */}
             <div className="flex gap-px p-2 pb-1.5" style={{ borderBottom: "1px solid var(--color-border)" }}>
-              {(["anthropic", "openai", "ollama"] as Provider[]).map(p => (
+              {(["anthropic", "openai", "nvidia", "ollama"] as Provider[]).map(p => (
                 <button key={p} onClick={() => { onChangeProvider(p); onChangeModel(PROVIDERS[p].models[0].value); }}
                   style={{ flex: 1, fontSize: "11px", padding: "4px 0", borderRadius: 6, border: "none", cursor: "pointer", background: p === provider ? "var(--color-surface-3)" : "transparent", color: p === provider ? "var(--color-text)" : "var(--color-muted)", fontWeight: p === provider ? 500 : 400 }}>
                   {PROVIDERS[p].label}
@@ -192,6 +169,31 @@ function ModelDropdown({ provider, model, models, onChangeProvider, onChangeMode
                   {m.value === model && <span style={{ marginLeft: "auto", fontSize: 10, color: "var(--color-muted)" }}>active</span>}
                 </button>
               ))}
+            </div>
+
+            {/* Custom model id — any model, any time */}
+            <div className="px-3 pb-2 pt-1.5" style={{ borderTop: "1px solid var(--color-border)" }}>
+              <input
+                key={provider}
+                type="text"
+                placeholder={
+                  provider === "nvidia" ? "Custom model id (e.g. mistralai/mixtral-8x7b-instruct-v0.1)"
+                  : provider === "ollama" ? "Custom model (e.g. gemma2:9b)"
+                  : "Custom model id"
+                }
+                defaultValue={models.some(m => m.value === model) ? "" : model}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    const v = (e.target as HTMLInputElement).value.trim();
+                    if (v) { onChangeModel(v); setOpen(false); }
+                  }
+                }}
+                className="glass-input w-full px-2 py-1.5"
+                style={{ fontSize: "12px", color: "var(--color-text)" }}
+              />
+              <p style={{ fontSize: 10, color: "var(--color-muted)", marginTop: 4 }}>
+                Any model this provider serves — type its id and press Enter.
+              </p>
             </div>
 
             {/* Context — collapsible */}
@@ -467,6 +469,19 @@ function ChatPageInner() {
     fetch("/api/ollama/models").then(r => r.json()).then(d => { if (d.running && d.models?.length > 0) setOllamaModels(d.models.map((m: { name: string }) => ({ value: m.name, label: m.name }))); }).catch(() => {});
   }, []);
 
+  // Start on the user's default provider/model (set by the wizard from the keys they gave)
+  useEffect(() => {
+    fetch("/api/settings/provider-model")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { provider?: string; model?: string } | null) => {
+        if (d?.provider && (["anthropic", "openai", "nvidia", "ollama"] as string[]).includes(d.provider)) {
+          setProvider(d.provider as Provider);
+          if (d.model) setModel(d.model);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Live agent activity via SSE
   useEffect(() => {
     const es = new EventSource("/api/notify/stream");
@@ -591,7 +606,7 @@ function ChatPageInner() {
     abortRef.current = new AbortController();
     try {
       const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: history, provider, model, teamId: teamId !== "all" ? teamId : undefined, attachments: attachmentsPayload.length > 0 ? attachmentsPayload : undefined }), signal: abortRef.current.signal });
-      if (!res.ok) { const errText = await res.text(); setMessages(p => [...p, { id: Date.now().toString(), role: "assistant", content: `⚠ Error: ${errText}` }]); return; }
+      if (!res.ok) { const errText = await res.text(); setMessages(p => [...p, { id: Date.now().toString(), role: "assistant", content: `Error: ${errText}` }]); return; }
       const reader = res.body!.getReader(); const decoder = new TextDecoder(); let acc = "";
       while (true) { const { done, value } = await reader.read(); if (done) break; acc += decoder.decode(value, { stream: true }); setStreamingContent(acc.replace(/\n?\[USAGE:\{[^}]*\}\]/, "")); }
       let usageData: MessageUsage | undefined;
@@ -599,7 +614,7 @@ function ChatPageInner() {
       if (um) { try { usageData = JSON.parse(um[1]) as MessageUsage; setLastUsageModel(usageData.model); setSessionUsage(p => ({ input: p.input + usageData!.input, output: p.output + usageData!.output })); acc = acc.replace(/\n?\[USAGE:\{[^}]*\}\]/, ""); } catch {} }
       const aMsg: Message = { id: Date.now().toString(), role: "assistant", content: acc, usage: usageData };
       setMessages(p => [...p, aMsg]); if (conversationId) saveMessage(conversationId, "assistant", acc);
-    } catch (err: unknown) { if (err instanceof Error && err.name !== "AbortError") setMessages(p => [...p, { id: Date.now().toString(), role: "assistant", content: "⚠ Request failed. Check your API key and try again." }]); }
+    } catch (err: unknown) { if (err instanceof Error && err.name !== "AbortError") setMessages(p => [...p, { id: Date.now().toString(), role: "assistant", content: "Request failed. Check your API key and try again." }]); }
     finally { setStreaming(false); setStreamingContent(""); }
   }
 

@@ -6,6 +6,8 @@ import https from "https";
 import { URL } from "url";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
+import { getEffectiveApiKey } from "@/lib/api-keys";
+import { getAvailableProvider, defaultModelFor } from "@/lib/providers";
 import { auth } from "@/auth";
 
 type Params = { params: Promise<{ id: string; threadId: string }> };
@@ -84,7 +86,7 @@ User message: "${userMessage}"`;
 }
 
 async function routeMessage(team: { name: string; config: TeamConfig }, agents: AgentInfo[], userMessage: string): Promise<AgentInfo[]> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = await getEffectiveApiKey("ANTHROPIC_API_KEY");
   if (!apiKey || agents.length === 0) return agents.slice(0, 1);
 
   try {
@@ -115,9 +117,6 @@ async function callAnthropic(
   model: string,
   fileContext?: string,
 ): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return `[${agent.name}]: No API key configured.`;
-
   const systemPrompt = [
     agent.systemPrompt ?? `You are ${agent.name}.`,
     team.config.systemPrompt ? `\n\nTeam context: ${team.config.systemPrompt}` : "",
@@ -129,6 +128,24 @@ async function callAnthropic(
     role: m.role,
     content: m.agentName ? `[${m.agentName}]: ${m.content}` : m.content,
   }));
+
+  const apiKey = await getEffectiveApiKey("ANTHROPIC_API_KEY");
+  if (!apiKey) {
+    // Free-tier fallback: NVIDIA / OpenAI / local Ollama via the provider abstraction
+    const provider = await getAvailableProvider();
+    if (!provider) return `[${agent.name}]: No AI provider available. Add an API key in Settings > API Keys (Anthropic, or NVIDIA's free key), or start Ollama.`;
+    try {
+      const result = await provider.complete({
+        model: defaultModelFor(provider),
+        messages: [...historyMessages, { role: "user" as const, content: userMessage }],
+        system: systemPrompt,
+        maxTokens: 2048,
+      });
+      return result.content || "";
+    } catch (err) {
+      return `[${agent.name}]: Error — ${err instanceof Error ? err.message : "Unknown error"}`;
+    }
+  }
 
   try {
     const client = new Anthropic({ apiKey });

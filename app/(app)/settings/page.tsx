@@ -81,6 +81,14 @@ const providers = [
     status: "active",
   },
   {
+    id: "nvidia",
+    name: "NVIDIA (Cloud)",
+    description: "Llama, Qwen, DeepSeek — free API key from build.nvidia.com",
+    icon: Cpu,
+    color: "#76b900",
+    status: "active",
+  },
+  {
     id: "ollama",
     name: "Ollama (Local)",
     description: "Run models locally — free, private, no API key",
@@ -205,7 +213,7 @@ export default async function SettingsPage() {
         <h2 className="font-semibold text-xs uppercase tracking-wider mb-3" style={{ color: "var(--color-text-secondary)" }}>
           AI Provider
         </h2>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {providers.map((p) => (
             <div
               key={p.id}
@@ -239,7 +247,7 @@ export default async function SettingsPage() {
                   className="text-[9px] px-1.5 py-0.5 rounded-full self-start font-medium"
                   style={{ background: "var(--color-green-dim)", color: "var(--color-green)" }}
                 >
-                  Active
+                  Available
                 </span>
               )}
               {p.status === "planned" && (

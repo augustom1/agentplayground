@@ -26,6 +26,7 @@ export async function seedDefaults() {
     dbTeam = await prisma.agentTeam.create({
       data: {
         ...DB_AGENT_TEAM,
+        isSystemTeam: true,
         config: DB_AGENT_TEAM.config as unknown as Prisma.InputJsonValue,
       },
     });
@@ -46,6 +47,9 @@ export async function seedDefaults() {
     console.log("  ✓ Created agent: DB Guardian");
   } else {
     dbTeam = existingDbTeam;
+    if (!dbTeam.isSystemTeam) {
+      await prisma.agentTeam.update({ where: { id: dbTeam.id }, data: { isSystemTeam: true } });
+    }
     console.log(`  ○ Team already exists: ${dbTeam.name}`);
   }
 
@@ -59,6 +63,7 @@ export async function seedDefaults() {
     fileTeam = await prisma.agentTeam.create({
       data: {
         ...FILE_AGENT_TEAM,
+        isSystemTeam: true,
         config: FILE_AGENT_TEAM.config as unknown as Prisma.InputJsonValue,
       },
     });
@@ -78,6 +83,9 @@ export async function seedDefaults() {
     console.log("  ✓ Created agent: File Organizer");
   } else {
     fileTeam = existingFileTeam;
+    if (!fileTeam.isSystemTeam) {
+      await prisma.agentTeam.update({ where: { id: fileTeam.id }, data: { isSystemTeam: true } });
+    }
     console.log(`  ○ Team already exists: ${fileTeam.name}`);
   }
 

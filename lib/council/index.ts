@@ -1,4 +1,4 @@
-import { getProvider } from "@/lib/providers";
+import { getProvider, defaultModelFor } from "@/lib/providers";
 import { OllamaProvider } from "@/lib/providers/ollama";
 import { prisma } from "@/lib/prisma";
 
@@ -104,7 +104,7 @@ async function runParticipant(
     : await getProvider("council");
 
   const result = await provider.complete({
-    model: config.useLocal ? "qwen2.5:7b" : "claude-sonnet-4-6",
+    model: config.useLocal ? "qwen2.5:7b" : defaultModelFor(provider),
     system: participantPrompt(teamName, capabilities),
     messages: [
       {
@@ -167,7 +167,7 @@ export async function runCouncil(meeting: CouncilMeeting): Promise<CouncilOutput
     : await getProvider("keeper");
 
   const facilitatorResult = await facilitatorProvider.complete({
-    model: cfg.facilitator.useLocal ? "qwen2.5:7b" : "claude-sonnet-4-6",
+    model: cfg.facilitator.useLocal ? "qwen2.5:7b" : defaultModelFor(facilitatorProvider),
     system: FACILITATOR_SYSTEM,
     messages: [
       {

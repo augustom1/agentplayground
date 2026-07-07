@@ -7,6 +7,8 @@ import {
   MessageSquare, Users,
 } from "lucide-react";
 import { useToast } from "@/components/ToastProvider";
+import ModelPicker from "@/components/ModelPicker";
+import type { ProviderId } from "@/lib/model-catalog";
 
 type Message = {
   id: string;
@@ -50,6 +52,21 @@ export default function PlaygroundChatPage() {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [provider, setProvider] = useState<ProviderId>("anthropic");
+  const [model, setModel] = useState("claude-sonnet-4-6");
+
+  // Start on the user's default provider/model (wizard / Settings choice)
+  useEffect(() => {
+    fetch("/api/settings/provider-model")
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { provider?: string; model?: string } | null) => {
+        if (d?.provider && (["anthropic", "openai", "nvidia", "ollama"] as string[]).includes(d.provider)) {
+          setProvider(d.provider as ProviderId);
+        }
+        if (d?.model) setModel(d.model);
+      })
+      .catch(() => {});
+  }, []);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -97,8 +114,8 @@ export default function PlaygroundChatPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: history,
-          provider: "anthropic",
-          model: "claude-sonnet-4-6",
+          provider,
+          model,
           teamId: teamId === "coordinator" ? "coordinator" : teamId,
           systemContext,
         }),
@@ -108,29 +125,19 @@ export default function PlaygroundChatPage() {
         throw new Error("Chat request failed");
       }
 
+      // /api/chat streams plain text tokens (with an optional [USAGE:{...}] sentinel at the end)
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let buf = "";
+      let acc = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const data = line.slice(6).trim();
-          if (data === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(data) as { token?: string; error?: string };
-            if (parsed.token) {
-              setMessages(prev => prev.map(m =>
-                m.id === assistantId ? { ...m, content: m.content + parsed.token } : m
-              ));
-            }
-          } catch { /* skip */ }
-        }
+        acc += decoder.decode(value, { stream: true });
+        const clean = acc.replace(/\n?\[USAGE:\{[^}]*\}\]/, "");
+        setMessages(prev => prev.map(m =>
+          m.id === assistantId ? { ...m, content: clean } : m
+        ));
       }
     } catch {
       addToast("Chat failed — please try again", "error");
@@ -138,7 +145,7 @@ export default function PlaygroundChatPage() {
     } finally {
       setStreaming(false);
     }
-  }, [input, streaming, playground, messages, teamId, teams, addToast]);
+  }, [input, streaming, playground, messages, teamId, teams, provider, model, addToast]);
 
   const currentTeamLabel =
     teamId === "coordinator" ? "Coordinator" :
@@ -328,7 +335,9 @@ export default function PlaygroundChatPage() {
                 )}
               </div>
 
-              <button
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <ModelPicker provider={provider} model={model} onChange={(p, m) => { setProvider(p); setModel(m); }} />
+                <button
                 onClick={send}
                 disabled={!input.trim() || streaming}
                 style={{
@@ -342,7 +351,8 @@ export default function PlaygroundChatPage() {
                 {streaming
                   ? <Loader2 size={14} className="animate-spin" style={{ color: "var(--color-muted)" }} />
                   : <Send size={14} style={{ color: input.trim() ? "#0a1628" : "var(--color-muted)" }} />}
-              </button>
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -6,8 +6,10 @@ import { Eye, EyeOff, Save, CheckCircle2, XCircle, Loader2 } from "lucide-react"
 type KeyStatus = {
   anthropicKey: boolean;
   openaiKey: boolean;
+  nvidiaKey: boolean;
   anthropicSource: "env" | "db" | "none";
   openaiSource: "env" | "db" | "none";
+  nvidiaSource: "env" | "db" | "none";
 };
 
 function MaskedInput({
@@ -68,6 +70,7 @@ export function UserApiKeysSection() {
   const [status, setStatus] = useState<KeyStatus | null>(null);
   const [anthropicKey, setAnthropicKey] = useState("");
   const [openaiKey, setOpenaiKey] = useState("");
+  const [nvidiaKey, setNvidiaKey] = useState("");
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<"saved" | "error" | null>(null);
 
@@ -82,9 +85,10 @@ export function UserApiKeysSection() {
     setSaving(true);
     setResult(null);
     try {
-      const body: { anthropicKey?: string; openaiKey?: string } = {};
+      const body: { anthropicKey?: string; openaiKey?: string; nvidiaKey?: string } = {};
       if (anthropicKey !== "") body.anthropicKey = anthropicKey;
       if (openaiKey !== "") body.openaiKey = openaiKey;
+      if (nvidiaKey !== "") body.nvidiaKey = nvidiaKey;
 
       const res = await fetch("/api/settings/api-keys", {
         method: "POST",
@@ -96,6 +100,7 @@ export function UserApiKeysSection() {
       setResult("saved");
       setAnthropicKey("");
       setOpenaiKey("");
+      setNvidiaKey("");
       const updated = await fetch("/api/settings/api-keys").then((r) => r.json()) as KeyStatus;
       setStatus(updated);
     } catch {
@@ -185,10 +190,42 @@ export function UserApiKeysSection() {
           />
         </div>
 
+        {/* NVIDIA */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-[12px] font-medium" style={{ color: "var(--color-text)" }}>
+              NVIDIA API Key <span style={{ color: "var(--color-muted)", fontWeight: 400 }}>(free — build.nvidia.com)</span>
+            </label>
+            {status && (
+              <div className="flex items-center gap-1">
+                {status.nvidiaKey ? (
+                  <>
+                    <CheckCircle2 size={12} style={{ color: "var(--color-green)" }} />
+                    <span className="text-[11px]" style={{ color: "var(--color-green)" }}>
+                      Set {sourceLabel(status.nvidiaSource) ? `(${sourceLabel(status.nvidiaSource)})` : ""}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle size={12} style={{ color: "var(--color-muted)" }} />
+                    <span className="text-[11px]" style={{ color: "var(--color-muted)" }}>Not set</span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+          <MaskedInput
+            value={nvidiaKey}
+            onChange={setNvidiaKey}
+            placeholder={status?.nvidiaKey ? "Enter new key to replace…" : "nvapi-…"}
+            disabled={saving}
+          />
+        </div>
+
         <div className="flex items-center gap-3 mt-1">
           <button
             onClick={handleSave}
-            disabled={saving || (anthropicKey === "" && openaiKey === "")}
+            disabled={saving || (anthropicKey === "" && openaiKey === "" && nvidiaKey === "")}
             style={{
               display: "flex",
               alignItems: "center",
@@ -200,8 +237,8 @@ export function UserApiKeysSection() {
               color: "#fff",
               fontSize: "12px",
               fontWeight: 500,
-              cursor: saving || (anthropicKey === "" && openaiKey === "") ? "not-allowed" : "pointer",
-              opacity: saving || (anthropicKey === "" && openaiKey === "") ? 0.6 : 1,
+              cursor: saving || (anthropicKey === "" && openaiKey === "" && nvidiaKey === "") ? "not-allowed" : "pointer",
+              opacity: saving || (anthropicKey === "" && openaiKey === "" && nvidiaKey === "") ? 0.6 : 1,
             }}
           >
             {saving ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Save size={13} />}

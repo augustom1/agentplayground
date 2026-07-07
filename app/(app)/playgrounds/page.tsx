@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { LayoutGrid, Loader2, Plus, ArrowRight } from "lucide-react";
+import { LayoutGrid, Loader2, Plus, ArrowRight, Network } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { TaskRouter } from "@/components/TaskRouter";
 
 type PlaygroundItem = { id: string; name: string; icon: string | null; color: string | null; teamIds: string[] };
 
@@ -15,6 +16,7 @@ export default function PlaygroundsPage() {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showTaskRouter, setShowTaskRouter] = useState(false);
 
   useEffect(() => {
     fetch("/api/playgrounds")
@@ -46,12 +48,28 @@ export default function PlaygroundsPage() {
   return (
     <div style={{ minHeight: "100%", padding: "48px 24px" }}>
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 22, fontWeight: 600, color: "var(--color-text)", letterSpacing: "-0.02em", margin: "0 0 4px" }}>
-          Playgrounds
-        </h1>
-        <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 28px" }}>
-          Your agent environments. Open one to work inside it.
-        </p>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 600, color: "var(--color-text)", letterSpacing: "-0.02em", margin: "0 0 4px" }}>
+              Playgrounds
+            </h1>
+            <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 28px" }}>
+              Your agent environments. Open one to work inside it.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowTaskRouter(true)}
+            style={{
+              display: "flex", alignItems: "center", gap: 7, flexShrink: 0,
+              padding: "8px 14px", borderRadius: 8, border: "1px solid var(--color-border)",
+              background: "transparent", color: "var(--color-text-secondary)",
+              cursor: "pointer", fontSize: 13,
+            }}
+          >
+            <Network size={13} style={{ color: "var(--color-brand)" }} />
+            Quick task
+          </button>
+        </div>
 
         {loading ? (
           <div style={{ display: "flex", justifyContent: "center", padding: "48px 0" }}>
@@ -129,6 +147,8 @@ export default function PlaygroundsPage() {
           </div>
         )}
       </div>
+
+      <TaskRouter open={showTaskRouter} onClose={() => setShowTaskRouter(false)} />
     </div>
   );
 }

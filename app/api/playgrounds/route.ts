@@ -3,23 +3,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
-import { seedDefaultPlaygrounds } from "@/lib/seed-playgrounds";
 
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) return apiError("Unauthorized", 401);
   try {
-    let playgrounds = await prisma.playground.findMany({
+    // No auto-seed here: the wizard seeds per starter pack, and a Blank starter
+    // must actually stay blank (Session 36).
+    const playgrounds = await prisma.playground.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "asc" },
     });
-    if (playgrounds.length === 0) {
-      await seedDefaultPlaygrounds(session.user.id).catch(() => {});
-      playgrounds = await prisma.playground.findMany({
-        where: { userId: session.user.id },
-        orderBy: { createdAt: "asc" },
-      });
-    }
     return NextResponse.json(playgrounds);
   } catch (err) {
     return apiError(err);

@@ -135,7 +135,7 @@ export default function PlansPage() {
       ) : plans.length === 0 ? (
         <div className="text-center py-12" style={{ color: "var(--color-muted)" }}>
           <ClipboardList size={32} className="mx-auto mb-3 opacity-40" />
-          <p className="text-sm">No plans yet. Enter a goal above and the Keeper will create one.</p>
+          <p className="text-sm">Plans break a big goal into tasks across your teams, and nothing runs until you approve. Enter a goal above to create your first one.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-6">

@@ -9,7 +9,7 @@ type ConvMessage = { role: "user" | "assistant"; content: string };
 
 type PlaygroundConfig = {
   name: string;
-  icon: string;
+  icon: string | null;
   description: string;
   suggestedTeamIds: string[];
   suggestedBrainTags: string[];
@@ -96,7 +96,7 @@ Only include teams whose purpose genuinely matches the intent. newTeamsNeeded sh
     } catch {
       config = {
         name: "New Playground",
-        icon: "🚀",
+        icon: null,
         description: userIntent,
         suggestedTeamIds: [],
         suggestedBrainTags: [],

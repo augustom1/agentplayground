@@ -42,7 +42,20 @@ export default auth(async (req) => {
     pathname === "/manifest.webmanifest" ||
     pathname.startsWith("/icons/");
 
-  if (isPublic) return NextResponse.next();
+  if (isPublic) {
+    // First-run: a fresh install opens "/" (marketing homepage) — with zero users that's a
+    // dead end (registration closed), so land those routes on the setup wizard instead.
+    if ((pathname === "/" || pathname === "/login") && !req.cookies.has("setup_complete")) {
+      const count = await prisma.user.count();
+      if (count === 0) {
+        return NextResponse.redirect(new URL("/setup", req.url));
+      }
+      const res = NextResponse.next();
+      res.cookies.set("setup_complete", "1", { path: "/", maxAge: 31536000, httpOnly: true, sameSite: "lax" });
+      return res;
+    }
+    return NextResponse.next();
+  }
 
   // First-run detection: if no setup_complete cookie, count users.
   // Only runs for page routes (not API) — cookie caches the result after first check.
