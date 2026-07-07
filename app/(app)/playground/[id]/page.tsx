@@ -6,7 +6,9 @@ import Link from "next/link";
 import {
   ArrowLeft, Pencil, Trash2, Loader2, Check, X,
   Circle, Zap, CheckCircle2, Users,
+  Settings2, ArrowUp, ArrowDown, Plus,
 } from "lucide-react";
+import { PLAYGROUND_WIDGETS, resolvePlaygroundLayout } from "@/lib/widget-registry";
 
 type AgentTeam = {
   id: string;
@@ -48,6 +50,7 @@ type PlaygroundData = {
   icon: string | null;
   color: string | null;
   teamIds: string[];
+  layout?: unknown;
 };
 
 function StatusDot({ status }: { status: string }) {
@@ -179,6 +182,11 @@ export default function PlaygroundPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const [widgetLayout, setWidgetLayout] = useState<string[]>([]);
+  const [menuLayout, setMenuLayout] = useState<string[]>([]);
+  const [customizing, setCustomizing] = useState(false);
+  const [savingLayout, setSavingLayout] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -194,6 +202,9 @@ export default function PlaygroundPage() {
       setPlayground(pg);
       setEditName(pg.name);
       setEditIcon(pg.icon ?? "");
+      const resolved = resolvePlaygroundLayout(pg.layout);
+      setWidgetLayout(resolved.widgets);
+      setMenuLayout(resolved.menu);
 
       const allTeams = await teamsRes.json() as (AgentTeam & {
         agents: Agent[];
@@ -260,6 +271,31 @@ export default function PlaygroundPage() {
   const allAgents = teams.flatMap(t => t.agents);
   const allSkills = teams.flatMap(t => t.skills);
   const uniqueSkills = [...new Map(allSkills.map(s => [s.id, s])).values()];
+
+  const moveWidget = (wid: string, dir: -1 | 1) => {
+    setWidgetLayout(l => {
+      const i = l.indexOf(wid);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= l.length) return l;
+      const next = [...l];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  };
+
+  const saveLayout = async () => {
+    setSavingLayout(true);
+    try {
+      await fetch(`/api/playgrounds/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ layout: { widgets: widgetLayout, menu: menuLayout } }),
+      });
+      setCustomizing(false);
+    } finally {
+      setSavingLayout(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -385,95 +421,178 @@ export default function PlaygroundPage() {
         ))}
       </div>
 
-      {/* ── Main grid ─────────────────────────────────────────── */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gridTemplateRows: "auto auto",
-          gap: 12,
-        }}
-      >
-        <div
-          style={{
-            background: "var(--color-surface-2)", border: "1px solid var(--color-border)",
-            borderRadius: 12, padding: 16,
-          }}
-        >
-          <SectionHeader title={`Agents (${allAgents.length})`} />
-          {allAgents.length === 0 ? (
-            <p style={{ fontSize: 12, color: "var(--color-muted)" }}>No agents in the teams assigned to this playground.</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {allAgents.map(agent => {
-                const team = teams.find(t => t.agents.some(a => a.id === agent.id));
-                return (
-                  <AgentCard key={agent.id} agent={agent} teamStatus={team?.status ?? "idle"} />
-                );
-              })}
-            </div>
-          )}
-        </div>
+      {/* ── Customize toolbar ─────────────────────────────────── */}
+      {(() => {
+        const PANEL: React.CSSProperties = {
+          background: "var(--color-surface-2)", border: "1px solid var(--color-border)",
+          borderRadius: 12, padding: 16,
+        };
+        const EDIT_BTN: React.CSSProperties = {
+          display: "flex", alignItems: "center", justifyContent: "center",
+          width: 22, height: 22, borderRadius: 6,
+          border: "1px solid var(--color-border)", background: "var(--color-surface-2)",
+          cursor: "pointer", color: "var(--color-text-secondary)", padding: 0,
+        };
+        const hiddenWidgets = PLAYGROUND_WIDGETS.filter(w => !widgetLayout.includes(w.id));
 
-        <div
-          style={{
-            background: "var(--color-surface-2)", border: "1px solid var(--color-border)",
-            borderRadius: 12, padding: 16,
-          }}
-        >
-          <SectionHeader title="Active Tasks" />
-          {activeTasks.length === 0 ? (
-            <p style={{ fontSize: 12, color: "var(--color-muted)" }}>No running or pending tasks.</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {activeTasks.map(task => <TaskRow key={task.id} task={task} />)}
-            </div>
-          )}
-        </div>
+        const renderPanel = (wid: string) => {
+          switch (wid) {
+            case "agents": return (
+              <div style={PANEL}>
+                <SectionHeader title={`Agents (${allAgents.length})`} />
+                {allAgents.length === 0 ? (
+                  <p style={{ fontSize: 12, color: "var(--color-muted)" }}>No agents in the teams assigned to this playground.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {allAgents.map(agent => {
+                      const team = teams.find(t => t.agents.some(a => a.id === agent.id));
+                      return (
+                        <AgentCard key={agent.id} agent={agent} teamStatus={team?.status ?? "idle"} />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+            case "active-tasks": return (
+              <div style={PANEL}>
+                <SectionHeader title="Active Tasks" />
+                {activeTasks.length === 0 ? (
+                  <p style={{ fontSize: 12, color: "var(--color-muted)" }}>No running or pending tasks.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {activeTasks.map(task => <TaskRow key={task.id} task={task} />)}
+                  </div>
+                )}
+              </div>
+            );
+            case "skills": return (
+              <div style={PANEL}>
+                <SectionHeader title={`Skills (${uniqueSkills.length})`} />
+                {uniqueSkills.length === 0 ? (
+                  <p style={{ fontSize: 12, color: "var(--color-muted)" }}>No skills defined on the teams in this playground.</p>
+                ) : (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {uniqueSkills.map(skill => (
+                      <span
+                        key={skill.id}
+                        style={{
+                          fontSize: 11, padding: "3px 8px", borderRadius: 20,
+                          background: `${accent}18`, color: accent,
+                          border: `1px solid ${accent}30`,
+                        }}
+                      >
+                        {skill.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+            case "completions": return (
+              <div style={PANEL}>
+                <SectionHeader title="Recent Completions" />
+                {recentTasks.length === 0 ? (
+                  <p style={{ fontSize: 12, color: "var(--color-muted)" }}>No completed tasks yet.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {recentTasks.map(task => <TaskRow key={task.id} task={task} />)}
+                  </div>
+                )}
+              </div>
+            );
+            default: return null;
+          }
+        };
 
-        <div
-          style={{
-            background: "var(--color-surface-2)", border: "1px solid var(--color-border)",
-            borderRadius: 12, padding: 16,
-          }}
-        >
-          <SectionHeader title={`Skills (${uniqueSkills.length})`} />
-          {uniqueSkills.length === 0 ? (
-            <p style={{ fontSize: 12, color: "var(--color-muted)" }}>No skills defined on the teams in this playground.</p>
-          ) : (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {uniqueSkills.map(skill => (
-                <span
-                  key={skill.id}
+        return (
+          <>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, marginBottom: 10, minHeight: 26 }}>
+              {customizing && hiddenWidgets.length > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginRight: "auto" }}>
+                  {hiddenWidgets.map(w => (
+                    <button
+                      key={w.id}
+                      onClick={() => setWidgetLayout(l => [...l, w.id])}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 999,
+                        border: "1px dashed var(--color-border)", background: "transparent",
+                        cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)",
+                      }}
+                    >
+                      <Plus size={11} /> {w.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {customizing ? (
+                <button
+                  onClick={saveLayout}
+                  disabled={savingLayout}
                   style={{
-                    fontSize: 11, padding: "3px 8px", borderRadius: 20,
-                    background: `${accent}18`, color: accent,
-                    border: `1px solid ${accent}30`,
+                    display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 7,
+                    border: "none", background: "var(--color-brand)", cursor: savingLayout ? "wait" : "pointer",
+                    fontSize: 12, fontWeight: 600, color: "#0a1628",
                   }}
                 >
-                  {skill.name}
-                </span>
-              ))}
+                  {savingLayout ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                  Done
+                </button>
+              ) : (
+                <button
+                  onClick={() => setCustomizing(true)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 7,
+                    border: "1px solid var(--color-border)", background: "transparent",
+                    cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)",
+                  }}
+                >
+                  <Settings2 size={12} /> Customize
+                </button>
+              )}
             </div>
-          )}
-        </div>
 
-        <div
-          style={{
-            background: "var(--color-surface-2)", border: "1px solid var(--color-border)",
-            borderRadius: 12, padding: 16,
-          }}
-        >
-          <SectionHeader title="Recent Completions" />
-          {recentTasks.length === 0 ? (
-            <p style={{ fontSize: 12, color: "var(--color-muted)" }}>No completed tasks yet.</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {recentTasks.map(task => <TaskRow key={task.id} task={task} />)}
-            </div>
-          )}
-        </div>
-      </div>
+            {widgetLayout.length === 0 ? (
+              <div style={{ padding: 32, textAlign: "center", border: "1px dashed var(--color-border)", borderRadius: 12 }}>
+                <p style={{ fontSize: 13, color: "var(--color-muted)", margin: 0 }}>
+                  No widgets on this dashboard. {customizing ? "Add one above." : "Use Customize to add widgets."}
+                </p>
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 12,
+                }}
+              >
+                {widgetLayout.map((wid, i) => {
+                  const def = PLAYGROUND_WIDGETS.find(w => w.id === wid);
+                  return (
+                    <div key={wid} style={{ display: "flex", flexDirection: "column" }}>
+                      {customizing && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
+                          <span style={{ fontSize: 11, color: "var(--color-muted)", marginRight: "auto" }}>{def?.label ?? wid}</span>
+                          <button title="Move earlier" onClick={() => moveWidget(wid, -1)} disabled={i === 0} style={{ ...EDIT_BTN, opacity: i === 0 ? 0.4 : 1 }}>
+                            <ArrowUp size={11} />
+                          </button>
+                          <button title="Move later" onClick={() => moveWidget(wid, 1)} disabled={i === widgetLayout.length - 1} style={{ ...EDIT_BTN, opacity: i === widgetLayout.length - 1 ? 0.4 : 1 }}>
+                            <ArrowDown size={11} />
+                          </button>
+                          <button title="Remove" onClick={() => setWidgetLayout(l => l.filter(x => x !== wid))} style={EDIT_BTN}>
+                            <X size={11} />
+                          </button>
+                        </div>
+                      )}
+                      {renderPanel(wid)}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       {teams.length === 0 && (
         <div

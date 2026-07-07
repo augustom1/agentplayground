@@ -1,5 +1,5 @@
 # HANDOFF.md — Session State
-> Last updated: 2026-07-06 (Session 36 first-run + demo seed shipped — session crashed pre-wrap-up, state reconstructed same evening)
+> Last updated: 2026-07-07 (Session 37: Session 36 wrap-up closed + widget registry / customizable dashboards shipped)
 > Read this FIRST at every session start, before CLAUDE.md.
 > **Source of truth for direction: `docs/VISION.md`** — if anything here contradicts it, VISION wins.
 > See `docs/PLAN.md` for the full open work list.
@@ -87,7 +87,46 @@ from build.nvidia.com (no credit card, ~40 req/min, 100+ models).
   once; `Remove-Item .next` fixes it). Image re-pushed to Docker Hub (0.1.0 + latest), release zip
   rebuilt + re-uploaded (build-release.sh bsdtar path used), 11 app files scp'd to VPS + rebuild.
 
-### Last Session (Session 36 — 2026-07-06) — First-run experience + demo seed ✅ (crashed pre-wrap-up)
+### Last Session (Session 37 — 2026-07-07) — Session 36 wrap-up + widget registry ✅
+
+**Step 0 — Session 36 crash tail CLOSED:**
+- **VPS deployed:** all 46 changed working-tree files pushed (tar-over-ssh, same scp-style file push) +
+  dashboard rebuilt. Health 200, `✓ Ready`, no errors. VPS now runs Session 36 code.
+- **Keys verified working with real chats in production:** "ANTHROPIC OK" on `claude-sonnet-4-6`
+  (real token usage + cost shown) and "NVIDIA OK." on Llama 3.1 8B (free). Settings shows
+  Anthropic + NVIDIA both "Set (via .env)" on the VPS. Owner pre-req fully closed.
+- **Pickers verified live in a browser:** main chat picker (4 provider tabs, curated lists, custom
+  model id input with Enter-to-apply), playground scoped chat ModelPicker (compact, opens upward);
+  typed `claude-haiku-4-5-20251001` into the custom input → resolved to "Haiku 4.5" as active.
+- **Git commit `48acaf2`** — sessions 34–36, 47 files (owner-approved). Secrets scan clean before commit.
+
+**Widget registry (PLAN §1 items 3–4, sprint stretch) SHIPPED:**
+- **Schema:** `User.dashboardLayout Json?` + `Playground.layout Json?` (`{ widgets: string[], menu: string[] }`).
+  Additive nullable columns — entrypoint `prisma db push` migrates on container start (desktop installs
+  self-migrate the same way).
+- **`lib/widget-registry.ts` NEW** — single source of truth: `OVERVIEW_WIDGETS` (tasks, playgrounds,
+  teams, plans, completions), `PLAYGROUND_WIDGETS` (agents, active-tasks, skills, completions),
+  `PLAYGROUND_MENU_ITEMS` (chat, brain, schedule, plans, actions), defaults, and `sanitizeIds` /
+  `resolvePlaygroundLayout` (unknown ids dropped on read AND write — stale configs survive registry changes).
+- **`GET/PATCH /api/settings/dashboard` NEW** — per-user Overview layout on `User.dashboardLayout`.
+  Playgrounds PATCH now accepts `layout` (server-side sanitized).
+- **Overview Dashboard customizable (per-user):** widgets render from the saved layout; Customize →
+  per-widget move up/down + remove, add-chips for hidden widgets, Done persists. Empty state handled.
+- **Playground dashboard customizable (per-playground):** same pattern on the 4 panels, persisted in
+  `Playground.layout.widgets` (menu echoed back so it isn't clobbered).
+- **Playground WORKSPACE menu configurable:** inner sidebar renders from `layout.menu` (Dashboard and
+  Settings fixed); **Schedule added as a standard item**.
+- **`/playground/[id]/schedule` NEW — playground-scoped Schedule:** jobs filtered to the playground's
+  teams (same scoping pattern as Brain/brainTags), upcoming + recent lists, create-job form with the
+  team select limited to playground teams. Global schedule stays in Overview.
+- **Playground Settings → "Workspace menu" section:** include/exclude + reorder the menu entries,
+  saved with the rest of the settings.
+- Builds: `npm run build` ✅ · VPS rebuild ✅ (see below) · schema push verified on VPS.
+- **NOTE for Session 38:** the Docker Hub image (`augustojmd/agentplayground:0.1.0` + `latest`,
+  pushed 2026-07-06 22:25) does NOT contain Session 37 widget-registry code — Friday's ship step
+  must rebuild + re-push the image (and re-tag). Release zip unchanged (no docker/ changes).
+
+### Previous Session (Session 36 — 2026-07-06) — First-run experience + demo seed ✅ (crashed pre-wrap-up)
 
 **The session was lost mid-flight** (owner closed it accidentally while waiting on the docker build);
 this block was reconstructed the same evening from the working tree, KEYS.md, Docker Hub, and file
@@ -405,18 +444,17 @@ pre-redesign feel in a 4-section layout is the next session, fully specced in `d
 
 ## Next Session Priorities
 
-### 🔜 NEXT SESSION — Session 37: Session 36 wrap-up, then stretch widget registry (sprint)
+### 🔜 NEXT SESSION — Session 38: SHIP (Friday 2026-07-10)
 
-Prompt in `docs/SESSION-PROMPTS.md`. Session 36 shipped all its code and the image is on Docker Hub,
-but the session crashed before the deploy/verify tail — **step 0 is closing that out:**
-- Verify live in a browser: main chat custom-model input + playground ModelPicker; one real chat on
-  the fresh Anthropic key, one on NVIDIA (both keys verified 2026-07-06, KEYS.md current).
-- scp Session 36 files to the VPS + rebuild (ssh-verified missing 2026-07-06); confirm both keys
-  set in VPS Settings → API Keys. Release zip already current (re-uploaded 22:04, verified).
-- **Git commit sessions 34–36** (owner approved 2026-07-06 — "check through, make it ready").
-
-Then, only if nothing install-critical is open: widget registry (spec in `docs/PLAN.md` §1 items 3–4).
-Then: 38 SHIP Friday.
+Prompt in `docs/SESSION-PROMPTS.md`. Sessions 35–37 are all closed; nothing install-critical open.
+Session 38 checklist:
+- **Rebuild + re-push the Docker Hub image** (`augustojmd/agentplayground:0.1.0` + `:latest`) — the
+  Hub image predates Session 37 (widget registry not in it). Schema is additive; entrypoint db push
+  migrates existing installs.
+- Clean-machine install rehearsal following INSTALL.md literally; blockers only, zero new features.
+- Final image tag + zip check + `/api/version` changelog.
+- Write the friends announcement message for the owner to send.
+- HANDOFF updated to the post-release phase (feedback-driven: docs/FEEDBACK.md first).
 **Post-release order changed (owner 2026-07-06):** friends feedback fixes → content polish →
 **Meetings + Mission Control (PLAN §1 item 7, Sessions 39–41 — live agent board + interactive
 council meetings with a live room)** → agent editor → Projects (§1 items 5–6).
@@ -464,7 +502,8 @@ Key rules:
 - `scp` files → restart dashboard container. Never `git pull` on server.
 - Slug names must match at same URL level (e.g. all `app/api/playground/teams/[id]/...` use `[id]`)
 - Deleting directories requires `--no-cache` rebuild
-- No pending schema changes — `brainTags` was pushed in Session 29
+- No pending schema changes — `User.dashboardLayout` + `Playground.layout` pushed in Session 37
+  (entrypoint runs `prisma db push` on container start, so rebuilds self-migrate)
 
 ```bash
 # Standard deploy

@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Loader2, Check, Trash2, Save, Upload } from "lucide-react";
+import { Loader2, Check, Trash2, Save, Upload, ArrowUp, ArrowDown, X, Plus } from "lucide-react";
 import { useToast } from "@/components/ToastProvider";
+import { PLAYGROUND_MENU_ITEMS, resolvePlaygroundLayout } from "@/lib/widget-registry";
 
 type PlaygroundData = {
   id: string;
@@ -12,6 +13,7 @@ type PlaygroundData = {
   color: string | null;
   teamIds: string[];
   brainTags: string[];
+  layout?: unknown;
 };
 
 type TeamItem = { id: string; name: string };
@@ -42,6 +44,8 @@ export default function PlaygroundSettingsPage() {
   const [color, setColor] = useState("");
   const [selectedTeams, setSelectedTeams] = useState<Set<string>>(new Set());
   const [brainTagsInput, setBrainTagsInput] = useState("");
+  const [menuOrder, setMenuOrder] = useState<string[]>([]);
+  const [widgetsOrder, setWidgetsOrder] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -58,6 +62,9 @@ export default function PlaygroundSettingsPage() {
       setColor(pg.color ?? "");
       setSelectedTeams(new Set(pg.teamIds));
       setBrainTagsInput(pg.brainTags.join(", "));
+      const resolved = resolvePlaygroundLayout(pg.layout);
+      setMenuOrder(resolved.menu);
+      setWidgetsOrder(resolved.widgets);
 
       const teams = teamsRes.ok ? await teamsRes.json() as (TeamItem & { isSystemTeam?: boolean })[] : [];
       setAllTeams(teams.filter(t => !t.isSystemTeam).map(t => ({ id: t.id, name: t.name })));
@@ -86,6 +93,7 @@ export default function PlaygroundSettingsPage() {
           color: color.trim() || null,
           teamIds: [...selectedTeams],
           brainTags,
+          layout: { widgets: widgetsOrder, menu: menuOrder },
         }),
       });
       if (!res.ok) throw new Error();
@@ -259,6 +267,93 @@ export default function PlaygroundSettingsPage() {
             color: "var(--color-text)", outline: "none", boxSizing: "border-box",
           }}
         />
+      </section>
+
+      {/* Workspace menu */}
+      <section style={{ marginBottom: 28 }}>
+        <h3 style={{ fontSize: 12, fontWeight: 700, color: "var(--color-muted)", letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 6px" }}>
+          Workspace menu
+        </h3>
+        <p style={{ fontSize: 12, color: "var(--color-muted)", margin: "0 0 10px" }}>
+          Choose which entries appear in this playground&apos;s left menu and in what order. Dashboard and Settings are always shown.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {menuOrder.map((itemId, i) => {
+            const def = PLAYGROUND_MENU_ITEMS.find(m => m.id === itemId);
+            if (!def) return null;
+            const btn: React.CSSProperties = {
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 24, height: 24, borderRadius: 6,
+              border: "1px solid var(--color-border)", background: "var(--color-surface-3)",
+              cursor: "pointer", color: "var(--color-text-secondary)", padding: 0,
+            };
+            return (
+              <div
+                key={itemId}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "8px 12px", borderRadius: 8, fontSize: 13,
+                  background: "var(--color-surface-2)", border: "1px solid var(--color-border)",
+                  color: "var(--color-text)",
+                }}
+              >
+                <span style={{ flex: 1 }}>{def.label}</span>
+                <button
+                  type="button"
+                  title="Move up"
+                  disabled={i === 0}
+                  onClick={() => setMenuOrder(l => {
+                    const next = [...l];
+                    [next[i - 1], next[i]] = [next[i], next[i - 1]];
+                    return next;
+                  })}
+                  style={{ ...btn, opacity: i === 0 ? 0.4 : 1 }}
+                >
+                  <ArrowUp size={12} />
+                </button>
+                <button
+                  type="button"
+                  title="Move down"
+                  disabled={i === menuOrder.length - 1}
+                  onClick={() => setMenuOrder(l => {
+                    const next = [...l];
+                    [next[i], next[i + 1]] = [next[i + 1], next[i]];
+                    return next;
+                  })}
+                  style={{ ...btn, opacity: i === menuOrder.length - 1 ? 0.4 : 1 }}
+                >
+                  <ArrowDown size={12} />
+                </button>
+                <button
+                  type="button"
+                  title="Remove from menu"
+                  onClick={() => setMenuOrder(l => l.filter(x => x !== itemId))}
+                  style={btn}
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        {PLAYGROUND_MENU_ITEMS.some(m => !menuOrder.includes(m.id)) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+            {PLAYGROUND_MENU_ITEMS.filter(m => !menuOrder.includes(m.id)).map(m => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setMenuOrder(l => [...l, m.id])}
+                style={{
+                  display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 999,
+                  border: "1px dashed var(--color-border)", background: "transparent",
+                  cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)",
+                }}
+              >
+                <Plus size={11} /> {m.label}
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Import */}

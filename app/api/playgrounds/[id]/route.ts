@@ -3,6 +3,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-error";
+import {
+  PLAYGROUND_WIDGETS, PLAYGROUND_MENU_ITEMS,
+  DEFAULT_PLAYGROUND_WIDGETS, DEFAULT_PLAYGROUND_MENU,
+  sanitizeIds, type PlaygroundLayout,
+} from "@/lib/widget-registry";
+
+function sanitizeLayout(raw: unknown): PlaygroundLayout {
+  const layout = (raw ?? {}) as PlaygroundLayout;
+  return {
+    widgets: sanitizeIds(layout.widgets, PLAYGROUND_WIDGETS) ?? DEFAULT_PLAYGROUND_WIDGETS,
+    menu: sanitizeIds(layout.menu, PLAYGROUND_MENU_ITEMS) ?? DEFAULT_PLAYGROUND_MENU,
+  };
+}
 
 export async function GET(
   _req: NextRequest,
@@ -39,6 +52,7 @@ export async function PATCH(
         ...(body.color !== undefined ? { color: body.color } : {}),
         ...(body.teamIds !== undefined ? { teamIds: body.teamIds } : {}),
         ...(body.brainTags !== undefined ? { brainTags: body.brainTags } : {}),
+        ...(body.layout !== undefined ? { layout: sanitizeLayout(body.layout) } : {}),
       },
     });
     if (result.count === 0) return apiError("Not found", 404);

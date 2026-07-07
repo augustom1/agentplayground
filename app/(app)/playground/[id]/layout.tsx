@@ -5,14 +5,31 @@ import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import {
   LayoutGrid, MessageSquare, BookOpen, Users, Settings,
-  ChevronRight, ChevronDown, Loader2, ListTodo, Zap,
+  ChevronRight, ChevronDown, Loader2, ListTodo, Zap, CalendarDays,
 } from "lucide-react";
+import { resolvePlaygroundLayout } from "@/lib/widget-registry";
 
 type PlaygroundData = {
   id: string;
   name: string;
   icon: string | null;
   teamIds: string[];
+  layout?: unknown;
+};
+
+// Menu item catalog — ids match lib/widget-registry PLAYGROUND_MENU_ITEMS.
+// Dashboard (entry) and Settings (bottom) are fixed; the rest follow Playground.layout.menu.
+const MENU_CATALOG: Record<string, {
+  label: string;
+  icon: React.ComponentType<{ size?: number }>;
+  href: (id: string) => string;
+  scoped: boolean; // true = lives under /playground/[id]/
+}> = {
+  chat: { label: "Chat", icon: MessageSquare, href: id => `/playground/${id}/chat`, scoped: true },
+  brain: { label: "Brain", icon: BookOpen, href: id => `/playground/${id}/brain`, scoped: true },
+  schedule: { label: "Schedule", icon: CalendarDays, href: id => `/playground/${id}/schedule`, scoped: true },
+  plans: { label: "Plans", icon: ListTodo, href: () => "/plans", scoped: false },
+  actions: { label: "Actions", icon: Zap, href: () => "/actions", scoped: false },
 };
 
 type TeamItem = { id: string; name: string };
@@ -56,6 +73,7 @@ export default function PlaygroundLayout({ children }: { children: React.ReactNo
 
   const [playground, setPlayground] = useState<PlaygroundData | null>(null);
   const [teams, setTeams] = useState<TeamItem[]>([]);
+  const [menu, setMenu] = useState<string[]>([]);
   const [teamsOpen, setTeamsOpen] = useState(true);
   const [appsOpen, setAppsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -68,6 +86,7 @@ export default function PlaygroundLayout({ children }: { children: React.ReactNo
     ]).then(([pg, allTeams]) => {
       if (pg) {
         setPlayground(pg as PlaygroundData);
+        setMenu(resolvePlaygroundLayout((pg as PlaygroundData).layout).menu);
         const teamIds = new Set<string>((pg as PlaygroundData).teamIds);
         const filtered = (allTeams as TeamItem[]).filter(t => teamIds.has(t.id));
         setTeams(filtered);
@@ -130,30 +149,20 @@ export default function PlaygroundLayout({ children }: { children: React.ReactNo
             icon={LayoutGrid}
             active={isActive(`/playground/${id}`)}
           />
-          <SidebarLink
-            href={`/playground/${id}/chat`}
-            label="Chat"
-            icon={MessageSquare}
-            active={isActive(`/playground/${id}/chat`)}
-          />
-          <SidebarLink
-            href={`/playground/${id}/brain`}
-            label="Brain"
-            icon={BookOpen}
-            active={isActive(`/playground/${id}/brain`)}
-          />
-          <SidebarLink
-            href="/plans"
-            label="Plans"
-            icon={ListTodo}
-            active={pathname === "/plans"}
-          />
-          <SidebarLink
-            href="/actions"
-            label="Actions"
-            icon={Zap}
-            active={pathname === "/actions"}
-          />
+          {menu.map(itemId => {
+            const item = MENU_CATALOG[itemId];
+            if (!item) return null;
+            const href = item.href(id);
+            return (
+              <SidebarLink
+                key={itemId}
+                href={href}
+                label={item.label}
+                icon={item.icon}
+                active={item.scoped ? isActive(href) : pathname === href}
+              />
+            );
+          })}
 
           {/* Teams section */}
           <div style={{ marginTop: 10 }}>

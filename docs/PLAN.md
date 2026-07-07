@@ -39,11 +39,15 @@ experience beat new features all week. When in doubt: fix the install path, not 
   (0.1.0 + latest, 2026-07-06 22:25); release zip re-uploaded (22:04, verified current). **Left
   hanging by the crash:** VPS scp deploy (ssh-verified: VPS still on Session 35 code), live browser
   verification of the ModelPicker, git commit — Session 37 does these first.
-- **Session 37 — Session 36 wrap-up, then STRETCH: widget registry.** FIRST: finish what the
-  Session 36 crash cut off — scp the Session 36 files to the VPS + rebuild (ssh-verified missing),
-  confirm fresh keys in VPS Settings → API Keys, verify the ModelPicker + custom model input live
-  in a browser, and git commit sessions 34–36. THEN the widget registry (the old Session 35 spec,
-  §1 item 3/4 below) — only if nothing install-critical is open.
+- ✅ **Session 37 — Session 36 wrap-up + widget registry.** (done 2026-07-07) Crash tail closed:
+  VPS deployed + rebuilt (Session 36 code live, health 200), both keys verified with real production
+  chats (Sonnet 4.6 + NVIDIA Llama 3.1 8B), pickers + custom model id verified live in a browser,
+  git commit `48acaf2` (sessions 34–36, 47 files). STRETCH shipped: widget registry
+  (`lib/widget-registry.ts`, `User.dashboardLayout` + `Playground.layout` JSON, GET/PATCH
+  `/api/settings/dashboard`) — Overview dashboard customizable per-user, playground dashboard
+  customizable per-playground, playground WORKSPACE menu configurable (Settings → Workspace menu),
+  new playground-scoped `/playground/[id]/schedule` (team-filtered, same scoping as brainTags).
+  **Session 38 must re-push the Hub image — it predates Session 37.**
 - **Session 38 — SHIP (Friday).** Clean-machine install rehearsal following INSTALL.md literally;
   blockers only, zero new features; final image tag + zip + `/api/version` changelog; write the
   friends announcement message for the owner to send; HANDOFF updated to the post-release phase.

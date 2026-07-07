@@ -26,6 +26,7 @@ model User {
   planExpiresAt DateTime?                         // null = no expiry
   active        Boolean   @default(true)          // soft-disable without deleting
   apiKey        String?   @unique                 // SHA-256 hash of MCP API key (Block B2)
+  dashboardLayout Json?                           // Overview dashboard widget layout (widget id order)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1001,6 +1002,7 @@ model Playground {
   color     String?
   teamIds   String[]
   brainTags String[] @default([])
+  layout    Json?    // { widgets: string[], menu: string[] } — dashboard widget order + workspace menu config
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())

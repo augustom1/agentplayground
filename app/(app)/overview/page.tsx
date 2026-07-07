@@ -5,7 +5,9 @@ import Link from "next/link";
 import {
   Activity, LayoutGrid, CheckCircle2, ListTodo, Users, ArrowRight, Loader2,
   LayoutDashboard, Brain, CalendarDays, Sparkles, Globe, Wrench,
+  Settings2, ArrowUp, ArrowDown, X, Plus, Check,
 } from "lucide-react";
+import { OVERVIEW_WIDGETS, DEFAULT_OVERVIEW_WIDGETS } from "@/lib/widget-registry";
 
 // Hub windows — the full pages embedded as sections (VISION §2 update: Overview = system hub)
 import BrainWindow from "@/app/(app)/files/page";
@@ -137,22 +139,56 @@ function Dashboard() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [layout, setLayout] = useState<string[]>(DEFAULT_OVERVIEW_WIDGETS);
+  const [editing, setEditing] = useState(false);
+  const [savingLayout, setSavingLayout] = useState(false);
+
   useEffect(() => {
     Promise.allSettled([
       fetch("/api/tasks").then(r => r.ok ? r.json() : []),
       fetch("/api/playgrounds").then(r => r.ok ? r.json() : []),
       fetch("/api/teams").then(r => r.ok ? r.json() : []),
       fetch("/api/plans").then(r => r.ok ? r.json() : []),
-    ]).then(([tasksR, pgR, teamsR, plansR]) => {
+      fetch("/api/settings/dashboard").then(r => r.ok ? r.json() : null),
+    ]).then(([tasksR, pgR, teamsR, plansR, layoutR]) => {
       if (tasksR.status === "fulfilled") setTasks(tasksR.value as Task[]);
       if (pgR.status === "fulfilled") setPlaygrounds(pgR.value as Playground[]);
       if (teamsR.status === "fulfilled") setTeams((teamsR.value as Team[]).filter(t => !t.isSystemTeam));
       if (plansR.status === "fulfilled") setPlans((plansR.value as Plan[]).slice(0, 5));
+      if (layoutR.status === "fulfilled" && layoutR.value) {
+        const cfg = layoutR.value as { widgets?: string[] };
+        if (Array.isArray(cfg.widgets)) setLayout(cfg.widgets);
+      }
     }).finally(() => setLoading(false));
   }, []);
 
   const activeTasks = tasks.filter(t => t.status === "running" || t.status === "pending");
   const completedTasks = tasks.filter(t => t.status === "completed").slice(0, 5);
+
+  function moveWidget(id: string, dir: -1 | 1) {
+    setLayout(l => {
+      const i = l.indexOf(id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= l.length) return l;
+      const next = [...l];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  }
+
+  async function saveLayout() {
+    setSavingLayout(true);
+    try {
+      await fetch("/api/settings/dashboard", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ widgets: layout }),
+      });
+      setEditing(false);
+    } finally {
+      setSavingLayout(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -162,10 +198,18 @@ function Dashboard() {
     );
   }
 
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
+  const hiddenWidgets = OVERVIEW_WIDGETS.filter(w => !layout.includes(w.id));
 
-      {/* 1 — Tasks: totals + active list */}
+  const EDIT_BTN: React.CSSProperties = {
+    display: "flex", alignItems: "center", justifyContent: "center",
+    width: 22, height: 22, borderRadius: 6,
+    border: "1px solid var(--color-border)", background: "var(--color-surface-2)",
+    cursor: "pointer", color: "var(--color-text-secondary)", padding: 0,
+  };
+
+  function renderWidget(id: string) {
+    switch (id) {
+      case "tasks": return (
       <Widget title="Tasks" icon={Activity}>
         <div style={{ display: "flex", gap: 28, padding: "14px 16px 10px" }}>
           <div>
@@ -194,8 +238,8 @@ function Dashboard() {
           </div>
         ))}
       </Widget>
-
-      {/* 2 — Playgrounds */}
+      );
+      case "playgrounds": return (
       <Widget title="Playgrounds" icon={LayoutGrid} href="/playgrounds">
         {playgrounds.length === 0 ? (
           <Empty
@@ -221,8 +265,8 @@ function Dashboard() {
           </div>
         )}
       </Widget>
-
-      {/* 3 — Teams */}
+      );
+      case "teams": return (
       <Widget title="Teams" icon={Users}>
         {teams.length === 0 ? (
           <Empty
@@ -250,8 +294,8 @@ function Dashboard() {
           </div>
         )}
       </Widget>
-
-      {/* 4 — Plans */}
+      );
+      case "plans": return (
       <Widget title="Plans" icon={ListTodo} href="/plans">
         {plans.length === 0 ? (
           <Empty
@@ -274,8 +318,8 @@ function Dashboard() {
           );
         })}
       </Widget>
-
-      {/* 5 — Recent Completions */}
+      );
+      case "completions": return (
       <Widget title="Recent Completions" icon={CheckCircle2}>
         {completedTasks.length === 0 ? (
           <Empty
@@ -293,7 +337,91 @@ function Dashboard() {
           </div>
         ))}
       </Widget>
+      );
+      default: return null;
+    }
+  }
 
+  return (
+    <div>
+      {/* Customize toolbar */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, marginBottom: 10, minHeight: 26 }}>
+        {editing && hiddenWidgets.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginRight: "auto" }}>
+            {hiddenWidgets.map(w => (
+              <button
+                key={w.id}
+                onClick={() => setLayout(l => [...l, w.id])}
+                style={{
+                  display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 999,
+                  border: "1px dashed var(--color-border)", background: "transparent",
+                  cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)",
+                }}
+              >
+                <Plus size={11} /> {w.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {editing ? (
+          <button
+            onClick={saveLayout}
+            disabled={savingLayout}
+            style={{
+              display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 7,
+              border: "none", background: "var(--color-brand)", cursor: savingLayout ? "wait" : "pointer",
+              fontSize: 12, fontWeight: 600, color: "#0a1628",
+            }}
+          >
+            {savingLayout ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : <Check size={12} />}
+            Done
+          </button>
+        ) : (
+          <button
+            onClick={() => setEditing(true)}
+            style={{
+              display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 7,
+              border: "1px solid var(--color-border)", background: "transparent",
+              cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)",
+            }}
+          >
+            <Settings2 size={12} /> Customize
+          </button>
+        )}
+      </div>
+
+      {layout.length === 0 ? (
+        <div style={{ padding: 32, textAlign: "center", border: "1px dashed var(--color-border)", borderRadius: 12 }}>
+          <p style={{ fontSize: 13, color: "var(--color-muted)", margin: 0 }}>
+            No widgets on this dashboard. {editing ? "Add one above." : "Use Customize to add widgets."}
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
+          {layout.map((id, i) => {
+            const def = OVERVIEW_WIDGETS.find(w => w.id === id);
+            return (
+              <div key={id} style={{ display: "flex", flexDirection: "column" }}>
+                {editing && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
+                    <span style={{ fontSize: 11, color: "var(--color-muted)", marginRight: "auto" }}>{def?.label ?? id}</span>
+                    <button title="Move earlier" onClick={() => moveWidget(id, -1)} disabled={i === 0} style={{ ...EDIT_BTN, opacity: i === 0 ? 0.4 : 1 }}>
+                      <ArrowUp size={11} />
+                    </button>
+                    <button title="Move later" onClick={() => moveWidget(id, 1)} disabled={i === layout.length - 1} style={{ ...EDIT_BTN, opacity: i === layout.length - 1 ? 0.4 : 1 }}>
+                      <ArrowDown size={11} />
+                    </button>
+                    <button title="Remove" onClick={() => setLayout(l => l.filter(x => x !== id))} style={EDIT_BTN}>
+                      <X size={11} />
+                    </button>
+                  </div>
+                )}
+                {renderWidget(id)}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
