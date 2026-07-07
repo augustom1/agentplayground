@@ -9,6 +9,7 @@ import {
   ChevronLeft, ChevronRight, Search, Menu,
   PanelLeftClose, Sun, Moon, Shield, Send,
   ArrowRight, Check, Network, Brain, FolderOpen,
+  ChevronDown, Calendar, SlidersHorizontal, Store,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { UserMenu } from "@/components/UserMenu";
@@ -16,6 +17,10 @@ import { LogoMark } from "@/components/Logo";
 import { useLanguage } from "@/components/LanguageProvider";
 import { useTheme } from "@/components/ThemeProvider";
 import { TaskRouter } from "@/components/TaskRouter";
+import { CustomizeSidebar } from "@/components/CustomizeSidebar";
+import {
+  resolveSidebarLayout, DEFAULT_SIDEBAR_LAYOUT, type SidebarLayout,
+} from "@/lib/sidebar-registry";
 
 type SidebarTab = "chat" | "playgrounds" | "overview";
 
@@ -72,6 +77,36 @@ const ICON_BTN: React.CSSProperties = {
   color: "var(--color-muted)", flexShrink: 0,
 };
 
+// Collapsible section header — user-toggleable, persisted in the sidebar layout.
+function CollapsibleSection({
+  label, collapsed, onToggle, children,
+}: {
+  label: string; collapsed: boolean; onToggle: () => void; children: React.ReactNode;
+}) {
+  return (
+    <div style={{ marginTop: 16 }}>
+      <button
+        onClick={onToggle}
+        style={{
+          display: "flex", alignItems: "center", width: "100%",
+          padding: "4px 10px 2px", border: "none", background: "transparent",
+          cursor: "pointer", gap: 4,
+        }}
+      >
+        <span style={{ ...SECTION_LABEL, padding: 0, flex: 1, textAlign: "left" }}>{label}</span>
+        <ChevronDown
+          size={12}
+          style={{
+            color: "var(--color-muted)", flexShrink: 0,
+            transition: "transform 0.15s", transform: collapsed ? "rotate(-90deg)" : "none",
+          }}
+        />
+      </button>
+      {!collapsed && <div>{children}</div>}
+    </div>
+  );
+}
+
 const SECTION_LABEL: React.CSSProperties = {
   fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em",
   textTransform: "uppercase", color: "var(--color-muted)",
@@ -91,6 +126,8 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showTaskRouter, setShowTaskRouter] = useState(false);
+  const [showCustomize, setShowCustomize] = useState(false);
+  const [layout, setLayout] = useState<SidebarLayout>(DEFAULT_SIDEBAR_LAYOUT);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // ── Tab pill state — synced to route ─────────────────
@@ -161,6 +198,113 @@ export function Sidebar() {
       })
       .catch(() => {});
   }, [pathname]);
+
+  // User's customizable sidebar layout (items, sections, agent shortcuts)
+  useEffect(() => {
+    fetch("/api/settings/sidebar")
+      .then(r => r.ok ? r.json() : null)
+      .then((data: unknown) => { if (data) setLayout(resolveSidebarLayout(data)); })
+      .catch(() => {});
+  }, []);
+
+  // Persist a layout change (Customize UI save, or a section collapse toggle).
+  function saveLayout(next: SidebarLayout) {
+    setLayout(next);
+    fetch("/api/settings/sidebar", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(next),
+    }).catch(() => {});
+  }
+
+  function toggleSection(id: string) {
+    saveLayout({
+      ...layout,
+      sections: layout.sections.map(s => s.id === id ? { ...s, collapsed: !s.collapsed } : s),
+    });
+  }
+
+  function sectionCollapsed(id: string): boolean {
+    return layout.sections.find(s => s.id === id)?.collapsed === true;
+  }
+  function sectionHidden(id: string): boolean {
+    return layout.sections.find(s => s.id === id)?.hidden === true;
+  }
+  function itemVisible(id: string): boolean {
+    const it = layout.items.find(i => i.id === id);
+    return it ? it.hidden !== true : false;
+  }
+
+  function goCreateMeeting() {
+    router.push(`/chat?team=coordinator&q=${encodeURIComponent("Schedule a meeting: ")}`);
+  }
+
+  // Renders one built-in Chat-tab item by id (order + visibility come from the layout).
+  function chatItemNode(id: string): React.ReactNode {
+    switch (id) {
+      case "new-chat":
+        return <NavItem key="new-chat" href="/chat?new=1" label="New chat" icon={Plus} collapsed={false} active={false} />;
+      case "create-meeting":
+        return (
+          <button
+            key="create-meeting"
+            onClick={goCreateMeeting}
+            style={{
+              display: "flex", alignItems: "center", gap: "10px", width: "100%",
+              padding: "7px 10px", borderRadius: "8px", fontSize: "13px",
+              border: "none", background: "transparent", cursor: "pointer", textAlign: "left",
+              color: "var(--color-text-secondary)", transition: "background 0.12s",
+            }}
+            onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)")}
+            onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "transparent")}
+          >
+            <span style={{ opacity: 0.75, flexShrink: 0, display: "inline-flex" }}><Calendar size={14} /></span>
+            <span>Create a meeting</span>
+          </button>
+        );
+      case "brain":
+        // Same-page hash links don't fire hashchange (Next uses pushState) — force it so the hub switches sections.
+        return (
+          <Link
+            key="brain"
+            href="/overview#brain"
+            onClick={() => { if (window.location.pathname.startsWith("/overview")) window.location.hash = "brain"; }}
+            style={{
+              display: "flex", alignItems: "center", gap: "10px",
+              padding: "7px 10px", borderRadius: "8px", fontSize: "13px", textDecoration: "none",
+              transition: "background 0.12s", background: "transparent", color: "var(--color-text-secondary)",
+            }}
+            onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)")}
+            onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "transparent")}
+          >
+            <span style={{ opacity: 0.75, flexShrink: 0, display: "inline-flex" }}><Brain size={14} /></span>
+            <span>Brain</span>
+          </Link>
+        );
+      case "projects":
+        return (
+          <div
+            key="projects"
+            title="Projects — coming soon"
+            style={{
+              display: "flex", alignItems: "center", gap: "10px",
+              padding: "7px 10px", borderRadius: "8px",
+              fontSize: "13px", color: "var(--color-muted)", cursor: "default",
+            }}
+          >
+            <span style={{ opacity: 0.6, flexShrink: 0, display: "inline-flex" }}><FolderOpen size={14} /></span>
+            <span>Projects</span>
+            <span style={{
+              marginLeft: "auto", fontSize: "9px", fontWeight: 600, letterSpacing: "0.05em",
+              textTransform: "uppercase", color: "var(--color-muted)",
+              border: "1px solid var(--color-border)", borderRadius: "4px", padding: "1px 5px",
+            }}>Soon</span>
+          </div>
+        );
+      default:
+        return null;
+    }
+  }
 
   function openCreatePlayground() {
     setPanelState("chatting");
@@ -355,6 +499,7 @@ export function Sidebar() {
                 }}>
                   {[
                     { href: "/settings", label: "Settings", icon: Settings },
+                    { href: "/store", label: "Store", icon: Store },
                     ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: Shield }] : []),
                     ...(isAdmin ? [{ href: "/users", label: "Users", icon: Users }] : []),
                   ].map(({ href, label, icon: Icon }) => (
@@ -406,6 +551,21 @@ export function Sidebar() {
                   >
                     {theme === "dark" ? <Sun size={13} /> : <Moon size={13} />}
                     {theme === "dark" ? "Light mode" : "Dark mode"}
+                  </button>
+                  <div style={{ height: "1px", background: "var(--color-border)", margin: "4px 6px" }} />
+                  <button
+                    onClick={() => { setShowCustomize(true); setMenuOpen(false); }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "8px", width: "100%",
+                      padding: "6px 10px", borderRadius: "7px", border: "none",
+                      background: "transparent", cursor: "pointer",
+                      color: "var(--color-text-secondary)", fontSize: "12px", textAlign: "left",
+                    }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+                  >
+                    <span style={{ opacity: 0.7, display: "inline-flex" }}><SlidersHorizontal size={13} /></span>
+                    Customize UI
                   </button>
                 </div>
               )}
@@ -492,78 +652,57 @@ export function Sidebar() {
           </>
         ) : tab === "chat" ? (
           <>
-            <NavItem href="/chat?new=1" label="New chat" icon={Plus} collapsed={false} active={false} />
+            {/* Built-in items — order + visibility from the user's layout */}
+            {layout.items.filter(i => itemVisible(i.id)).map(i => chatItemNode(i.id))}
 
-            {/* Projects — stub until Session 37 */}
-            <div
-              title="Projects — coming soon"
-              style={{
-                display: "flex", alignItems: "center", gap: "10px",
-                padding: "7px 10px", borderRadius: "8px",
-                fontSize: "13px", color: "var(--color-muted)", cursor: "default",
-              }}
-            >
-              <span style={{ opacity: 0.6, flexShrink: 0, display: "inline-flex" }}><FolderOpen size={14} /></span>
-              <span>Projects</span>
-              <span style={{
-                marginLeft: "auto", fontSize: "9px", fontWeight: 600, letterSpacing: "0.05em",
-                textTransform: "uppercase", color: "var(--color-muted)",
-                border: "1px solid var(--color-border)", borderRadius: "4px", padding: "1px 5px",
-              }}>Soon</span>
-            </div>
-
-            {/* Same-page hash links don't fire hashchange (Next uses pushState) — force it so the hub switches sections */}
-            <Link
-              href="/overview#brain"
-              onClick={() => {
-                if (window.location.pathname.startsWith("/overview")) window.location.hash = "brain";
-              }}
-              style={{
-                display: "flex", alignItems: "center", gap: "10px",
-                padding: "7px 10px", borderRadius: "8px",
-                fontSize: "13px", textDecoration: "none",
-                transition: "background 0.12s, color 0.12s",
-                background: "transparent", color: "var(--color-text-secondary)",
-              }}
-              onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)")}
-              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "transparent")}
-            >
-              <span style={{ opacity: 0.75, flexShrink: 0, display: "inline-flex" }}><Brain size={14} /></span>
-              <span>Brain</span>
-            </Link>
-
-            {/* Chat with — Keeper + team heads */}
-            <div style={{ marginTop: "16px" }}>
-              <p style={SECTION_LABEL}>Chat with</p>
-              <NavItem href="/chat?team=coordinator" label="Playground Keeper" icon={Network} collapsed={false} active={false} />
-              {teams.map(t => (
-                <NavItem key={t.id} href={`/chat?team=${t.id}`} label={t.name} icon={Users} collapsed={false} active={false} />
-              ))}
-            </div>
-
-            {/* Recents */}
-            {recents.length > 0 && (
-              <div style={{ marginTop: "16px" }}>
-                <p style={SECTION_LABEL}>Recents</p>
-                {recents.map(c => (
-                  <Link
-                    key={c.id}
-                    href={`/chat?c=${c.id}`}
-                    style={{
-                      display: "block", padding: "5px 10px", borderRadius: "8px",
-                      textDecoration: "none", fontSize: "12px",
-                      color: "var(--color-text-secondary)",
-                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                      transition: "background 0.12s",
-                    }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
-                  >
-                    {c.title || "Untitled chat"}
-                  </Link>
-                ))}
-              </div>
-            )}
+            {/* Collapsible sections — order + visibility + collapsed state from the layout */}
+            {layout.sections.filter(s => !sectionHidden(s.id)).map(sec => {
+              if (sec.id === "shortcuts") {
+                if (layout.shortcuts.length === 0) return null;
+                return (
+                  <CollapsibleSection key="shortcuts" label="Shortcuts" collapsed={sectionCollapsed("shortcuts")} onToggle={() => toggleSection("shortcuts")}>
+                    {layout.shortcuts.map(sc => (
+                      <NavItem key={sc.id} href={`/chat?team=${sc.target}`} label={sc.label} icon={MessageSquare} collapsed={false} active={false} />
+                    ))}
+                  </CollapsibleSection>
+                );
+              }
+              if (sec.id === "chat-with") {
+                return (
+                  <CollapsibleSection key="chat-with" label="Chat with" collapsed={sectionCollapsed("chat-with")} onToggle={() => toggleSection("chat-with")}>
+                    <NavItem href="/chat?team=coordinator" label="Playground Keeper" icon={Network} collapsed={false} active={false} />
+                    {teams.map(t => (
+                      <NavItem key={t.id} href={`/chat?team=${t.id}`} label={t.name} icon={Users} collapsed={false} active={false} />
+                    ))}
+                  </CollapsibleSection>
+                );
+              }
+              if (sec.id === "recents") {
+                if (recents.length === 0) return null;
+                return (
+                  <CollapsibleSection key="recents" label="Recents" collapsed={sectionCollapsed("recents")} onToggle={() => toggleSection("recents")}>
+                    {recents.map(c => (
+                      <Link
+                        key={c.id}
+                        href={`/chat?c=${c.id}`}
+                        style={{
+                          display: "block", padding: "5px 10px", borderRadius: "8px",
+                          textDecoration: "none", fontSize: "12px",
+                          color: "var(--color-text-secondary)",
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                          transition: "background 0.12s",
+                        }}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--color-hover-subtle)"}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+                      >
+                        {c.title || "Untitled chat"}
+                      </Link>
+                    ))}
+                  </CollapsibleSection>
+                );
+              }
+              return null;
+            })}
           </>
         ) : tab === "playgrounds" ? (
           <>
@@ -907,6 +1046,15 @@ export function Sidebar() {
 
       {/* ── Coordinator task router ───────────────────────── */}
       <TaskRouter open={showTaskRouter} onClose={() => setShowTaskRouter(false)} />
+
+      {/* ── Customize UI editor ───────────────────────────── */}
+      <CustomizeSidebar
+        open={showCustomize}
+        onClose={() => setShowCustomize(false)}
+        layout={layout}
+        teams={teams}
+        onSave={saveLayout}
+      />
 
       {/* ── Bottom — user menu only ───────────────────────── */}
       <div style={{ borderTop: "1px solid var(--color-border)", padding: collapsed ? "6px 6px 10px" : "6px 8px 10px" }}>

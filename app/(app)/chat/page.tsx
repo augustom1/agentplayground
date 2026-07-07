@@ -72,6 +72,7 @@ function getInitialMessage(teamId: string, teamName?: string): Message {
 function getSuggestions(teamId: string): Array<{ label: string; icon: React.ReactNode }> {
   if (teamId === "coordinator") return [
     { label: "Route task to best team", icon: <Network size={12} /> },
+    { label: "Schedule a meeting", icon: <Calendar size={12} /> },
     { label: "Coordinate a product launch", icon: <Sparkles size={12} /> },
     { label: "Which team handles support?", icon: <Users size={12} /> },
   ];

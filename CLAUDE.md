@@ -108,6 +108,10 @@ ssh ... "cd /root/opt/vps && docker compose -f docker-compose.yml -f docker-comp
 | Design tokens | `app/globals.css` |
 | Billing wallets | `app/(app)/billing/page.tsx` → `WALLETS` constant |
 | API error helper | `lib/api-error.ts` |
+| Sidebar + customization | `components/Sidebar.tsx` · `components/CustomizeSidebar.tsx` · `lib/sidebar-registry.ts` (`/api/settings/sidebar`) |
+| Store / Playground Library | `app/(app)/store/page.tsx` · `lib/store-catalog.ts` |
+| Redirect app | `app/(app)/apps/redirect/page.tsx` · `app/r/[code]/route.ts` · `app/api/redirect-links/` |
+| Build-your-own app SDK | `downloads/playground-app-template/` |
 | VPS app path | `/root/opt/vps/` |
 
 ---

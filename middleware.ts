@@ -32,6 +32,7 @@ export default auth(async (req) => {
     pathname.startsWith("/api/auth/register") ||
     pathname.startsWith("/api/version") ||  // public version endpoint for download page
     pathname.startsWith("/api/public/") ||  // public endpoints (AR chatbot, etc.)
+    pathname.startsWith("/r/") ||           // Redirect app — public short links (/r/<code>)
     pathname.startsWith("/_next") ||
     pathname === "/" ||               // marketing homepage — public
     pathname === "/download" ||       // marketing download page — public

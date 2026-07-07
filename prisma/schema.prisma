@@ -27,6 +27,7 @@ model User {
   active        Boolean   @default(true)          // soft-disable without deleting
   apiKey        String?   @unique                 // SHA-256 hash of MCP API key (Block B2)
   dashboardLayout Json?                           // Overview dashboard widget layout (widget id order)
+  sidebarLayout   Json?                           // Chat-tab sidebar customization (items, sections, custom shortcuts)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1010,6 +1011,26 @@ model Playground {
 
   @@index([userId])
   @@map("playgrounds")
+}
+
+// ─── Redirect Links (Redirect App) ───────────────────
+// Backs the "Redirect" playground app: a short code maps to any URL
+// (Google Meet, a call, a video, another page). Visiting /r/<code> 307s there.
+// Lets a playground act as a launcher/hub for showing apps and features.
+
+model RedirectLink {
+  id        String   @id @default(cuid())
+  code      String   @unique               // short slug used in /r/<code>
+  url       String                          // destination URL
+  label     String?                         // human-friendly name
+  clicks    Int      @default(0)
+  active    Boolean  @default(true)
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("redirect_links")
 }
 
 // ─── User Notes (Context Dumps) ──────────────────────

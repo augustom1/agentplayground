@@ -1,5 +1,5 @@
 # HANDOFF.md — Session State
-> Last updated: 2026-07-07 (Session 37: Session 36 wrap-up closed + widget registry / customizable dashboards shipped)
+> Last updated: 2026-07-07 (Session 38: customizable sidebar + Store/Library + Redirect app — owner redirect, off-sprint)
 > Read this FIRST at every session start, before CLAUDE.md.
 > **Source of truth for direction: `docs/VISION.md`** — if anything here contradicts it, VISION wins.
 > See `docs/PLAN.md` for the full open work list.
@@ -87,7 +87,56 @@ from build.nvidia.com (no credit card, ~40 req/min, 100+ models).
   once; `Remove-Item .next` fixes it). Image re-pushed to Docker Hub (0.1.0 + latest), release zip
   rebuilt + re-uploaded (build-release.sh bsdtar path used), 11 app files scp'd to VPS + rebuild.
 
-### Last Session (Session 37 — 2026-07-07) — Session 36 wrap-up + widget registry ✅
+### Last Session (Session 38 — 2026-07-07) — Customizable sidebar + Store/Library + Redirect app ✅ (owner redirect, OFF-SPRINT)
+
+**Owner redirected mid-sprint** to a batch of UX-customization work + a new downloadable-app/store
+product line. This supersedes the planned "ship Friday" Session 38 checklist (that ship step is now
+the next session's job — see Next Session). All work landed in the working tree; **not committed, not
+deployed** (owner commits/deploys explicitly). `npm run build` ✅ green.
+
+**Folder cleanup (owner ask #1):** Session 32 already did the big reorg, so residual only — removed
+empty `docs/features/` + `docs/pivot/` (content already in `docs/archive/`), moved
+`docs/n8n-*.md` → `docs/ops/` (infra how-tos), deleted stray gitignored `agentplayground-v0.1.0.zip`
+at root. Left the `.env*` templates alone (gitignored local-only; `.env.template` referenced by settings page).
+
+**Fully-customizable sidebar (owner asks: collapsible sections, custom shortcuts, Customize UI, more chat actions):**
+- **`User.sidebarLayout Json?`** new column (additive/nullable — self-migrates via entrypoint `prisma db push`).
+- **`lib/sidebar-registry.ts` NEW** — built-in Chat-tab items (`new-chat`, `create-meeting`, `brain`,
+  `projects`), collapsible sections (`shortcuts`, `chat-with`, `recents`), `SidebarShortcut` shape,
+  and `resolveSidebarLayout` (merges saved config with defaults; unknown ids dropped on read+write).
+- **`GET/PATCH /api/settings/sidebar` NEW** — per-user layout, sanitized against the registry.
+- **`components/Sidebar.tsx` reworked:** Chat tab renders from the saved layout. **"Chat with" and
+  "Recents" are now collapsible** (persisted collapse state — fixes the "not collapsible / cluttered"
+  complaint). **Custom agent shortcuts** render in a Shortcuts section (e.g. "Personal Trainer",
+  "Company CEO" → `/chat?team=<id>`). **"Create a meeting"** item added (→ coordinator chat prefilled
+  with a meeting request; uses the existing `schedule_meeting` tool). Hamburger got **Customize UI**
+  + a **Store** link.
+- **`components/CustomizeSidebar.tsx` NEW** — the Customize UI editor modal: show/hide + reorder items
+  and sections, set sections collapsed-by-default, add/remove agent shortcuts (label + target team/Keeper).
+- **`app/(app)/chat/page.tsx`:** added "Schedule a meeting" to the coordinator empty-state suggestions.
+
+**Store / Playground Library + downloadable app SDK (owner ask #2):**
+- **`app/(app)/store/page.tsx` NEW** (`/store`, linked in hamburger) — Apps + Playground Library
+  sections from `lib/store-catalog.ts`, free vs paid vs "free on subscription", a "Build your own"
+  card, and a crypto-purchase panel (deposit + email the receipt to `store@agentplayground.net`;
+  points at Billing for wallet addresses). Catalog is static for now.
+- **`downloads/playground-app-template/` NEW** — the free "make your own" folder: `README.md`
+  (what an app is: page + optional API + optional model + Store entry; platform rules), `app.json`
+  (manifest), `CLAUDE-PROMPT.md` (paste-into-Claude-Code prompt). Uses the Redirect app as the worked example.
+
+**Redirect app (the concrete "webapp that redirects" the owner described) — REAL working feature:**
+- **`RedirectLink` model** (code unique, url, label, clicks, active, userId).
+- **`app/r/[code]/route.ts` NEW** — public 307 redirect (added `/r/` to `middleware.ts` isPublic);
+  bumps click count fire-and-forget. Share `<origin>/r/<code>` → jumps to a Meet/call/video/page.
+- **`app/(app)/apps/redirect/page.tsx` NEW** (`/apps/redirect`) — create/copy/enable/delete links.
+- **`app/api/redirect-links/route.ts` + `[id]/route.ts` NEW** — auth+user-scoped CRUD, manual validation.
+
+**Deferred / needs owner decision (documented, not built):** crypto payment *automation* + real
+subscription entitlement gating (store is manual-fulfillment first cut); real per-app **subdomains**
+(Traefik/DNS — YELLOW-ring infra, roadmap §4/§6); library **install** flow (POST /api/library/install
+is still the 501 stub) and playground-scoped embedding of apps in the WORKSPACE menu.
+
+### Previous Session (Session 37 — 2026-07-07) — Session 36 wrap-up + widget registry ✅
 
 **Step 0 — Session 36 crash tail CLOSED:**
 - **VPS deployed:** all 46 changed working-tree files pushed (tar-over-ssh, same scp-style file push) +
@@ -444,10 +493,21 @@ pre-redesign feel in a 4-section layout is the next session, fully specced in `d
 
 ## Next Session Priorities
 
-### 🔜 NEXT SESSION — Session 38: SHIP (Friday 2026-07-10)
+### 🔜 NEXT SESSION — commit + deploy Session 38 work, then SHIP
 
+**First:** the Session 38 UX/store/redirect work is in the working tree only. To go live:
+- **Commit it** (owner-gated) + **deploy via scp** (Sidebar.tsx, CustomizeSidebar.tsx,
+  chat/page.tsx, middleware.ts, prisma/schema.prisma, lib/sidebar-registry.ts, lib/store-catalog.ts,
+  new API routes under `app/api/settings/sidebar` + `app/api/redirect-links`, new pages
+  `app/(app)/store`, `app/(app)/apps/redirect`, `app/r/[code]`, `downloads/`).
+- **Schema push:** `User.sidebarLayout` + `RedirectLink` are additive — entrypoint `prisma db push`
+  migrates on container start; verify on the VPS after rebuild.
+- **Live-verify (not yet done this session):** collapsible Chat-with/Recents, add an agent shortcut,
+  Customize UI reorder/hide, Create-a-meeting item, `/store`, and create+open a `/r/<code>` link.
+
+**Then the SHIP checklist** (was the planned Session 38 — still open):
 Prompt in `docs/SESSION-PROMPTS.md`. Sessions 35–37 are all closed; nothing install-critical open.
-Session 38 checklist:
+Ship checklist:
 - **Rebuild + re-push the Docker Hub image** (`augustojmd/agentplayground:0.1.0` + `:latest`) — the
   Hub image predates Session 37 (widget registry not in it). Schema is additive; entrypoint db push
   migrates existing installs.
@@ -502,8 +562,9 @@ Key rules:
 - `scp` files → restart dashboard container. Never `git pull` on server.
 - Slug names must match at same URL level (e.g. all `app/api/playground/teams/[id]/...` use `[id]`)
 - Deleting directories requires `--no-cache` rebuild
-- No pending schema changes — `User.dashboardLayout` + `Playground.layout` pushed in Session 37
-  (entrypoint runs `prisma db push` on container start, so rebuilds self-migrate)
+- **Pending schema (Session 38, additive):** `User.sidebarLayout Json?` + new `RedirectLink` table.
+  Entrypoint runs `prisma db push` on container start, so rebuilds self-migrate — verify on VPS.
+  (`User.dashboardLayout` + `Playground.layout` were pushed in Session 37.)
 
 ```bash
 # Standard deploy
