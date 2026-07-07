@@ -493,21 +493,60 @@ pre-redesign feel in a 4-section layout is the next session, fully specced in `d
 
 ## Next Session Priorities
 
-### 🔜 NEXT SESSION — commit + deploy Session 38 work, then SHIP
+### ✅ Session 38 committed + deployed (2026-07-07)
 
-**First:** the Session 38 UX/store/redirect work is in the working tree only. To go live:
-- **Commit it** (owner-gated) + **deploy via scp** (Sidebar.tsx, CustomizeSidebar.tsx,
-  chat/page.tsx, middleware.ts, prisma/schema.prisma, lib/sidebar-registry.ts, lib/store-catalog.ts,
-  new API routes under `app/api/settings/sidebar` + `app/api/redirect-links`, new pages
-  `app/(app)/store`, `app/(app)/apps/redirect`, `app/r/[code]`, `downloads/`).
-- **Schema push:** `User.sidebarLayout` + `RedirectLink` are additive — entrypoint `prisma db push`
-  migrates on container start; verify on the VPS after rebuild.
-- **Live-verify (not yet done this session):** collapsible Chat-with/Recents, add an agent shortcut,
-  Customize UI reorder/hide, Create-a-meeting item, `/store`, and create+open a `/r/<code>` link.
+Commit `86a81eb` on master, pushed to GitHub (`agentplayground.git`). Deployed to VPS (tar-over-ssh
++ `--build` rebuild), container healthy, schema in sync (`User.sidebarLayout` + `RedirectLink`).
+Verified: `/api/health` 200, `/r/<bad-code>` → 404 message (route live + public), `/store` → 307 login.
+Owner testing in the browser — feedback captured below for the next session.
 
-**Then the SHIP checklist** (was the planned Session 38 — still open):
+### 🔜 NEXT SESSION — Session 39: Team drill-down + agent management + Overview polish (OWNER FEEDBACK 2026-07-07)
+
+Owner tested Session 38 live and reported (feedback batched, to be built next session — not fixed live):
+
+1. **BUG — playground team drill-down 404s (crash).** `app/(app)/playground/[id]/layout.tsx:189`
+   links each TEAMS item to `/playground/[id]/team/[teamId]`, but **that route doesn't exist**
+   (only brain/chat/schedule/settings under `playground/[id]/`). Clicking Dev Core → hard 404.
+   The fix IS the deferred team drill-down page (PLAN §1 item 5, now pulled forward).
+   *Stopgap available on request:* point the team link at the scoped chat until the page exists.
+2. **Build the team drill-down page** `app/(app)/playground/[id]/team/[teamId]/page.tsx` — list the
+   team's agents (data already flows: layout shows 7 agents w/ roles). Owner wants a **better,
+   more customizable interface — use the `ui-ux-pro-max` skill** to design it.
+3. **Agent popup (owner's core ask):** clicking an agent opens a window showing its **preferred /
+   required model**. Mechanism: `Agent.model` already exists (default `claude-sonnet-4-6`). The
+   coordinator can set an agent's *required* model; if unspecified, the agent uses the predetermined
+   default. Popup shows + edits this via `PATCH /api/agents/[id]` (model catalog picker — reuse
+   `components/ModelPicker.tsx` / `lib/model-catalog.ts`). Add a coordinator chat tool to set an
+   agent's required model ("the coordinator tells them which model to use"). Goal: make agents
+   accessible + easy to manage.
+4. **"Create a team" button (owner ask):** playground has a Create-Playground button but **no
+   Create-Team button**. Add a simple create-team UI inside the playground (mirror the
+   create-playground UX) → `POST /api/teams` (exists) + attach to the playground (`teamIds`).
+   Must be usable by a non-technical person **without** going through the coordinator.
+5. **Overall:** simpler, low-computer-expertise interface + more real customizability (owner felt
+   Session 38 added "some customizability but not much" inside playgrounds).
+6. **Overview section nav → move into the LEFT sidebar** (owner 2026-07-07). Today the hub's section
+   switcher (Dashboard | Brain | Schedule | Optimize | Websites | Tools) is a **top tab bar in the
+   content area** (`app/(app)/overview/page.tsx`, hash-synced). Owner: *"the options that appear on
+   the right should be on the left, similar to the chat window."* → When the Overview tab is active,
+   render these sections as items in the **left sidebar** (like the Chat tab populates the sidebar),
+   instead of (or in addition to) the top bar. (Interpretation of a slightly terse note — confirm the
+   exact layout with the owner, but "sub-nav lives in the left sidebar like chat" is the intent.)
+7. **Custom dashboards from agent-team data** (owner 2026-07-07): *"they can create their own custom
+   dashboards using stuff from the agent teams."* Extend the widget registry (Session 37) beyond the
+   fixed 5 Overview widgets — let users compose a dashboard from **per-team / per-agent widgets**
+   (a chosen team's agents, tasks, completions, skills; agent status; etc.). The Customize flow +
+   `lib/widget-registry.ts` + `User.dashboardLayout` are the base to build on. Pairs with the
+   playground team drill-down (items 2–3) as the "stuff from agent teams" data source.
+
+Backend that already exists (next session is mostly UI): `POST /api/teams`, `GET/PATCH /api/agents/[id]`,
+`Agent.model` field, `components/ModelPicker.tsx`, `lib/model-catalog.ts`. This realizes PLAN §1 item 5
+(team drill-down + agent editor) — the per-agent capability groundwork for permission rings (§5).
+
+### ⏸ Still open — SHIP to friends
+
 Prompt in `docs/SESSION-PROMPTS.md`. Sessions 35–37 are all closed; nothing install-critical open.
-Ship checklist:
+Ship checklist (do once the interface feedback above is worked through, or in parallel):
 - **Rebuild + re-push the Docker Hub image** (`augustojmd/agentplayground:0.1.0` + `:latest`) — the
   Hub image predates Session 37 (widget registry not in it). Schema is additive; entrypoint db push
   migrates existing installs.

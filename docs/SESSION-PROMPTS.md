@@ -137,10 +137,27 @@ Zero new features today. Stability only.
 > room, watch them think, decide together, dispatch the work — and watch it get done on the board.
 > The task router stays the no-meeting path ("give them stuff to do without needing a meeting").
 
-## 🔜 Session 39 — Mission Control: live agent board (PLAN §1 item 7a)
+## 🔜 Session 39 — Team drill-down + agent management + Overview polish (OWNER FEEDBACK 2026-07-07)
+
+> Inserted from live owner feedback after the Session 38 deploy. Mission Control + Meetings shift down one (now Sessions 40–42).
 
 ```
-Session 39 — Mission Control (live agent board). Read HANDOFF.md and docs/PLAN.md §1 item 7a first. Read docs/FEEDBACK.md and fix reported bugs before starting.
+Session 39 — Team drill-down + agent management + Overview polish. Read HANDOFF.md ("Session 39" block) and docs/PLAN.md §1 item 5 first. Read docs/FEEDBACK.md and fix reported bugs before starting. This is all from the owner testing Session 38 live. Goal: a simple interface a non-technical person can use; make agents accessible and easy to manage. Use the ui-ux-pro-max skill to design the interfaces before building.
+
+1. FIX THE CRASH: inside a playground the TEAMS list links to /playground/[id]/team/[teamId], which 404s — that page does not exist. Build it. Reconcile the path: app/(app)/playground/[id]/layout.tsx:189 uses singular /team/[teamId]; make the link and the new route dir agree (slug rule: [teamId]).
+2. Team page app/(app)/playground/[id]/team/[teamId]/page.tsx: show the team's agents (roles already display in the layout). Make it genuinely better and more customizable than what shipped — design with ui-ux-pro-max.
+3. Agent popup (owner's core ask): clicking an agent opens a window showing its preferred/required model. Agent.model already exists (default claude-sonnet-4-6); edit it via PATCH /api/agents/[id] using the model catalog (reuse components/ModelPicker.tsx + lib/model-catalog.ts). Add a coordinator chat tool so the coordinator can set an agent's REQUIRED model; when unspecified the agent uses the predetermined default. Later (optional this session): skills allowlist, Brain doc grants, file access — per-agent capability records (groundwork for permission rings, PLAN §5).
+4. Create-a-team button: the playground has Create-Playground but no Create-Team. Add a simple create-team UI inside the playground mirroring the create-playground flow — POST /api/teams (exists) then attach to the playground's teamIds. Must work WITHOUT the coordinator, usable by a non-technical person.
+5. Overview polish (owner): move the hub's section switcher (Dashboard | Brain | Schedule | Optimize | Websites | Tools) from the top tab bar into the LEFT sidebar when the Overview tab is active — "options on the right should be on the left, like the chat window." Confirm exact layout with the owner before building. Keep hash-sync working.
+6. Custom dashboards from agent-team data (owner): extend lib/widget-registry.ts + the Customize flow beyond the fixed 5 Overview widgets — let the user compose a dashboard from per-team / per-agent widgets (a chosen team's agents, tasks, completions, skills; agent status). Persist in User.dashboardLayout.
+Backend that already exists (this session is mostly UI): POST /api/teams, GET/PATCH /api/agents/[id], Agent.model, components/ModelPicker.tsx, lib/model-catalog.ts, lib/widget-registry.ts, User.dashboardLayout.
+Rules: no emojis, no `any`, no Zod, additive schema only, remove-over-add, Claude-Desktop-clean feel. Verify live in the browser (team page opens without 404, agent model popup edits + persists, create-team works end to end, Overview nav on the left). Finish with a passing build, deploy via scp (schema push first if schema changed), commit, and update HANDOFF.md.
+```
+
+## 🔜 Session 40 — Mission Control: live agent board (PLAN §1 item 7a)
+
+```
+Session 40 — Mission Control (live agent board). Read HANDOFF.md and docs/PLAN.md §1 item 7a first. Read docs/FEEDBACK.md and fix reported bugs before starting.
 
 1. Step-level agent events: extend lib/notify/sse.ts with an AGENT_STEP event (taskId, teamId/agentId, phase: thinking | tool_call | tool_result | output | done | failed, summary, ts). Emit from all three run loops — lib/agents/provider-loop.ts, lib/agents/runner.ts, lib/agents/delegated.ts (chat tool loop optional). Summaries must be short (tool name + one-line arg summary), never full prompts.
 2. Persist steps (AgentStep table or extend the existing activity log; prisma db push on VPS at deploy) so the board shows recent history, not only what I catch live.
@@ -150,10 +167,10 @@ Session 39 — Mission Control (live agent board). Read HANDOFF.md and docs/PLAN
 Rules: no emojis, SSE only (no polling loops), remove rather than add. Finish with passing builds, deploy via scp (schema push first), update HANDOFF.md.
 ```
 
-## 🔜 Session 40 — Meetings part 1: the meeting room (PLAN §1 item 7b core)
+## 🔜 Session 41 — Meetings part 1: the meeting room (PLAN §1 item 7b core)
 
 ```
-Session 40 — Meetings part 1. Read HANDOFF.md and docs/PLAN.md §1 item 7b first. Read docs/FEEDBACK.md and fix reported bugs before starting.
+Session 41 — Meetings part 1. Read HANDOFF.md and docs/PLAN.md §1 item 7b first. Read docs/FEEDBACK.md and fix reported bugs before starting.
 
 1. Meeting model: topic, participantTeamIds, status (live | ended), transcript (JSON turns: participant, round, content, ts), decisions (JSON), optional playgroundId, userId. prisma db push at deploy.
 2. runMeeting engine: generalize lib/council/index.ts runCouncil — round-based team-head discussion with the Playground Keeper facilitating, but (a) each participant turn streams over the SSE bus as MEETING_TURN events while it generates, (b) I can interject at any time and my message joins the next round, (c) the facilitator's output schema is decisions/action-items (what, why, suggested team), not plan amendments. Keep the fast/balanced/deep thinking presets.
@@ -163,10 +180,10 @@ Session 40 — Meetings part 1. Read HANDOFF.md and docs/PLAN.md §1 item 7b fir
 Rules: no emojis, no polling, meetings must never block the rest of the app (run server-side like delegated tasks). Finish with passing builds, deploy via scp (schema push first), update HANDOFF.md.
 ```
 
-## 🔜 Session 41 — Meetings part 2: decisions → work, Brain, history (PLAN §1 item 7b close the loop)
+## 🔜 Session 42 — Meetings part 2: decisions → work, Brain, history (PLAN §1 item 7b close the loop)
 
 ```
-Session 41 — Meetings part 2. Read HANDOFF.md and docs/PLAN.md §1 item 7b first. Read docs/FEEDBACK.md and fix reported bugs before starting.
+Session 42 — Meetings part 2. Read HANDOFF.md and docs/PLAN.md §1 item 7b first. Read docs/FEEDBACK.md and fix reported bugs before starting.
 
 1. Decisions → work: each decision card gets a Dispatch action feeding the existing route-task/delegate machinery (pre-filled from the decision, confirm/override team like the Quick task router). Dispatched tasks appear on the Mission Control board immediately — show the board (or a compact strip of it) inside the ended-meeting view so I watch the meeting's work get done.
 2. Brain: on meeting end, ingest transcript + decisions into the Brain (playground-tagged when the meeting belongs to a playground) so future work has the context.
